@@ -1,0 +1,7 @@
+let t1 = tensor(3)
+let t2 = tensor(3)
+print(t1)
+print(t2)
+
+let t3 = t1 + t2
+print(t3)
