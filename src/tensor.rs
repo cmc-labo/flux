@@ -1,28 +1,32 @@
+use ndarray::{Array, ArrayD, IxDyn};
 use std::fmt;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Tensor {
-    pub data: Vec<f64>,
-    pub shape: Vec<usize>,
+    pub inner: ArrayD<f64>,
 }
 
 impl Tensor {
-    pub fn new(data: Vec<f64>, shape: Vec<usize>) -> Self {
-        Tensor { data, shape }
+    pub fn new(data: Vec<f64>, shape: Vec<usize>) -> Result<Self, String> {
+        let array = Array::from_shape_vec(IxDyn(&shape), data)
+            .map_err(|e| format!("Failed to create tensor: {}", e))?;
+        Ok(Tensor { inner: array })
     }
     
     pub fn add(&self, other: &Tensor) -> Result<Tensor, String> {
-        if self.shape != other.shape {
-            return Err(format!("Shape mismatch: {:?} vs {:?}", self.shape, other.shape));
+        // ndarray handles shape checking and broadcasting (if we wanted)
+        // For strict element-wise addition with same shape:
+        if self.inner.shape() != other.inner.shape() {
+             return Err(format!("Shape mismatch: {:?} vs {:?}", self.inner.shape(), other.inner.shape()));
         }
         
-        let new_data: Vec<f64> = self.data.iter().zip(&other.data).map(|(a, b)| a + b).collect();
-        Ok(Tensor::new(new_data, self.shape.clone()))
+        let res = &self.inner + &other.inner;
+        Ok(Tensor { inner: res })
     }
 }
 
 impl fmt::Display for Tensor {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Tensor({:?})", self.data)
+        write!(f, "{}", self.inner)
     }
 }

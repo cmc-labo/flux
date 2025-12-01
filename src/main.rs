@@ -47,7 +47,8 @@ fn main() {
                         let s = *size as usize;
                         let data = vec![1.0; s];
                         let shape = vec![s];
-                        Ok(Object::Tensor(crate::tensor::Tensor::new(data, shape)))
+                        let t = crate::tensor::Tensor::new(data, shape)?;
+                        Ok(Object::Tensor(t))
                     },
                     _ => Err("tensor() argument must be an integer".to_string()),
                 }

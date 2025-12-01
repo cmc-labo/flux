@@ -6,7 +6,7 @@ Flux is an experimental programming language designed to combine the simplicity 
 
 - **Python-like Syntax**: Clean, indentation-based code structure.
 - **Rust-Powered**: Built in Rust for memory safety and performance.
-- **AI/ML Native**: First-class support for Tensor operations (Work in Progress).
+- **AI/ML Native**: First-class support for Tensor operations (Powered by `ndarray` for CPU).
 
 ## Getting Started
 
