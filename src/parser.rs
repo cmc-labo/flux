@@ -362,7 +362,7 @@ impl<'a> Parser<'a> {
 
         while !self.peek_token_is(&Token::Newline) && !self.peek_token_is(&Token::EOF) && precedence < self.peek_precedence() {
             match self.peek_token {
-                Token::Plus | Token::Minus | Token::Star | Token::Slash | Token::Equal => {
+                Token::Plus | Token::Minus | Token::Star | Token::Slash | Token::Equal | Token::At => {
                     self.next_token();
                     left_expr = self.parse_infix_expression(left_expr)?;
                 },
@@ -396,6 +396,7 @@ impl<'a> Parser<'a> {
             Token::Star => InfixOperator::Multiply,
             Token::Slash => InfixOperator::Divide,
             Token::Equal => InfixOperator::Equal,
+            Token::At => InfixOperator::MatrixMultiply,
             _ => return None,
         };
 
@@ -439,7 +440,7 @@ impl<'a> Parser<'a> {
         match self.peek_token {
             Token::Equal => Precedence::Equals,
             Token::Plus | Token::Minus => Precedence::Sum,
-            Token::Star | Token::Slash => Precedence::Product,
+            Token::Star | Token::Slash | Token::At => Precedence::Product,
             Token::LParen => Precedence::Call,
             _ => Precedence::Lowest,
         }
@@ -449,7 +450,7 @@ impl<'a> Parser<'a> {
         match self.cur_token {
             Token::Equal => Precedence::Equals,
             Token::Plus | Token::Minus => Precedence::Sum,
-            Token::Star | Token::Slash => Precedence::Product,
+            Token::Star | Token::Slash | Token::At => Precedence::Product,
             Token::LParen => Precedence::Call,
             _ => Precedence::Lowest,
         }

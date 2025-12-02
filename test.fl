@@ -1,7 +1,7 @@
-let t1 = tensor(3)
-let t2 = tensor(3)
-print(t1)
-print(t2)
+let m1 = matrix(2, 3)
+let m2 = matrix(3, 2)
+print(m1)
+print(m2)
 
-let t3 = t1 + t2
-print(t3)
+let m3 = m1 @ m2
+print(m3)

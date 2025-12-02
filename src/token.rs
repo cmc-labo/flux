@@ -22,6 +22,7 @@ pub enum Token {
     Slash,
     Assign,
     Equal, // ==
+    At, // @
     
     // Delimiters
     LParen,

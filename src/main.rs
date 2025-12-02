@@ -55,6 +55,26 @@ fn main() {
             });
             env.borrow_mut().set("tensor".to_string(), tensor_fn);
             
+            let matrix_fn = Object::NativeFn(|args| {
+                if args.len() != 2 {
+                    return Err("matrix() takes exactly 2 arguments (rows, cols)".to_string());
+                }
+                let rows = match &args[0] {
+                    Object::Integer(i) => *i as usize,
+                    _ => return Err("rows must be an integer".to_string()),
+                };
+                let cols = match &args[1] {
+                    Object::Integer(i) => *i as usize,
+                    _ => return Err("cols must be an integer".to_string()),
+                };
+                
+                let data = vec![1.0; rows * cols];
+                let shape = vec![rows, cols];
+                let t = crate::tensor::Tensor::new(data, shape)?;
+                Ok(Object::Tensor(t))
+            });
+            env.borrow_mut().set("matrix".to_string(), matrix_fn);
+            
             let mut interpreter = Interpreter::new();
             for stmt in program {
                 match interpreter.eval(stmt, env.clone()) {

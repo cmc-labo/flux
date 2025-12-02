@@ -146,6 +146,10 @@ impl Interpreter {
                     let res = l.add(&r)?;
                     Ok(Object::Tensor(res))
                 },
+                InfixOperator::MatrixMultiply => {
+                    let res = l.matmul(&r)?;
+                    Ok(Object::Tensor(res))
+                },
                 _ => Err(format!("Unsupported operator for tensors: {:?}", operator)),
             },
             // Handle mixed types?

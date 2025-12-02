@@ -47,6 +47,7 @@ impl<'a> Lexer<'a> {
                 '-' => { self.chars.next(); Token::Minus }
                 '*' => { self.chars.next(); Token::Star }
                 '/' => { self.chars.next(); Token::Slash }
+                '@' => { self.chars.next(); Token::At }
                 '(' => { self.chars.next(); Token::LParen }
                 ')' => { self.chars.next(); Token::RParen }
                 ':' => { self.chars.next(); Token::Colon }

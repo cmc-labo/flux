@@ -42,4 +42,5 @@ pub enum InfixOperator {
     LessThan,
     GreaterThan,
     Assign, // For now, maybe treated as statement? But Python allows x = y = 1. Let's keep it simple: assignment is a statement in our MVP.
+    MatrixMultiply,
 }
