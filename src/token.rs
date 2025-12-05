@@ -23,6 +23,7 @@ pub enum Token {
     Assign,
     Equal, // ==
     At, // @
+    Dot, // .
     
     // Delimiters
     LParen,

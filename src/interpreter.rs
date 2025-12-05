@@ -3,6 +3,9 @@ use crate::object::Object;
 use crate::environment::Environment;
 use std::rc::Rc;
 use std::cell::RefCell;
+use pyo3::prelude::*;
+use pyo3::types::PyTuple;
+
 
 pub struct Interpreter {
     // Global environment? Or passed to eval?
@@ -103,6 +106,19 @@ impl Interpreter {
                     .map(|arg| self.eval_expression(arg, env.clone()))
                     .collect::<Result<Vec<Object>, String>>()?;
                 self.apply_function(func, args)
+            },
+            Expression::Get { object, name } => {
+                let obj = self.eval_expression(*object, env)?;
+                match obj {
+                    Object::PyObject(py_obj) => {
+                        pyo3::Python::with_gil(|py| {
+                            let getattr = py_obj.getattr(py, name.as_str())
+                                .map_err(|e| format!("Python getattr error: {}", e))?;
+                            Ok(Object::PyObject(getattr.into()))
+                        })
+                    },
+                    _ => Err(format!("Property access not supported on {}", obj)),
+                }
             }
         }
     }
@@ -175,6 +191,37 @@ impl Interpreter {
                 }
             },
             Object::NativeFn(func) => func(args),
+            Object::PyObject(py_obj) => {
+                pyo3::Python::with_gil(|py| {
+                    let args_vec: Vec<pyo3::Py<pyo3::types::PyAny>> = args.iter().map(|arg| {
+                        match arg {
+                            Object::Integer(i) => (*i).into_pyobject(py).unwrap().as_any().clone().unbind(),
+                            Object::Float(f) => (*f).into_pyobject(py).unwrap().as_any().clone().unbind(),
+                            Object::String(s) => s.into_pyobject(py).unwrap().as_any().clone().unbind(),
+                            Object::Boolean(b) => (*b).into_pyobject(py).unwrap().as_any().clone().unbind(),
+                            Object::PyObject(p) => p.clone_ref(py),
+                            _ => py.None(),
+                        }
+                    }).collect();
+                    
+                    let py_args = pyo3::types::PyTuple::new(py, args_vec).unwrap();
+                    let res = py_obj.call1(py, py_args)
+                        .map_err(|e| format!("Python call error: {}", e))?;
+                    
+                    // Convert result back to Object
+                    if let Ok(i) = res.extract::<i64>(py) {
+                        Ok(Object::Integer(i))
+                    } else if let Ok(f) = res.extract::<f64>(py) {
+                        Ok(Object::Float(f))
+                    } else if let Ok(s) = res.extract::<String>(py) {
+                        Ok(Object::String(s))
+                    } else if let Ok(b) = res.extract::<bool>(py) {
+                        Ok(Object::Boolean(b))
+                    } else {
+                        Ok(Object::PyObject(res.into()))
+                    }
+                })
+            },
             _ => Err(format!("Not a function: {}", func)),
         }
     }

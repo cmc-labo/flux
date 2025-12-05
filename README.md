@@ -56,7 +56,8 @@ cargo run -- example.fl
 - [x] Basic Lexer & Parser (Indentation support)
 - [x] Interpreter with Variables & Functions
 - [x] Basic Tensor Type & Addition
-- [ ] Matrix Multiplication
+- [x] Matrix Multiplication (`@` operator)
+- [x] Python Interop (`py_import`)
 - [ ] GPU Acceleration (wgpu/CUDA)
 - [ ] Python Interop
 

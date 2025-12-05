@@ -1,0 +1,84 @@
+    Checking lang v0.1.0 (/home/vagrant/dev/lang)
+warning: unused import: `pyo3::types::PyTuple`
+ --> src/interpreter.rs:7:5
+  |
+7 | use pyo3::types::PyTuple;
+  |     ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `token::Token`
+  --> src/main.rs:12:5
+   |
+12 | use token::Token;
+   |     ^^^^^^^^^^^^
+
+warning: use of deprecated associated function `pyo3::Python::<'_>::with_gil`: use `Python::attach` instead
+  --> src/object.rs:34:31
+   |
+34 |                 pyo3::Python::with_gil(|py| {
+   |                               ^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated associated function `pyo3::Python::<'_>::with_gil`: use `Python::attach` instead
+   --> src/interpreter.rs:114:39
+    |
+114 |                         pyo3::Python::with_gil(|py| {
+    |                                       ^^^^^^^^
+
+warning: use of deprecated associated function `pyo3::Python::<'_>::with_gil`: use `Python::attach` instead
+   --> src/interpreter.rs:195:31
+    |
+195 |                 pyo3::Python::with_gil(|py| {
+    |                               ^^^^^^^^
+
+warning: use of deprecated associated function `pyo3::Python::<'_>::with_gil`: use `Python::attach` instead
+  --> src/main.rs:84:39
+   |
+84 |                         pyo3::Python::with_gil(|py| {
+   |                                       ^^^^^^^^
+
+warning: variable does not need to be mutable
+  --> src/lexer.rs:14:13
+   |
+14 |         let mut lexer = Lexer {
+   |             ----^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+   --> src/parser.rs:339:13
+    |
+339 |         let mut left = match &self.cur_token {
+    |             ----^^^^
+    |             |
+    |             help: remove this `mut`
+
+error[E0507]: cannot move out of dereference of `pyo3::Borrowed<'_, '_, PyBool>`
+   --> src/interpreter.rs:201:51
+    |
+201 | ...                   Object::Boolean(b) => (*b).into_pyobject(py).unwrap().into_any().unbind(),
+    |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ---------- value moved due to this method call
+    |                                             |
+    |                                             move occurs because value has type `pyo3::Bound<'_, PyBool>`, which does not implement the `Copy` trait
+    |
+note: `pyo3::Bound::<'py, T>::into_any` takes ownership of the receiver `self`, which moves value
+   --> /home/vagrant/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pyo3-0.27.2/src/instance.rs:852:21
+    |
+852 |     pub fn into_any(self) -> Bound<'py, PyAny> {
+    |                     ^^^^
+help: you can `clone` the value and consume it, but this might not be your desired behavior
+    |
+201 |                             Object::Boolean(b) => <pyo3::Bound<'_, PyBool> as Clone>::clone(&(*b).into_pyobject(py).unwrap()).into_any().unbind(),
+    |                                                   +++++++++++++++++++++++++++++++++++++++++++                               +
+help: consider cloning the value if the performance cost is acceptable
+    |
+201 |                             Object::Boolean(b) => (*b).into_pyobject(py).unwrap().clone().into_any().unbind(),
+    |                                                                                  ++++++++
+
+For more information about this error, try `rustc --explain E0507`.
+warning: `lang` (bin "lang") generated 8 warnings
+error: could not compile `lang` (bin "lang") due to 1 previous error; 8 warnings emitted

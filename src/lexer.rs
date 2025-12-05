@@ -52,6 +52,7 @@ impl<'a> Lexer<'a> {
                 ')' => { self.chars.next(); Token::RParen }
                 ':' => { self.chars.next(); Token::Colon }
                 ',' => { self.chars.next(); Token::Comma }
+                '.' => { self.chars.next(); Token::Dot }
                 '\n' => self.handle_newline(),
                 _ => {
                     self.chars.next();

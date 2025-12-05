@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use crate::environment::Environment;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug)]
 pub enum Object {
     Integer(i64),
     Float(f64),
@@ -14,7 +14,44 @@ pub enum Object {
     ReturnValue(Box<Object>),
     Function { params: Vec<String>, body: Block, env: Rc<RefCell<Environment>> },
     NativeFn(fn(Vec<Object>) -> Result<Object, String>),
-    Tensor(crate::tensor::Tensor), 
+    Tensor(crate::tensor::Tensor),
+    PyObject(pyo3::Py<pyo3::types::PyAny>),
+}
+
+impl Clone for Object {
+    fn clone(&self) -> Self {
+        match self {
+            Object::Integer(i) => Object::Integer(*i),
+            Object::Float(f) => Object::Float(*f),
+            Object::String(s) => Object::String(s.clone()),
+            Object::Boolean(b) => Object::Boolean(*b),
+            Object::Null => Object::Null,
+            Object::ReturnValue(val) => Object::ReturnValue(val.clone()),
+            Object::Function { params, body, env } => Object::Function { params: params.clone(), body: body.clone(), env: env.clone() },
+            Object::NativeFn(f) => Object::NativeFn(*f),
+            Object::Tensor(t) => Object::Tensor(t.clone()),
+            Object::PyObject(p) => {
+                pyo3::Python::with_gil(|py| {
+                    Object::PyObject(p.clone_ref(py))
+                })
+            },
+        }
+    }
+}
+
+impl PartialEq for Object {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Object::Integer(l), Object::Integer(r)) => l == r,
+            (Object::Float(l), Object::Float(r)) => l == r,
+            (Object::String(l), Object::String(r)) => l == r,
+            (Object::Boolean(l), Object::Boolean(r)) => l == r,
+            (Object::Null, Object::Null) => true,
+            (Object::Tensor(l), Object::Tensor(r)) => l == r,
+            // For others, return false for now
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for Object {
@@ -29,6 +66,7 @@ impl fmt::Display for Object {
             Object::Function { .. } => write!(f, "function"),
             Object::NativeFn(_) => write!(f, "native_function"),
             Object::Tensor(val) => write!(f, "{}", val),
+            Object::PyObject(val) => write!(f, "PyObject({:?})", val),
         }
     }
 }

@@ -75,6 +75,23 @@ fn main() {
             });
             env.borrow_mut().set("matrix".to_string(), matrix_fn);
             
+            let py_import_fn = Object::NativeFn(|args| {
+                if args.len() != 1 {
+                    return Err("py_import() takes exactly 1 argument".to_string());
+                }
+                match &args[0] {
+                    Object::String(module_name) => {
+                        pyo3::Python::with_gil(|py| {
+                            let module = pyo3::types::PyModule::import(py, module_name.as_str())
+                                .map_err(|e| format!("Failed to import module: {}", e))?;
+                            Ok(Object::PyObject(module.into()))
+                        })
+                    },
+                    _ => Err("py_import() argument must be a string".to_string()),
+                }
+            });
+            env.borrow_mut().set("py_import".to_string(), py_import_fn);
+            
             let mut interpreter = Interpreter::new();
             for stmt in program {
                 match interpreter.eval(stmt, env.clone()) {

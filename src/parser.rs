@@ -10,6 +10,7 @@ enum Precedence {
     Product,     // *
     Prefix,      // -X or !X
     Call,        // myFunction(X)
+    Index,       // array[index] or object.property
 }
 
 pub struct Parser<'a> {
@@ -369,6 +370,10 @@ impl<'a> Parser<'a> {
                 Token::LParen => {
                     self.next_token();
                     left_expr = self.parse_call_expression(left_expr)?;
+                },
+                Token::Dot => {
+                    self.next_token();
+                    left_expr = self.parse_get_expression(left_expr)?;
                 }
                 _ => return Some(left_expr),
             }
@@ -436,12 +441,31 @@ impl<'a> Parser<'a> {
         Some(args)
     }
 
+    fn parse_get_expression(&mut self, object: Expression) -> Option<Expression> {
+        // .name
+        // Expect Identifier
+        match &self.peek_token {
+            Token::Identifier(_) => {
+                self.next_token();
+                match &self.cur_token {
+                    Token::Identifier(name) => Some(Expression::Get { object: Box::new(object), name: name.clone() }),
+                    _ => None,
+                }
+            },
+            _ => {
+                self.errors.push(format!("Expected Identifier after '.', got {:?}", self.peek_token));
+                None
+            }
+        }
+    }
+
     fn peek_precedence(&self) -> Precedence {
         match self.peek_token {
             Token::Equal => Precedence::Equals,
             Token::Plus | Token::Minus => Precedence::Sum,
             Token::Star | Token::Slash | Token::At => Precedence::Product,
             Token::LParen => Precedence::Call,
+            Token::Dot => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }
@@ -452,6 +476,7 @@ impl<'a> Parser<'a> {
             Token::Plus | Token::Minus => Precedence::Sum,
             Token::Star | Token::Slash | Token::At => Precedence::Product,
             Token::LParen => Precedence::Call,
+            Token::Dot => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }
