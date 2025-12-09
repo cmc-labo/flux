@@ -5,9 +5,11 @@ use crate::ast::{Statement, Expression, Block, InfixOperator, PrefixOperator};
 #[derive(PartialEq, PartialOrd)]
 enum Precedence {
     Lowest,
+    LogicalOr,   // or
+    LogicalAnd,  // and
     Equals,      // ==
     Sum,         // +
-    Product,     // *
+    Product,     // * / %
     Prefix,      // -X or !X
     Call,        // myFunction(X)
     Index,       // array[index] or object.property
@@ -363,7 +365,7 @@ impl<'a> Parser<'a> {
 
         while !self.peek_token_is(&Token::Newline) && !self.peek_token_is(&Token::EOF) && precedence < self.peek_precedence() {
             match self.peek_token {
-                Token::Plus | Token::Minus | Token::Star | Token::Slash | Token::Equal | Token::At => {
+                Token::Plus | Token::Minus | Token::Star | Token::Slash | Token::Percent | Token::Equal | Token::At | Token::And | Token::Or => {
                     self.next_token();
                     left_expr = self.parse_infix_expression(left_expr)?;
                 },
@@ -400,8 +402,11 @@ impl<'a> Parser<'a> {
             Token::Minus => InfixOperator::Minus,
             Token::Star => InfixOperator::Multiply,
             Token::Slash => InfixOperator::Divide,
+            Token::Percent => InfixOperator::Modulo,
             Token::Equal => InfixOperator::Equal,
             Token::At => InfixOperator::MatrixMultiply,
+            Token::And => InfixOperator::And,
+            Token::Or => InfixOperator::Or,
             _ => return None,
         };
 
@@ -461,9 +466,11 @@ impl<'a> Parser<'a> {
 
     fn peek_precedence(&self) -> Precedence {
         match self.peek_token {
+            Token::Or => Precedence::LogicalOr,
+            Token::And => Precedence::LogicalAnd,
             Token::Equal => Precedence::Equals,
             Token::Plus | Token::Minus => Precedence::Sum,
-            Token::Star | Token::Slash | Token::At => Precedence::Product,
+            Token::Star | Token::Slash | Token::Percent | Token::At => Precedence::Product,
             Token::LParen => Precedence::Call,
             Token::Dot => Precedence::Index,
             _ => Precedence::Lowest,
@@ -472,9 +479,11 @@ impl<'a> Parser<'a> {
 
     fn cur_precedence(&self) -> Precedence {
         match self.cur_token {
+            Token::Or => Precedence::LogicalOr,
+            Token::And => Precedence::LogicalAnd,
             Token::Equal => Precedence::Equals,
             Token::Plus | Token::Minus => Precedence::Sum,
-            Token::Star | Token::Slash | Token::At => Precedence::Product,
+            Token::Star | Token::Slash | Token::Percent | Token::At => Precedence::Product,
             Token::LParen => Precedence::Call,
             Token::Dot => Precedence::Index,
             _ => Precedence::Lowest,

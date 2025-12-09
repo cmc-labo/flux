@@ -47,6 +47,7 @@ impl<'a> Lexer<'a> {
                 '-' => { self.chars.next(); Token::Minus }
                 '*' => { self.chars.next(); Token::Star }
                 '/' => { self.chars.next(); Token::Slash }
+                '%' => { self.chars.next(); Token::Percent }
                 '@' => { self.chars.next(); Token::At }
                 '(' => { self.chars.next(); Token::LParen }
                 ')' => { self.chars.next(); Token::RParen }
@@ -146,6 +147,8 @@ impl<'a> Lexer<'a> {
             "while" => Token::While,
             "let" => Token::Let,
             "print" => Token::Print,
+            "and" => Token::And,
+            "or" => Token::Or,
             _ => Token::Identifier(literal),
         }
     }

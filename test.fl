@@ -1,4 +1,24 @@
-let math = py_import("math")
-print(math.sqrt(16.0))
-print(math.pi)
-print(math.cos(0.0))
+print(10 % 3)
+print(20 % 7)
+print(15 % 5)
+
+print(1 and 2)
+print(0 and 5)
+print(5 and 0)
+
+print(0 or 5)
+print(5 or 0)
+print(1 or 2)
+
+let x = 10
+let y = 3
+print(x % y)
+
+let a = 1
+let b = 0
+print(a and b)
+print(a or b)
+
+print((10 % 3) == 1)
+print(1 and 1 and 1)
+print(0 or 0 or 1)

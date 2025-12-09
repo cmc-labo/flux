@@ -14,12 +14,15 @@ pub enum Token {
     While,
     Let,
     Print,
+    And,
+    Or,
 
     // Operators
     Plus,
     Minus,
     Star,
     Slash,
+    Percent,
     Assign,
     Equal, // ==
     At, // @

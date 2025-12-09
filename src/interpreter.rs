@@ -139,12 +139,31 @@ impl Interpreter {
     }
 
     fn eval_infix_expression(&self, operator: InfixOperator, left: Object, right: Object) -> Result<Object, String> {
+        // Handle logical operators first (they work with any type)
+        match operator {
+            InfixOperator::And => {
+                if !self.is_truthy(left.clone()) {
+                    return Ok(left);
+                }
+                return Ok(right);
+            },
+            InfixOperator::Or => {
+                if self.is_truthy(left.clone()) {
+                    return Ok(left);
+                }
+                return Ok(right);
+            },
+            _ => {}
+        }
+        
+        // Handle type-specific operators
         match (left, right) {
             (Object::Integer(l), Object::Integer(r)) => match operator {
                 InfixOperator::Plus => Ok(Object::Integer(l + r)),
                 InfixOperator::Minus => Ok(Object::Integer(l - r)),
                 InfixOperator::Multiply => Ok(Object::Integer(l * r)),
                 InfixOperator::Divide => Ok(Object::Integer(l / r)),
+                InfixOperator::Modulo => Ok(Object::Integer(l % r)),
                 InfixOperator::Equal => Ok(Object::Boolean(l == r)),
                 InfixOperator::NotEqual => Ok(Object::Boolean(l != r)),
                 InfixOperator::LessThan => Ok(Object::Boolean(l < r)),
