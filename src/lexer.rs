@@ -43,6 +43,17 @@ impl<'a> Lexer<'a> {
                         Token::Assign
                     }
                 }
+                '!' => {
+                    self.chars.next();
+                    if let Some(&'=') = self.chars.peek() {
+                        self.chars.next();
+                        Token::NotEqual
+                    } else {
+                        Token::Illegal("!".to_string())
+                    }
+                }
+                '<' => { self.chars.next(); Token::LessThan }
+                '>' => { self.chars.next(); Token::GreaterThan }
                 '+' => { self.chars.next(); Token::Plus }
                 '-' => { self.chars.next(); Token::Minus }
                 '*' => { self.chars.next(); Token::Star }

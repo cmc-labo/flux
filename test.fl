@@ -1,24 +1,21 @@
-print(10 % 3)
-print(20 % 7)
-print(15 % 5)
+print(5 < 10)
+print(10 < 5)
+print(5 < 5)
 
-print(1 and 2)
-print(0 and 5)
-print(5 and 0)
+print(10 > 5)
+print(5 > 10)
+print(5 > 5)
 
-print(0 or 5)
-print(5 or 0)
-print(1 or 2)
+print(5 != 10)
+print(5 != 5)
+print(10 != 10)
 
-let x = 10
+let x = 7
 let y = 3
-print(x % y)
+print(x > y)
+print(x < y)
+print(x != y)
 
-let a = 1
-let b = 0
-print(a and b)
-print(a or b)
-
-print((10 % 3) == 1)
-print(1 and 1 and 1)
-print(0 or 0 or 1)
+print((10 % 3) != 0)
+print(5 < 10 and 10 > 5)
+print(3 != 3 or 5 < 10)

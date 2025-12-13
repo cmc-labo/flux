@@ -25,6 +25,9 @@ pub enum Token {
     Percent,
     Assign,
     Equal, // ==
+    NotEqual, // !=
+    LessThan, // <
+    GreaterThan, // >
     At, // @
     Dot, // .
     
