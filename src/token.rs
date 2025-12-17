@@ -28,6 +28,8 @@ pub enum Token {
     NotEqual, // !=
     LessThan, // <
     GreaterThan, // >
+    LessThanOrEqual, // <=
+    GreaterThanOrEqual, // >=
     At, // @
     Dot, // .
     

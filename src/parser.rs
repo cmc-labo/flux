@@ -365,7 +365,7 @@ impl<'a> Parser<'a> {
 
         while !self.peek_token_is(&Token::Newline) && !self.peek_token_is(&Token::EOF) && precedence < self.peek_precedence() {
             match self.peek_token {
-                Token::Plus | Token::Minus | Token::Star | Token::Slash | Token::Percent | Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::At | Token::And | Token::Or => {
+                Token::Plus | Token::Minus | Token::Star | Token::Slash | Token::Percent | Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual | Token::At | Token::And | Token::Or => {
                     self.next_token();
                     left_expr = self.parse_infix_expression(left_expr)?;
                 },
@@ -407,6 +407,8 @@ impl<'a> Parser<'a> {
             Token::NotEqual => InfixOperator::NotEqual,
             Token::LessThan => InfixOperator::LessThan,
             Token::GreaterThan => InfixOperator::GreaterThan,
+            Token::LessThanOrEqual => InfixOperator::LessThanOrEqual,
+            Token::GreaterThanOrEqual => InfixOperator::GreaterThanOrEqual,
             Token::At => InfixOperator::MatrixMultiply,
             Token::And => InfixOperator::And,
             Token::Or => InfixOperator::Or,
@@ -471,7 +473,7 @@ impl<'a> Parser<'a> {
         match self.peek_token {
             Token::Or => Precedence::LogicalOr,
             Token::And => Precedence::LogicalAnd,
-            Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan => Precedence::Equals,
+            Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual => Precedence::Equals,
             Token::Plus | Token::Minus => Precedence::Sum,
             Token::Star | Token::Slash | Token::Percent | Token::At => Precedence::Product,
             Token::LParen => Precedence::Call,
@@ -484,7 +486,7 @@ impl<'a> Parser<'a> {
         match self.cur_token {
             Token::Or => Precedence::LogicalOr,
             Token::And => Precedence::LogicalAnd,
-            Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan => Precedence::Equals,
+            Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual => Precedence::Equals,
             Token::Plus | Token::Minus => Precedence::Sum,
             Token::Star | Token::Slash | Token::Percent | Token::At => Precedence::Product,
             Token::LParen => Precedence::Call,

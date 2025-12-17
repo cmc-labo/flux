@@ -168,6 +168,8 @@ impl Interpreter {
                 InfixOperator::NotEqual => Ok(Object::Boolean(l != r)),
                 InfixOperator::LessThan => Ok(Object::Boolean(l < r)),
                 InfixOperator::GreaterThan => Ok(Object::Boolean(l > r)),
+                InfixOperator::LessThanOrEqual => Ok(Object::Boolean(l <= r)),
+                InfixOperator::GreaterThanOrEqual => Ok(Object::Boolean(l >= r)),
                 _ => Err(format!("Unknown operator for integers")),
             },
             (Object::Float(l), Object::Float(r)) => match operator {

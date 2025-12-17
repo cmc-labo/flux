@@ -52,8 +52,42 @@ impl<'a> Lexer<'a> {
                         Token::Illegal("!".to_string())
                     }
                 }
-                '<' => { self.chars.next(); Token::LessThan }
-                '>' => { self.chars.next(); Token::GreaterThan }
+                '<' => {
+                    self.chars.next();
+                    if let Some(&'=') = self.chars.peek() {
+                        self.chars.next();
+                        Token::LessThanOrEqual
+                    } else {
+                        Token::LessThan
+                    }
+                }
+                '>' => {
+                    self.chars.next();
+                    if let Some(&'=') = self.chars.peek() {
+                        self.chars.next();
+                        Token::GreaterThanOrEqual
+                    } else {
+                        Token::GreaterThan
+                    }
+                }
+                '&' => {
+                    self.chars.next();
+                    if let Some(&'&') = self.chars.peek() {
+                        self.chars.next();
+                        Token::And
+                    } else {
+                        Token::Illegal("&".to_string())
+                    }
+                }
+                '|' => {
+                    self.chars.next();
+                    if let Some(&'|') = self.chars.peek() {
+                        self.chars.next();
+                        Token::Or
+                    } else {
+                        Token::Illegal("|".to_string())
+                    }
+                }
                 '+' => { self.chars.next(); Token::Plus }
                 '-' => { self.chars.next(); Token::Minus }
                 '*' => { self.chars.next(); Token::Star }
