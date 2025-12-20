@@ -1,21 +1,26 @@
+# Test less than operator
 print(5 < 10)
 print(10 < 5)
 print(5 < 5)
 
+# Test greater than operator
 print(10 > 5)
 print(5 > 10)
 print(5 > 5)
 
+# Test not equal operator
 print(5 != 10)
 print(5 != 5)
 print(10 != 10)
 
+# Test with variables
 let x = 7
 let y = 3
 print(x > y)
 print(x < y)
 print(x != y)
 
+# Test modulo and logical operators
 print((10 % 3) != 0)
 print(5 < 10 and 10 > 5)
 print(3 != 3 or 5 < 10)

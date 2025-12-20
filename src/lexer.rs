@@ -99,6 +99,10 @@ impl<'a> Lexer<'a> {
                 ':' => { self.chars.next(); Token::Colon }
                 ',' => { self.chars.next(); Token::Comma }
                 '.' => { self.chars.next(); Token::Dot }
+                '#' => {
+                    self.skip_comment();
+                    self.next_token()
+                }
                 '\n' => self.handle_newline(),
                 _ => {
                     self.chars.next();
@@ -123,6 +127,16 @@ impl<'a> Lexer<'a> {
             } else {
                 break;
             }
+        }
+    }
+
+    fn skip_comment(&mut self) {
+        // Skip until end of line (but don't consume the newline)
+        while let Some(&ch) = self.chars.peek() {
+            if ch == '\n' {
+                break;
+            }
+            self.chars.next();
         }
     }
 
