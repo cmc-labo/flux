@@ -6,6 +6,7 @@ pub enum Statement {
     FunctionDef { name: String, params: Vec<String>, body: Block },
     If { condition: Expression, consequence: Block, alternative: Option<Block> },
     While { condition: Expression, body: Block },
+    For { variable: String, iterable: Expression, body: Block },
     Print(Expression),
 }
 
@@ -24,6 +25,9 @@ pub enum Expression {
     Infix { left: Box<Expression>, operator: InfixOperator, right: Box<Expression> },
     Call { function: Box<Expression>, arguments: Vec<Expression> },
     Get { object: Box<Expression>, name: String }, // obj.name
+    List(Vec<Expression>),
+    Index { object: Box<Expression>, index: Box<Expression> },
+    ListComprehension { element: Box<Expression>, variable: String, iterable: Box<Expression>, condition: Option<Box<Expression>> },
 }
 
 #[derive(Debug, PartialEq, Clone)]

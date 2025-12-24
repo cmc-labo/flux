@@ -16,6 +16,8 @@ pub enum Token {
     Print,
     And,
     Or,
+    For,
+    In,
 
     // Operators
     Plus,
@@ -32,6 +34,8 @@ pub enum Token {
     GreaterThanOrEqual, // >=
     At, // @
     Dot, // .
+    LBracket, // [
+    RBracket, // ]
     
     // Delimiters
     LParen,

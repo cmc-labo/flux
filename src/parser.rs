@@ -59,6 +59,7 @@ impl<'a> Parser<'a> {
             Token::Def => self.parse_function_def(),
             Token::If => self.parse_if_statement(),
             Token::While => self.parse_while_statement(),
+            Token::For => self.parse_for_statement(),
             Token::Print => self.parse_print_statement(),
             Token::Newline => None, // Skip empty lines
             _ => self.parse_expression_statement(),
@@ -337,8 +338,47 @@ impl<'a> Parser<'a> {
         Some(Statement::While { condition, body })
     }
 
+    fn parse_for_statement(&mut self) -> Option<Statement> {
+        self.next_token(); // skip for
+
+        // Expect Identifier
+        if !self.cur_token_is(&Token::Identifier("".to_string())) {
+            self.errors.push(format!("Expected Identifier after 'for', got {:?}", self.cur_token));
+            return None;
+        }
+
+        let variable = match &self.cur_token {
+            Token::Identifier(n) => n.clone(),
+            _ => return None,
+        };
+
+        if !self.expect_peek(Token::In) {
+            return None;
+        }
+
+        self.next_token(); // skip in
+        let iterable = self.parse_expression(Precedence::Lowest)?;
+
+        if !self.expect_peek(Token::Colon) {
+            return None;
+        }
+
+        if !self.expect_peek(Token::Newline) {
+            return None;
+        }
+        self.next_token(); // consume Newline
+
+        let body = self.parse_block();
+
+        if self.cur_token_is(&Token::Dedent) {
+            self.next_token();
+        }
+
+        Some(Statement::For { variable, iterable, body })
+    }
+
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
-        let mut left = match &self.cur_token {
+        let mut left_expr = match &self.cur_token {
             Token::Identifier(i) => Some(Expression::Identifier(i.clone())),
             Token::Integer(i) => Some(Expression::Integer(*i)),
             Token::Float(f) => Some(Expression::Float(*f)),
@@ -354,14 +394,9 @@ impl<'a> Parser<'a> {
                 }
                 expr
             },
+            Token::LBracket => self.parse_list_literal(),
             _ => None,
-        };
-
-        if left.is_none() {
-            return None;
-        }
-        
-        let mut left_expr = left.unwrap();
+        }?;
 
         while !self.peek_token_is(&Token::Newline) && !self.peek_token_is(&Token::EOF) && precedence < self.peek_precedence() {
             match self.peek_token {
@@ -377,11 +412,88 @@ impl<'a> Parser<'a> {
                     self.next_token();
                     left_expr = self.parse_get_expression(left_expr)?;
                 }
+                Token::LBracket => {
+                    self.next_token(); // cur_token = [
+                    self.next_token(); // cur_token = start of index
+                    left_expr = self.parse_index_expression(left_expr)?;
+                }
                 _ => return Some(left_expr),
             }
         }
 
         Some(left_expr)
+    }
+
+    fn parse_list_literal(&mut self) -> Option<Expression> {
+        let mut elements = Vec::new();
+
+        if self.peek_token_is(&Token::RBracket) {
+            self.next_token(); // skip [ to make cur = [
+            self.next_token(); // skip ] to make cur = ]
+            return Some(Expression::List(elements));
+        }
+
+        self.next_token(); // skip [
+        elements.push(self.parse_expression(Precedence::Lowest)?);
+
+        // Check for list comprehension
+        if self.peek_token_is(&Token::For) {
+            self.next_token(); // skip for
+            if !self.expect_peek(Token::Identifier("".to_string())) {
+                return None;
+            }
+            let variable = match &self.cur_token {
+                Token::Identifier(n) => n.clone(),
+                _ => return None,
+            };
+            if !self.expect_peek(Token::In) {
+                return None;
+            }
+            self.next_token(); // skip in
+            let iterable = self.parse_expression(Precedence::Lowest)?;
+            
+            let mut condition = None;
+            if self.peek_token_is(&Token::If) {
+                self.next_token();
+                self.next_token();
+                condition = Some(Box::new(self.parse_expression(Precedence::Lowest)?));
+            }
+
+            if !self.expect_peek(Token::RBracket) {
+                return None;
+            }
+            return Some(Expression::ListComprehension {
+                element: Box::new(elements.remove(0)),
+                variable,
+                iterable: Box::new(iterable),
+                condition,
+            });
+        }
+
+        while self.peek_token_is(&Token::Comma) {
+            self.next_token();
+            self.next_token();
+            elements.push(self.parse_expression(Precedence::Lowest)?);
+        }
+
+        if !self.expect_peek(Token::RBracket) {
+            return None;
+        }
+
+        Some(Expression::List(elements))
+    }
+
+    fn parse_index_expression(&mut self, left: Expression) -> Option<Expression> {
+        let index = self.parse_expression(Precedence::Lowest)?;
+
+        if !self.expect_peek(Token::RBracket) {
+            return None;
+        }
+
+        Some(Expression::Index {
+            object: Box::new(left),
+            index: Box::new(index),
+        })
     }
 
     fn parse_prefix_expression(&mut self) -> Option<Expression> {
@@ -477,7 +589,7 @@ impl<'a> Parser<'a> {
             Token::Plus | Token::Minus => Precedence::Sum,
             Token::Star | Token::Slash | Token::Percent | Token::At => Precedence::Product,
             Token::LParen => Precedence::Call,
-            Token::Dot => Precedence::Index,
+            Token::Dot | Token::LBracket => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }
@@ -490,7 +602,7 @@ impl<'a> Parser<'a> {
             Token::Plus | Token::Minus => Precedence::Sum,
             Token::Star | Token::Slash | Token::Percent | Token::At => Precedence::Product,
             Token::LParen => Precedence::Call,
-            Token::Dot => Precedence::Index,
+            Token::Dot | Token::LBracket => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }

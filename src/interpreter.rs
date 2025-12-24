@@ -3,8 +3,8 @@ use crate::object::Object;
 use crate::environment::Environment;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::cell::RefCell;
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
 
 
 pub struct Interpreter {
@@ -65,6 +65,28 @@ impl Interpreter {
                 let val = self.eval_expression(expr, env)?;
                 println!("{}", val);
                 Ok(Object::Null)
+            },
+            Statement::For { variable, iterable, body } => {
+                let iter_obj = self.eval_expression(iterable, env.clone())?;
+                let elements = match iter_obj {
+                    Object::List(l) => l,
+                    Object::Tensor(_t) => {
+                        // For simplicity, iterate over the first dimension if it's a tensor?
+                        // Or just error for now.
+                        return Err(format!("Tensor iteration not yet implemented"));
+                    },
+                    _ => return Err(format!("Cannot iterate over {}", iter_obj)),
+                };
+
+                let mut result = Object::Null;
+                for el in elements {
+                    env.borrow_mut().set(variable.clone(), el);
+                    result = self.eval_block(body.clone(), env.clone())?;
+                    if let Object::ReturnValue(_) = result {
+                        return Ok(result);
+                    }
+                }
+                Ok(result)
             }
         }
     }
@@ -119,6 +141,56 @@ impl Interpreter {
                     },
                     _ => Err(format!("Property access not supported on {}", obj)),
                 }
+            },
+            Expression::List(elements) => {
+                let mut objs = Vec::new();
+                for el in elements {
+                    objs.push(self.eval_expression(el, env.clone())?);
+                }
+                Ok(Object::List(objs))
+            },
+            Expression::Index { object, index } => {
+                let obj = self.eval_expression(*object, env.clone())?;
+                let idx = self.eval_expression(*index, env)?;
+                
+                match (obj, idx) {
+                    (Object::List(l), Object::Integer(i)) => {
+                        if i < 0 || i >= l.len() as i64 {
+                            return Err(format!("Index out of bounds: {}", i));
+                        }
+                        Ok(l[i as usize].clone())
+                    },
+                    (Object::Tensor(_t), Object::Integer(_i)) => {
+                        // Simple indexing for tensor?
+                        Err(format!("Tensor indexing not yet fully implemented"))
+                    },
+                    (o, i) => Err(format!("Cannot index {} with {}", o, i)),
+                }
+            },
+            Expression::ListComprehension { element, variable, iterable, condition } => {
+                let iter_obj = self.eval_expression(*iterable, env.clone())?;
+                let elements = match iter_obj {
+                    Object::List(l) => l,
+                    _ => return Err(format!("Cannot iterate over {} in list comprehension", iter_obj)),
+                };
+
+                let mut result_list = Vec::new();
+                for el in elements {
+                    env.borrow_mut().set(variable.clone(), el);
+                    
+                    let should_include = if let Some(cond) = &condition {
+                        let res = self.eval_expression((**cond).clone(), env.clone())?;
+                        self.is_truthy(res)
+                    } else {
+                        true
+                    };
+
+                    if should_include {
+                        let val = self.eval_expression((*element).clone(), env.clone())?;
+                        result_list.push(val);
+                    }
+                }
+                Ok(Object::List(result_list))
             }
         }
     }

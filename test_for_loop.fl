@@ -1,0 +1,21 @@
+# test_for_loop.fl
+print("Testing range(5):")
+for i in range(5):
+    print(i)
+
+print("Testing range(2, 7):")
+for i in range(2, 7):
+    print(i)
+
+print("Testing range(0, 10, 2):")
+for i in range(0, 10, 2):
+    print(i)
+
+print("Testing range(5, 0, -1):")
+for i in range(5, 0, -1):
+    print(i)
+
+print("Testing for loop with list:")
+let my_list = [10, 20, 30]
+for x in my_list:
+    print(x)

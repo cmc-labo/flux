@@ -9,7 +9,7 @@ mod tensor;
 
 use lexer::Lexer;
 use parser::Parser;
-use token::Token;
+use parser::Parser;
 use interpreter::Interpreter;
 use environment::Environment;
 use object::Object;
@@ -92,6 +92,39 @@ fn main() {
             });
             env.borrow_mut().set("py_import".to_string(), py_import_fn);
             
+            let range_fn = Object::NativeFn(|args| {
+                let (start, stop, step) = match args.len() {
+                    1 => (0, match &args[0] { Object::Integer(i) => *i, _ => return Err("range() arg must be integer".to_string()) }, 1),
+                    2 => (
+                        match &args[0] { Object::Integer(i) => *i, _ => return Err("range() arg must be integer".to_string()) },
+                        match &args[1] { Object::Integer(i) => *i, _ => return Err("range() arg must be integer".to_string()) },
+                        1
+                    ),
+                    3 => (
+                        match &args[0] { Object::Integer(i) => *i, _ => return Err("range() arg must be integer".to_string()) },
+                        match &args[1] { Object::Integer(i) => *i, _ => return Err("range() arg must be integer".to_string()) },
+                        match &args[2] { Object::Integer(i) => *i, _ => return Err("range() arg must be integer".to_string()) }
+                    ),
+                    _ => return Err("range() takes 1-3 arguments".to_string()),
+                };
+
+                let mut elements = Vec::new();
+                let mut current = start;
+                if step > 0 {
+                    while current < stop {
+                        elements.push(Object::Integer(current));
+                        current += step;
+                    }
+                } else if step < 0 {
+                    while current > stop {
+                        elements.push(Object::Integer(current));
+                        current += step;
+                    }
+                }
+                Ok(Object::List(elements))
+            });
+            env.borrow_mut().set("range".to_string(), range_fn);
+            
             let mut interpreter = Interpreter::new();
             for stmt in program {
                 match interpreter.eval(stmt, env.clone()) {
@@ -105,6 +138,39 @@ fn main() {
         println!("Type 'exit' to quit.");
         
         let env = Rc::new(RefCell::new(Environment::new()));
+        
+        // Register same built-ins for REPL (ideally this should be a helper function)
+        let range_fn = Object::NativeFn(|args| {
+            let (start, stop, step) = match args.len() {
+                1 => (0, match &args[0] { Object::Integer(i) => *i, _ => return Err("range() arg must be integer".to_string()) }, 1),
+                2 => (
+                    match &args[0] { Object::Integer(i) => *i, _ => return Err("range() arg must be integer".to_string()) },
+                    match &args[1] { Object::Integer(i) => *i, _ => return Err("range() arg must be integer".to_string()) },
+                    1
+                ),
+                3 => (
+                    match &args[0] { Object::Integer(i) => *i, _ => return Err("range() arg must be integer".to_string()) },
+                    match &args[1] { Object::Integer(i) => *i, _ => return Err("range() arg must be integer".to_string()) },
+                    match &args[2] { Object::Integer(i) => *i, _ => return Err("range() arg must be integer".to_string()) }
+                ),
+                _ => return Err("range() takes 1-3 arguments".to_string()),
+            };
+            let mut elements = Vec::new();
+            let mut current = start;
+            if step > 0 {
+                while current < stop {
+                    elements.push(Object::Integer(current));
+                    current += step;
+                }
+            } else if step < 0 {
+                while current > stop {
+                    elements.push(Object::Integer(current));
+                    current += step;
+                }
+            }
+            Ok(Object::List(elements))
+        });
+        env.borrow_mut().set("range".to_string(), range_fn);
 
         loop {
             print!(">> ");

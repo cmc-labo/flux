@@ -1,0 +1,13 @@
+# test_list_comprehension.fl
+print("Testing basic list comprehension:")
+let squares = [x * x for x in range(5)]
+print(squares)
+
+print("Testing list comprehension with condition:")
+let evens = [x for x in range(10) if x % 2 == 0]
+print(evens)
+
+print("Testing list comprehension with external variable:")
+let factor = 3
+let tripled = [x * factor for x in [1, 2, 3]]
+print(tripled)

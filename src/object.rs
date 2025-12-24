@@ -16,6 +16,7 @@ pub enum Object {
     NativeFn(fn(Vec<Object>) -> Result<Object, String>),
     Tensor(crate::tensor::Tensor),
     PyObject(pyo3::Py<pyo3::types::PyAny>),
+    List(Vec<Object>),
 }
 
 impl Clone for Object {
@@ -35,6 +36,7 @@ impl Clone for Object {
                     Object::PyObject(p.clone_ref(py))
                 })
             },
+            Object::List(l) => Object::List(l.clone()),
         }
     }
 }
@@ -48,6 +50,7 @@ impl PartialEq for Object {
             (Object::Boolean(l), Object::Boolean(r)) => l == r,
             (Object::Null, Object::Null) => true,
             (Object::Tensor(l), Object::Tensor(r)) => l == r,
+            (Object::List(l), Object::List(r)) => l == r,
             // For others, return false for now
             _ => false,
         }
@@ -67,6 +70,14 @@ impl fmt::Display for Object {
             Object::NativeFn(_) => write!(f, "native_function"),
             Object::Tensor(val) => write!(f, "{}", val),
             Object::PyObject(val) => write!(f, "PyObject({:?})", val),
+            Object::List(elements) => {
+                write!(f, "[")?;
+                for (i, el) in elements.iter().enumerate() {
+                    if i > 0 { write!(f, ", ")?; }
+                    write!(f, "{}", el)?;
+                }
+                write!(f, "]")
+            }
         }
     }
 }

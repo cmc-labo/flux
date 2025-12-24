@@ -99,6 +99,8 @@ impl<'a> Lexer<'a> {
                 ':' => { self.chars.next(); Token::Colon }
                 ',' => { self.chars.next(); Token::Comma }
                 '.' => { self.chars.next(); Token::Dot }
+                '[' => { self.chars.next(); Token::LBracket }
+                ']' => { self.chars.next(); Token::RBracket }
                 '#' => {
                     self.skip_comment();
                     self.next_token()
@@ -208,6 +210,8 @@ impl<'a> Lexer<'a> {
             "print" => Token::Print,
             "and" => Token::And,
             "or" => Token::Or,
+            "for" => Token::For,
+            "in" => Token::In,
             _ => Token::Identifier(literal),
         }
     }
