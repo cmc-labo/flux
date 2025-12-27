@@ -1,0 +1,41 @@
+# test_refinement.fl
+
+print("--- Testing 'not' operator ---")
+print(not true)
+print(not false)
+print(not 1)
+print(not 0)
+print(not null)
+
+print("\n--- Testing string indexing ---")
+let s = "hello"
+print(s[0])
+print(s[1])
+print(s[4])
+
+print("\n--- Testing float operations ---")
+let f1 = 5.5
+let f2 = 2.0
+print(f1 + f2)
+print(f1 - f2)
+print(f1 * f2)
+print(f1 / f2)
+print(f1 > f2)
+print(f1 < f2)
+print(f1 == 5.5)
+
+print("\n--- Testing len() with Python objects ---")
+let math = py_import("math")
+# math itself doesn't have __len__, but we can try something else or check if it errors gracefully
+# let's try a python list
+let sys = py_import("sys")
+let path = sys.path
+print("Python path length:")
+print(len(path))
+
+print("\n--- Testing REPL-like environment (tensor/matrix) ---")
+# This is usually in REPL but we can test here too since they are registered
+let t = tensor(3)
+print(t)
+let m = matrix(2, 2)
+print(m)

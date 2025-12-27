@@ -3,7 +3,6 @@ use crate::object::Object;
 use crate::environment::Environment;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::cell::RefCell;
 use pyo3::prelude::*;
 
 
@@ -160,6 +159,13 @@ impl Interpreter {
                         }
                         Ok(l[i as usize].clone())
                     },
+                    (Object::String(s), Object::Integer(i)) => {
+                        if i < 0 || i >= s.len() as i64 {
+                            return Err(format!("Index out of bounds: {}", i));
+                        }
+                        let ch = s.chars().nth(i as usize).unwrap();
+                        Ok(Object::String(ch.to_string()))
+                    },
                     (Object::Tensor(_t), Object::Integer(_i)) => {
                         // Simple indexing for tensor?
                         Err(format!("Tensor indexing not yet fully implemented"))
@@ -245,10 +251,17 @@ impl Interpreter {
                 _ => Err(format!("Unknown operator for integers")),
             },
             (Object::Float(l), Object::Float(r)) => match operator {
-                 InfixOperator::Plus => Ok(Object::Float(l + r)),
-                 // ... simplify
-                 InfixOperator::Equal => Ok(Object::Boolean(l == r)),
-                 _ => Ok(Object::Float(l + r)), // Mock
+                  InfixOperator::Plus => Ok(Object::Float(l + r)),
+                  InfixOperator::Minus => Ok(Object::Float(l - r)),
+                  InfixOperator::Multiply => Ok(Object::Float(l * r)),
+                  InfixOperator::Divide => Ok(Object::Float(l / r)),
+                  InfixOperator::Equal => Ok(Object::Boolean(l == r)),
+                  InfixOperator::NotEqual => Ok(Object::Boolean(l != r)),
+                  InfixOperator::LessThan => Ok(Object::Boolean(l < r)),
+                  InfixOperator::GreaterThan => Ok(Object::Boolean(l > r)),
+                  InfixOperator::LessThanOrEqual => Ok(Object::Boolean(l <= r)),
+                  InfixOperator::GreaterThanOrEqual => Ok(Object::Boolean(l >= r)),
+                  _ => Err(format!("Unsupported operator for floats: {:?}", operator)),
             },
             (Object::Tensor(l), Object::Tensor(r)) => match operator {
                 InfixOperator::Plus => {
@@ -260,6 +273,12 @@ impl Interpreter {
                     Ok(Object::Tensor(res))
                 },
                 _ => Err(format!("Unsupported operator for tensors: {:?}", operator)),
+            },
+            (Object::String(l), Object::String(r)) => match operator {
+                InfixOperator::Plus => Ok(Object::String(format!("{}{}", l, r))),
+                InfixOperator::Equal => Ok(Object::Boolean(l == r)),
+                InfixOperator::NotEqual => Ok(Object::Boolean(l != r)),
+                _ => Err(format!("Unsupported operator for strings: {:?}", operator)),
             },
             // Handle mixed types?
             (l, r) => Err(format!("Type mismatch: {} {:?} {}", l, operator, r)),

@@ -11,7 +11,7 @@ pub struct Lexer<'a> {
 
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
-        let mut lexer = Lexer {
+        let lexer = Lexer {
             input,
             chars: input.chars().peekable(),
             indent_stack: vec![0],
@@ -212,6 +212,7 @@ impl<'a> Lexer<'a> {
             "or" => Token::Or,
             "for" => Token::For,
             "in" => Token::In,
+            "not" => Token::Not,
             _ => Token::Identifier(literal),
         }
     }

@@ -1,0 +1,8 @@
+let l = [1, 2, 3]
+print(len(l))
+print("hello" + " world")
+print(len("hello"))
+let t = tensor(5)
+print(len(t))
+print("abc" == "abc")
+print("abc" != "def")

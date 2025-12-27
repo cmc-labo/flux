@@ -18,6 +18,7 @@ pub enum Token {
     Or,
     For,
     In,
+    Not,
 
     // Operators
     Plus,

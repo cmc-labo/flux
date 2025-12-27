@@ -383,7 +383,7 @@ impl<'a> Parser<'a> {
             Token::Integer(i) => Some(Expression::Integer(*i)),
             Token::Float(f) => Some(Expression::Float(*f)),
             Token::String(s) => Some(Expression::String(s.clone())),
-            Token::Minus => {
+            Token::Minus | Token::Not => {
                 self.parse_prefix_expression()
             },
             Token::LParen => {
@@ -499,6 +499,7 @@ impl<'a> Parser<'a> {
     fn parse_prefix_expression(&mut self) -> Option<Expression> {
         let operator = match self.cur_token {
             Token::Minus => PrefixOperator::Minus,
+            Token::Not => PrefixOperator::Not,
             _ => return None,
         };
         
