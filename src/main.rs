@@ -133,6 +133,79 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
     });
     env.borrow_mut().set("len".to_string(), len_fn);
+    
+    let type_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("type() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::Integer(_) => Ok(Object::String("int".to_string())),
+            Object::Float(_) => Ok(Object::String("float".to_string())),
+            Object::String(_) => Ok(Object::String("string".to_string())),
+            Object::Boolean(_) => Ok(Object::String("bool".to_string())),
+            Object::Null => Ok(Object::String("null".to_string())),
+            Object::List(_) => Ok(Object::String("list".to_string())),
+            Object::Tensor(_) => Ok(Object::String("tensor".to_string())),
+            Object::Function { .. } => Ok(Object::String("function".to_string())),
+            Object::NativeFn(_) => Ok(Object::String("native_function".to_string())),
+            Object::PyObject(_) => Ok(Object::String("pyobject".to_string())),
+            Object::ReturnValue(_) => Ok(Object::String("return_value".to_string())),
+        }
+    });
+    env.borrow_mut().set("type".to_string(), type_fn);
+
+    let abs_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("abs() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::Integer(i.abs())),
+            Object::Float(f) => Ok(Object::Float(f.abs())),
+            _ => Err(format!("abs() not supported for {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("abs".to_string(), abs_fn);
+
+    let sum_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("sum() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::List(l) => {
+                let mut total_int = 0;
+                let mut total_float = 0.0;
+                let mut has_float = false;
+
+                for item in l {
+                    match item {
+                        Object::Integer(i) => {
+                            if has_float {
+                                total_float += *i as f64;
+                            } else {
+                                total_int += i;
+                            }
+                        },
+                        Object::Float(f) => {
+                            if !has_float {
+                                has_float = true;
+                                total_float = total_int as f64;
+                            }
+                            total_float += f;
+                        },
+                        _ => return Err(format!("sum() encountered non-numeric element: {}", item)),
+                    }
+                }
+
+                if has_float {
+                    Ok(Object::Float(total_float))
+                } else {
+                    Ok(Object::Integer(total_int))
+                }
+            },
+            _ => Err(format!("sum() argument must be a list, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("sum".to_string(), sum_fn);
 
     // Constants
     env.borrow_mut().set("true".to_string(), Object::Boolean(true));

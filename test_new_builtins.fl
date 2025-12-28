@@ -1,0 +1,21 @@
+# test_new_builtins.fl
+
+print("--- Testing type() ---")
+print(type(42))
+print(type(3.14))
+print(type("hello"))
+print(type(true))
+print(type(null))
+print(type([1, 2, 3]))
+print(type(tensor(3)))
+
+print("\n--- Testing abs() ---")
+print(abs(10))
+print(abs(-10))
+print(abs(3.14))
+print(abs(-3.14))
+
+print("\n--- Testing sum() ---")
+print(sum([1, 2, 3, 4, 5]))
+print(sum([1.5, 2.5, 3.0]))
+print(sum([1, 2.5, 3])) # Mixed types
