@@ -1,0 +1,27 @@
+# tests/test_more_features.fl
+
+print("--- Testing min(), max(), mean() ---")
+let nums = [1, 2, 3, 4, 5]
+print("List: " + type(nums))
+print(nums)
+print("Min: " + type(min(nums)))
+print(min(nums))
+print("Max: " + type(max(nums)))
+print(max(nums))
+print("Mean: " + type(mean(nums)))
+print(mean(nums))
+
+let mixed = [10, 2.5, -5, 0.0]
+print("\nMixed List:")
+print(mixed)
+print("Min: " + type(min(mixed)))
+print(min(mixed))
+print("Max: " + type(max(mixed)))
+print(max(mixed))
+print("Mean: " + type(mean(mixed)))
+print(mean(mixed))
+
+print("\n--- Testing String Multiplication ---")
+print("abc" * 3)
+print(5 * "Hi! ")
+print("-" * 20)

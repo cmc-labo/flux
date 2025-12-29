@@ -207,6 +207,119 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("sum".to_string(), sum_fn);
 
+    let min_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("min() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::List(l) => {
+                if l.is_empty() { return Err("min() arg is an empty sequence".to_string()); }
+                let mut min_val = None;
+                for item in l {
+                    let val = match item {
+                        Object::Integer(i) => *i as f64,
+                        Object::Float(f) => *f,
+                        _ => return Err(format!("min() encountered non-numeric element: {}", item)),
+                    };
+                    if min_val.is_none() || val < min_val.unwrap() {
+                        min_val = Some(val);
+                    }
+                }
+                // Return same type as found if possible? Or just float?
+                // For simplicity, if everything was int, return int.
+                let mut all_int = true;
+                let mut min_i = 0;
+                let mut min_f = 0.0;
+                let mut first = true;
+                for item in l {
+                    match item {
+                        Object::Integer(i) => {
+                            if first || (*i as f64) < (if all_int { min_i as f64 } else { min_f }) {
+                                min_i = *i;
+                                if !all_int { min_f = *i as f64; }
+                            }
+                        },
+                        Object::Float(f) => {
+                            if all_int {
+                                all_int = false;
+                                min_f = min_i as f64;
+                            }
+                            if first || *f < min_f {
+                                min_f = *f;
+                            }
+                        },
+                        _ => unreachable!(),
+                    }
+                    first = false;
+                }
+                if all_int { Ok(Object::Integer(min_i)) } else { Ok(Object::Float(min_f)) }
+            },
+            _ => Err(format!("min() argument must be a list, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("min".to_string(), min_fn);
+
+    let max_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("max() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::List(l) => {
+                if l.is_empty() { return Err("max() arg is an empty sequence".to_string()); }
+                let mut all_int = true;
+                let mut max_i = 0;
+                let mut max_f = 0.0;
+                let mut first = true;
+                for item in l {
+                    match item {
+                        Object::Integer(i) => {
+                            if first || (*i as f64) > (if all_int { max_i as f64 } else { max_f }) {
+                                max_i = *i;
+                                if !all_int { max_f = *i as f64; }
+                            }
+                        },
+                        Object::Float(f) => {
+                            if all_int {
+                                all_int = false;
+                                max_f = max_i as f64;
+                            }
+                            if first || *f > max_f {
+                                max_f = *f;
+                            }
+                        },
+                        _ => return Err(format!("max() encountered non-numeric element: {}", item)),
+                    }
+                    first = false;
+                }
+                if all_int { Ok(Object::Integer(max_i)) } else { Ok(Object::Float(max_f)) }
+            },
+            _ => Err(format!("max() argument must be a list, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("max".to_string(), max_fn);
+
+    let mean_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("mean() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::List(l) => {
+                if l.is_empty() { return Err("mean() arg is an empty sequence".to_string()); }
+                let mut total = 0.0;
+                for item in l {
+                    match item {
+                        Object::Integer(i) => total += *i as f64,
+                        Object::Float(f) => total += f,
+                        _ => return Err(format!("mean() encountered non-numeric element: {}", item)),
+                    }
+                }
+                Ok(Object::Float(total / l.len() as f64))
+            },
+            _ => Err(format!("mean() argument must be a list, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("mean".to_string(), mean_fn);
+
     // Constants
     env.borrow_mut().set("true".to_string(), Object::Boolean(true));
     env.borrow_mut().set("false".to_string(), Object::Boolean(false));

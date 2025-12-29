@@ -280,6 +280,20 @@ impl Interpreter {
                 InfixOperator::NotEqual => Ok(Object::Boolean(l != r)),
                 _ => Err(format!("Unsupported operator for strings: {:?}", operator)),
             },
+            (Object::String(s), Object::Integer(i)) => match operator {
+                InfixOperator::Multiply => {
+                    if i < 0 { return Err(format!("Negative string multiplication count: {}", i)); }
+                    Ok(Object::String(s.repeat(i as usize)))
+                },
+                _ => Err(format!("Unsupported operator for string and integer: {:?}", operator)),
+            },
+            (Object::Integer(i), Object::String(s)) => match operator {
+                InfixOperator::Multiply => {
+                    if i < 0 { return Err(format!("Negative string multiplication count: {}", i)); }
+                    Ok(Object::String(s.repeat(i as usize)))
+                },
+                _ => Err(format!("Unsupported operator for integer and string: {:?}", operator)),
+            },
             // Handle mixed types?
             (l, r) => Err(format!("Type mismatch: {} {:?} {}", l, operator, r)),
         }
