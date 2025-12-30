@@ -371,6 +371,99 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("reverse".to_string(), reverse_fn);
 
+    let sorted_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("sorted() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::List(l) => {
+                let mut sorted_l = l.clone();
+                let mut err = None;
+                sorted_l.sort_by(|a, b| {
+                    match (a, b) {
+                        (Object::Integer(ai), Object::Integer(bi)) => ai.cmp(bi),
+                        (Object::Float(af), Object::Float(bf)) => af.partial_cmp(bf).unwrap_or(std::cmp::Ordering::Equal),
+                        (Object::Integer(ai), Object::Float(bf)) => (*ai as f64).partial_cmp(bf).unwrap_or(std::cmp::Ordering::Equal),
+                        (Object::Float(af), Object::Integer(bi)) => af.partial_cmp(&(*bi as f64)).unwrap_or(std::cmp::Ordering::Equal),
+                        (Object::String(as_str), Object::String(bs_str)) => as_str.cmp(bs_str),
+                        _ => {
+                            err = Some(format!("Cannot compare {} and {}", a, b));
+                            std::cmp::Ordering::Equal
+                        }
+                    }
+                });
+                if let Some(e) = err {
+                    return Err(e);
+                }
+                Ok(Object::List(sorted_l))
+            },
+            _ => Err(format!("sorted() argument must be a list, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("sorted".to_string(), sorted_fn);
+
+    let round_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 {
+            return Err("round() takes 1 or 2 arguments".to_string());
+        }
+        let num = match &args[0] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err(format!("round() first argument must be numeric, got {}", args[0])),
+        };
+        let ndigits = if args.len() == 2 {
+            match &args[1] {
+                Object::Integer(i) => *i as i32,
+                _ => return Err(format!("round() ndigits must be an integer, got {}", args[1])),
+            }
+        } else {
+            0
+        };
+
+        let factor = 10.0f64.powi(ndigits);
+        let rounded = (num * factor).round() / factor;
+        
+        if ndigits <= 0 {
+            Ok(Object::Integer(rounded as i64))
+        } else {
+            Ok(Object::Float(rounded))
+        }
+    });
+    env.borrow_mut().set("round".to_string(), round_fn);
+
+    let upper_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("upper() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => Ok(Object::String(s.to_uppercase())),
+            _ => Err(format!("upper() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("upper".to_string(), upper_fn);
+
+    let lower_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("lower() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => Ok(Object::String(s.to_lowercase())),
+            _ => Err(format!("lower() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("lower".to_string(), lower_fn);
+
+    let strip_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("strip() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => Ok(Object::String(s.trim().to_string())),
+            _ => Err(format!("strip() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("strip".to_string(), strip_fn);
+
     // Constants
     env.borrow_mut().set("true".to_string(), Object::Boolean(true));
     env.borrow_mut().set("false".to_string(), Object::Boolean(false));

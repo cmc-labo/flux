@@ -1,0 +1,30 @@
+# tests/test_round4_features.fl
+
+print("--- Testing sorted() ---")
+let n = [5, 2, 8, 1, 3]
+print(sorted(n))
+
+let s = ["apple", "banana", "cherry", "date"]
+let unsorted_s = ["date", "apple", "cherry", "banana"]
+print(sorted(unsorted_s))
+
+let mixed_n = [10, 2.5, 5.5, 1, 0]
+print(sorted(mixed_n))
+
+print("\n--- Testing round() ---")
+print(round(3.14159))
+print(round(3.14159, 2))
+print(round(3.7))
+print(round(-2.4))
+print(round(1234.5678, -2)) # Should be 1200? (1.2 * 10^3)
+
+print("\n--- Testing string functions ---")
+let text = "  Hello World  "
+print(upper(text))
+print(lower(text))
+print(strip(text))
+
+print("\n--- Testing combined ---")
+let names = ["  Alice  ", "bob", "  CHARLIE  "]
+let clean_names = [strip(lower(n)) for n in names]
+print(sorted(clean_names))
