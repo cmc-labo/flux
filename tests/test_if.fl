@@ -1,0 +1,27 @@
+# tests/test_if.fl
+
+if 1:
+    print("1 is truthy")
+
+if 0:
+    print("0 is truthy (should not print)")
+else:
+    print("0 is falsy")
+
+if "hello":
+    print("string is truthy")
+
+if "":
+    print("empty string is truthy (should not print)")
+else:
+    print("empty string is falsy")
+
+let l = [1]
+if l:
+    print("list is truthy")
+
+let e = []
+if e:
+    print("empty list is truthy (should not print)")
+else:
+    print("empty list is falsy")

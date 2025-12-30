@@ -320,6 +320,57 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("mean".to_string(), mean_fn);
 
+    let all_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("all() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::List(l) => {
+                for item in l {
+                    if !item.is_truthy() {
+                        return Ok(Object::Boolean(false));
+                    }
+                }
+                Ok(Object::Boolean(true))
+            },
+            _ => Err(format!("all() argument must be a list, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("all".to_string(), all_fn);
+
+    let any_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("any() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::List(l) => {
+                for item in l {
+                    if item.is_truthy() {
+                        return Ok(Object::Boolean(true));
+                    }
+                }
+                Ok(Object::Boolean(false))
+            },
+            _ => Err(format!("any() argument must be a list, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("any".to_string(), any_fn);
+
+    let reverse_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("reverse() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::List(l) => {
+                let mut rev_l = l.clone();
+                rev_l.reverse();
+                Ok(Object::List(rev_l))
+            },
+            _ => Err(format!("reverse() argument must be a list, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("reverse".to_string(), reverse_fn);
+
     // Constants
     env.borrow_mut().set("true".to_string(), Object::Boolean(true));
     env.borrow_mut().set("false".to_string(), Object::Boolean(false));

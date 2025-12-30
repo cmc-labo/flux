@@ -1,0 +1,35 @@
+# tests/test_round3_features.fl
+
+print("--- Testing all() ---")
+let a1 = [true, true, true]
+print(all(a1))
+let a2 = [true, false, true]
+print(all(a2))
+let a3 = [1, 2, 3]
+print(all(a3))
+let a4 = [1, 0, 3]
+print(all(a4))
+let a5 = ["a", "b", ""]
+print(all(a5))
+let a6 = []
+print(all(a6))
+
+print("\n--- Testing any() ---")
+let b1 = [false, false, false]
+print(any(b1))
+let b2 = [false, true, false]
+print(any(b2))
+let b3 = [0, 0, 1]
+print(any(b3))
+let b4 = ["", "", "s"]
+print(any(b4))
+let b5 = []
+print(any(b5))
+
+print("\n--- Testing reverse() ---")
+let original = [1, 2, 3, 4, 5]
+let reversed = reverse(original)
+print("Original: ")
+print(original)
+print("Reversed: ")
+print(reversed)

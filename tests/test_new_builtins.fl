@@ -19,3 +19,4 @@ print("\n--- Testing sum() ---")
 print(sum([1, 2, 3, 4, 5]))
 print(sum([1.5, 2.5, 3.0]))
 print(sum([1, 2.5, 3])) # Mixed types
+print(sum([])) # Empty list

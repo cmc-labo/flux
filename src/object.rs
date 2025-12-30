@@ -81,3 +81,16 @@ impl fmt::Display for Object {
         }
     }
 }
+
+impl Object {
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            Object::Null => false,
+            Object::Boolean(b) => *b,
+            Object::Integer(i) => *i != 0,
+            Object::String(s) => !s.is_empty(),
+            Object::List(l) => !l.is_empty(),
+            _ => true,
+        }
+    }
+}

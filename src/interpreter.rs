@@ -353,11 +353,6 @@ impl Interpreter {
     }
 
     fn is_truthy(&self, obj: Object) -> bool {
-        match obj {
-            Object::Null => false,
-            Object::Boolean(b) => b,
-            Object::Integer(i) => i != 0,
-            _ => true,
-        }
+        obj.is_truthy()
     }
 }

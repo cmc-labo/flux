@@ -272,46 +272,21 @@ impl<'a> Parser<'a> {
         let mut alternative = None;
 
         // Check for else
-        // After parse_block, we might be at Dedent. 
-        // We need to peek past Dedent? 
-        // No, parse_block loop stops AT Dedent.
-        // So cur_token is Dedent.
-        // We consume Dedent.
-        /*
-        if self.cur_token_is(&Token::Dedent) {
-             self.next_token();
-        }
-        */
-        // Wait, if I consume Dedent inside parse_block, then I am at the token AFTER Dedent.
-        // Which might be Else.
-        
-        // Let's adjust parse_block to NOT consume Dedent?
-        // Or consume it.
-        // If I consume it, I am at the next token.
-        
-        // Let's assume parse_block does NOT consume Dedent.
-        // "while !self.cur_token_is(&Token::Dedent)"
-        // So it stops when cur_token IS Dedent.
-        // So here cur_token is Dedent.
-        
-        if self.cur_token_is(&Token::Dedent) {
-            self.next_token();
-        }
-        
-        // Now check for Else
-        if self.cur_token_is(&Token::Else) {
-             self.next_token(); // skip else
-             if !self.expect_peek(Token::Colon) {
+        // parse_block ends at Dedent.
+        if self.cur_token_is(&Token::Dedent) && self.peek_token_is(&Token::Else) {
+            self.next_token(); // move to else
+            self.next_token(); // move to :
+            
+            if !self.cur_token_is(&Token::Colon) {
+                 self.errors.push(format!("Expected Colon after else, got {:?}", self.cur_token));
                  return None;
-             }
-             if !self.expect_peek(Token::Newline) {
-                 return None;
-             }
-             alternative = Some(self.parse_block());
-             
-             if self.cur_token_is(&Token::Dedent) {
-                self.next_token();
-             }
+            }
+            
+            if !self.expect_peek(Token::Newline) {
+                return None;
+            }
+            self.next_token(); // consume Newline
+            alternative = Some(self.parse_block());
         }
 
         Some(Statement::If { condition, consequence, alternative })
@@ -331,10 +306,6 @@ impl<'a> Parser<'a> {
 
         let body = self.parse_block();
         
-        if self.cur_token_is(&Token::Dedent) {
-            self.next_token();
-        }
-
         Some(Statement::While { condition, body })
     }
 
@@ -369,10 +340,6 @@ impl<'a> Parser<'a> {
         self.next_token(); // consume Newline
 
         let body = self.parse_block();
-
-        if self.cur_token_is(&Token::Dedent) {
-            self.next_token();
-        }
 
         Some(Statement::For { variable, iterable, body })
     }
@@ -428,8 +395,7 @@ impl<'a> Parser<'a> {
         let mut elements = Vec::new();
 
         if self.peek_token_is(&Token::RBracket) {
-            self.next_token(); // skip [ to make cur = [
-            self.next_token(); // skip ] to make cur = ]
+            self.next_token(); // move to ]
             return Some(Expression::List(elements));
         }
 
