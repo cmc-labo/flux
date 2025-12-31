@@ -464,6 +464,147 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("strip".to_string(), strip_fn);
 
+    let int_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("int() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::Integer(*i)),
+            Object::Float(f) => Ok(Object::Integer(*f as i64)),
+            Object::String(s) => s.parse::<i64>().map(Object::Integer).map_err(|e| format!("int() parse error: {}", e)),
+            Object::Boolean(b) => Ok(Object::Integer(if *b { 1 } else { 0 })),
+            _ => Err(format!("int() not supported for {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("int".to_string(), int_fn);
+
+    let float_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("float() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::Float(f) => Ok(Object::Float(*f)),
+            Object::Integer(i) => Ok(Object::Float(*i as f64)),
+            Object::String(s) => s.parse::<f64>().map(Object::Float).map_err(|e| format!("float() parse error: {}", e)),
+            Object::Boolean(b) => Ok(Object::Float(if *b { 1.0 } else { 0.0 })),
+            _ => Err(format!("float() not supported for {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("float".to_string(), float_fn);
+
+    let str_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("str() takes exactly 1 argument".to_string());
+        }
+        Ok(Object::String(args[0].to_string()))
+    });
+    env.borrow_mut().set("str".to_string(), str_fn);
+
+    let split_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 {
+            return Err("split() takes 1 or 2 arguments".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(val) => val,
+            _ => return Err(format!("split() first argument must be a string, got {}", args[0])),
+        };
+        let sep = if args.len() == 2 {
+            match &args[1] {
+                Object::String(val) => val,
+                _ => return Err(format!("split() separator must be a string, got {}", args[1])),
+            }
+        } else {
+            " "
+        };
+        let items: Vec<Object> = if sep.is_empty() {
+            s.chars().map(|c| Object::String(c.to_string())).collect()
+        } else {
+            s.split(sep).map(|item| Object::String(item.to_string())).collect()
+        };
+        Ok(Object::List(items))
+    });
+    env.borrow_mut().set("split".to_string(), split_fn);
+
+    let join_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("join() takes exactly 2 arguments (list, separator)".to_string());
+        }
+        let list = match &args[0] {
+            Object::List(l) => l,
+            _ => return Err(format!("join() first argument must be a list, got {}", args[0])),
+        };
+        let sep = match &args[1] {
+            Object::String(s) => s,
+            _ => return Err(format!("join() second argument must be a string, got {}", args[1])),
+        };
+        let result = list.iter().map(|obj| obj.to_string()).collect::<Vec<String>>().join(sep);
+        Ok(Object::String(result))
+    });
+    env.borrow_mut().set("join".to_string(), join_fn);
+
+    let replace_fn = Object::NativeFn(|args| {
+        if args.len() != 3 {
+            return Err("replace() takes exactly 3 arguments (string, old, new)".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(val) => val,
+            _ => return Err(format!("replace() first argument must be a string, got {}", args[0])),
+        };
+        let old = match &args[1] {
+            Object::String(val) => val,
+            _ => return Err(format!("replace() second argument must be a string, got {}", args[1])),
+        };
+        let new = match &args[2] {
+            Object::String(val) => val,
+            _ => return Err(format!("replace() third argument must be a string, got {}", args[2])),
+        };
+        Ok(Object::String(s.replace(old, new)))
+    });
+    env.borrow_mut().set("replace".to_string(), replace_fn);
+
+    let find_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("find() takes exactly 2 arguments (string, substring)".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(val) => val,
+            _ => return Err(format!("find() first argument must be a string, got {}", args[0])),
+        };
+        let sub = match &args[1] {
+            Object::String(val) => val,
+            _ => return Err(format!("find() second argument must be a string, got {}", args[1])),
+        };
+        match s.find(sub) {
+            Some(idx) => Ok(Object::Integer(idx as i64)),
+            None => Ok(Object::Integer(-1)),
+        }
+    });
+    env.borrow_mut().set("find".to_string(), find_fn);
+
+    let floor_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("floor() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::Integer(*i)),
+            Object::Float(f) => Ok(Object::Integer(f.floor() as i64)),
+            _ => Err(format!("floor() not supported for {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("floor".to_string(), floor_fn);
+
+    let ceil_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("ceil() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::Integer(*i)),
+            Object::Float(f) => Ok(Object::Integer(f.ceil() as i64)),
+            _ => Err(format!("ceil() not supported for {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("ceil".to_string(), ceil_fn);
+
     // Constants
     env.borrow_mut().set("true".to_string(), Object::Boolean(true));
     env.borrow_mut().set("false".to_string(), Object::Boolean(false));

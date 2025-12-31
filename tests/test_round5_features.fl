@@ -1,0 +1,45 @@
+# tests/test_round5_features.fl
+
+print("--- Testing Conversion Functions ---")
+print(int("123"))
+print(int(45.67))
+print(int(true))
+print(float("3.14"))
+print(float(100))
+print(float(false))
+print(str(10.5))
+print(str([1, 2, 3]))
+
+print("\n--- Testing String Utilities ---")
+let s = "apple,banana,cherry"
+let parts = split(s, ",")
+print("Split: ")
+print(parts)
+
+let joined = join(parts, " - ")
+print("Join: ")
+print(joined)
+
+let replaced = replace("hello world", "world", "flux")
+print("Replace: ")
+print(replaced)
+
+print("Find 'banana' in list: ")
+print(find(s, "banana"))
+print("Find 'pear' in list: ")
+print(find(s, "pear"))
+
+print("\n--- Testing Math Functions ---")
+print(floor(3.9))
+print(floor(-1.1)) # Should be -2
+print(ceil(3.1))
+print(ceil(-1.9))  # Should be -1
+
+print("\n--- Combined Test ---")
+let data = "10,20,30,40"
+let nums = split(data, ",")
+let sum_val = 0
+for n in nums:
+    let sum_val = sum_val + int(n)
+print("Sum of split strings: ")
+print(sum_val)
