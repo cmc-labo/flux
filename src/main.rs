@@ -605,6 +605,142 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("ceil".to_string(), ceil_fn);
 
+    let sqrt_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("sqrt() takes exactly 1 argument".to_string());
+        }
+        let val = match &args[0] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err(format!("sqrt() argument must be numeric, got {}", args[0])),
+        };
+        Ok(Object::Float(val.sqrt()))
+    });
+    env.borrow_mut().set("sqrt".to_string(), sqrt_fn);
+
+    let pow_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("pow() takes exactly 2 arguments (base, exp)".to_string());
+        }
+        let base = match &args[0] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err(format!("pow() base must be numeric, got {}", args[0])),
+        };
+        let exp = match &args[1] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err(format!("pow() exponent must be numeric, got {}", args[1])),
+        };
+        Ok(Object::Float(base.powf(exp)))
+    });
+    env.borrow_mut().set("pow".to_string(), pow_fn);
+
+    let exp_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("exp() takes exactly 1 argument".to_string());
+        }
+        let val = match &args[0] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err(format!("exp() argument must be numeric, got {}", args[0])),
+        };
+        Ok(Object::Float(val.exp()))
+    });
+    env.borrow_mut().set("exp".to_string(), exp_fn);
+
+    let log_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 {
+            return Err("log() takes 1 or 2 arguments (x, [base])".to_string());
+        }
+        let x = match &args[0] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err(format!("log() first argument must be numeric, got {}", args[0])),
+        };
+        let base = if args.len() == 2 {
+            match &args[1] {
+                Object::Integer(i) => *i as f64,
+                Object::Float(f) => *f,
+                _ => return Err(format!("log() base must be numeric, got {}", args[1])),
+            }
+        } else {
+            std::f64::consts::E
+        };
+        Ok(Object::Float(x.log(base)))
+    });
+    env.borrow_mut().set("log".to_string(), log_fn);
+
+    let startswith_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("startswith() takes exactly 2 arguments (string, prefix)".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(val) => val,
+            _ => return Err(format!("startswith() first argument must be a string, got {}", args[0])),
+        };
+        let prefix = match &args[1] {
+            Object::String(val) => val,
+            _ => return Err(format!("startswith() second argument must be a string, got {}", args[1])),
+        };
+        Ok(Object::Boolean(s.starts_with(prefix)))
+    });
+    env.borrow_mut().set("startswith".to_string(), startswith_fn);
+
+    let endswith_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("endswith() takes exactly 2 arguments (string, suffix)".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(val) => val,
+            _ => return Err(format!("endswith() first argument must be a string, got {}", args[0])),
+        };
+        let suffix = match &args[1] {
+            Object::String(val) => val,
+            _ => return Err(format!("endswith() second argument must be a string, got {}", args[1])),
+        };
+        Ok(Object::Boolean(s.ends_with(suffix)))
+    });
+    env.borrow_mut().set("endswith".to_string(), endswith_fn);
+
+    let zip_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("zip() takes exactly 2 arguments (list1, list2)".to_string());
+        }
+        let l1 = match &args[0] {
+            Object::List(val) => val,
+            _ => return Err(format!("zip() first argument must be a list, got {}", args[0])),
+        };
+        let l2 = match &args[1] {
+            Object::List(val) => val,
+            _ => return Err(format!("zip() second argument must be a list, got {}", args[1])),
+        };
+        let zipped: Vec<Object> = l1.iter().zip(l2.iter())
+            .map(|(a, b)| Object::List(vec![a.clone(), b.clone()]))
+            .collect();
+        Ok(Object::List(zipped))
+    });
+    env.borrow_mut().set("zip".to_string(), zip_fn);
+
+    let enumerate_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("enumerate() takes exactly 1 argument (list)".to_string());
+        }
+        let l = match &args[0] {
+            Object::List(val) => val,
+            _ => return Err(format!("enumerate() argument must be a list, got {}", args[0])),
+        };
+        let enumerated: Vec<Object> = l.iter().enumerate()
+            .map(|(i, el)| Object::List(vec![Object::Integer(i as i64), el.clone()]))
+            .collect();
+        Ok(Object::List(enumerated))
+    });
+    env.borrow_mut().set("enumerate".to_string(), enumerate_fn);
+
+    // Constants
+    env.borrow_mut().set("pi".to_string(), Object::Float(std::f64::consts::PI));
+    env.borrow_mut().set("e".to_string(), Object::Float(std::f64::consts::E));
+
     // Constants
     env.borrow_mut().set("true".to_string(), Object::Boolean(true));
     env.borrow_mut().set("false".to_string(), Object::Boolean(false));

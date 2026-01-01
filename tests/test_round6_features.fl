@@ -1,0 +1,47 @@
+# tests/test_round6_features.fl
+
+print("--- Testing Math Constants ---")
+print("PI: ")
+print(pi)
+print("E: ")
+print(e)
+
+print("\n--- Testing Math Functions ---")
+print("sqrt(16): ")
+print(sqrt(16))
+print("pow(2, 10): ")
+print(pow(2, 10))
+print("exp(1): ")
+print(exp(1))
+print("log(100, 10): ")
+print(log(100, 10))
+print("log(e): ")
+print(log(e))
+
+print("\n--- Testing String Checks ---")
+let s = "flux_language"
+print("starts with 'flux': ")
+print(startswith(s, "flux"))
+print("starts with 'rust': ")
+print(startswith(s, "rust"))
+print("ends with 'language': ")
+print(endswith(s, "language"))
+
+print("\n--- Testing List Utilities ---")
+let l1 = ["a", "b", "c"]
+let l2 = [1, 2, 3]
+print("zip(l1, l2): ")
+let zipped = zip(l1, l2)
+print(zipped)
+
+print("enumerate(l1): ")
+let enumerated = enumerate(l1)
+print(enumerated)
+
+print("\n--- Combined Test ---")
+for item in enumerate(zipped):
+    let idx = item[0]
+    let pair = item[1]
+    let char = pair[0]
+    let num = pair[1]
+    print("Index " + str(idx) + ": " + char + " -> " + str(num))
