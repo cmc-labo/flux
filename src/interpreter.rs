@@ -263,6 +263,32 @@ impl Interpreter {
                   InfixOperator::GreaterThanOrEqual => Ok(Object::Boolean(l >= r)),
                   _ => Err(format!("Unsupported operator for floats: {:?}", operator)),
             },
+            (Object::Float(l), Object::Integer(r)) => match operator {
+                InfixOperator::Plus => Ok(Object::Float(l + r as f64)),
+                InfixOperator::Minus => Ok(Object::Float(l - r as f64)),
+                InfixOperator::Multiply => Ok(Object::Float(l * r as f64)),
+                InfixOperator::Divide => Ok(Object::Float(l / r as f64)),
+                InfixOperator::Equal => Ok(Object::Boolean(l == r as f64)),
+                InfixOperator::NotEqual => Ok(Object::Boolean(l != r as f64)),
+                InfixOperator::LessThan => Ok(Object::Boolean(l < r as f64)),
+                InfixOperator::GreaterThan => Ok(Object::Boolean(l > r as f64)),
+                InfixOperator::LessThanOrEqual => Ok(Object::Boolean(l <= r as f64)),
+                InfixOperator::GreaterThanOrEqual => Ok(Object::Boolean(l >= r as f64)),
+                _ => Err(format!("Unsupported operator for float and integer: {:?}", operator)),
+            },
+            (Object::Integer(l), Object::Float(r)) => match operator {
+                InfixOperator::Plus => Ok(Object::Float(l as f64 + r)),
+                InfixOperator::Minus => Ok(Object::Float(l as f64 - r)),
+                InfixOperator::Multiply => Ok(Object::Float(l as f64 * r)),
+                InfixOperator::Divide => Ok(Object::Float(l as f64 / r)),
+                InfixOperator::Equal => Ok(Object::Boolean(l as f64 == r)),
+                InfixOperator::NotEqual => Ok(Object::Boolean(l as f64 != r)),
+                InfixOperator::LessThan => Ok(Object::Boolean((l as f64) < r)),
+                InfixOperator::GreaterThan => Ok(Object::Boolean((l as f64) > r)),
+                InfixOperator::LessThanOrEqual => Ok(Object::Boolean((l as f64) <= r)),
+                InfixOperator::GreaterThanOrEqual => Ok(Object::Boolean((l as f64) >= r)),
+                _ => Err(format!("Unsupported operator for integer and float: {:?}", operator)),
+            },
             (Object::Tensor(l), Object::Tensor(r)) => match operator {
                 InfixOperator::Plus => {
                     let res = l.add(&r)?;

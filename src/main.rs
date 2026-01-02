@@ -737,6 +737,81 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("enumerate".to_string(), enumerate_fn);
 
+    let sin_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("sin() takes exactly 1 argument".to_string());
+        }
+        let val = match &args[0] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err(format!("sin() argument must be numeric, got {}", args[0])),
+        };
+        Ok(Object::Float(val.sin()))
+    });
+    env.borrow_mut().set("sin".to_string(), sin_fn);
+
+    let cos_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("cos() takes exactly 1 argument".to_string());
+        }
+        let val = match &args[0] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err(format!("cos() argument must be numeric, got {}", args[0])),
+        };
+        Ok(Object::Float(val.cos()))
+    });
+    env.borrow_mut().set("cos".to_string(), cos_fn);
+
+    let tan_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("tan() takes exactly 1 argument".to_string());
+        }
+        let val = match &args[0] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err(format!("tan() argument must be numeric, got {}", args[0])),
+        };
+        Ok(Object::Float(val.tan()))
+    });
+    env.borrow_mut().set("tan".to_string(), tan_fn);
+
+    let isdigit_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("isdigit() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))),
+            _ => Err(format!("isdigit() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isdigit".to_string(), isdigit_fn);
+
+    let isalpha_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("isalpha() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_alphabetic()))),
+            _ => Err(format!("isalpha() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isalpha".to_string(), isalpha_fn);
+
+    let count_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("count() takes exactly 2 arguments (list, value)".to_string());
+        }
+        let list = match &args[0] {
+            Object::List(val) => val,
+            _ => return Err(format!("count() first argument must be a list, got {}", args[0])),
+        };
+        let target = &args[1];
+        let c = list.iter().filter(|&item| item == target).count();
+        Ok(Object::Integer(c as i64))
+    });
+    env.borrow_mut().set("count".to_string(), count_fn);
+
     // Constants
     env.borrow_mut().set("pi".to_string(), Object::Float(std::f64::consts::PI));
     env.borrow_mut().set("e".to_string(), Object::Float(std::f64::consts::E));
