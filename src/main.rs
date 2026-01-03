@@ -18,6 +18,7 @@ use std::env;
 use std::fs;
 use std::rc::Rc;
 use std::cell::RefCell;
+use rand::Rng;
 
 fn register_builtins(env: Rc<RefCell<Environment>>) {
     let tensor_fn = Object::NativeFn(|args| {
@@ -811,6 +812,74 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(Object::Integer(c as i64))
     });
     env.borrow_mut().set("count".to_string(), count_fn);
+
+    let input_fn = Object::NativeFn(|args| {
+        let msg = if args.len() == 1 {
+            args[0].to_string()
+        } else {
+            "".to_string()
+        };
+        print!("{}", msg);
+        io::stdout().flush().unwrap();
+        let mut response = String::new();
+        io::stdin().read_line(&mut response).unwrap();
+        Ok(Object::String(response.trim_end().to_string()))
+    });
+    env.borrow_mut().set("input".to_string(), input_fn);
+
+    let exit_fn = Object::NativeFn(|args| {
+        let code = if args.len() == 1 {
+            match &args[0] {
+                Object::Integer(i) => *i as i32,
+                _ => 0,
+            }
+        } else {
+            0
+        };
+        std::process::exit(code);
+    });
+    env.borrow_mut().set("exit".to_string(), exit_fn);
+
+    let random_fn = Object::NativeFn(|_| {
+        let mut rng = rand::thread_rng();
+        Ok(Object::Float(rng.gen()))
+    });
+    env.borrow_mut().set("random".to_string(), random_fn);
+
+    let randint_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("randint() takes exactly 2 arguments (low, high)".to_string());
+        }
+        let low = match &args[0] {
+            Object::Integer(i) => *i,
+            _ => return Err(format!("randint() low must be integer, got {}", args[0])),
+        };
+        let high = match &args[1] {
+            Object::Integer(i) => *i,
+            _ => return Err(format!("randint() high must be integer, got {}", args[1])),
+        };
+        if low > high {
+            return Err(format!("randint() low ({}) > high ({})", low, high));
+        }
+        let mut rng = rand::thread_rng();
+        Ok(Object::Integer(rng.gen_range(low..=high)))
+    });
+    env.borrow_mut().set("randint".to_string(), randint_fn);
+
+    let list_conv_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("list() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => {
+                let items = s.chars().map(|c| Object::String(c.to_string())).collect();
+                Ok(Object::List(items))
+            },
+            Object::List(l) => Ok(Object::List(l.clone())),
+            _ => Err(format!("list() conversion not supported for {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("list".to_string(), list_conv_fn);
 
     // Constants
     env.borrow_mut().set("pi".to_string(), Object::Float(std::f64::consts::PI));

@@ -1,0 +1,33 @@
+# tests/test_round8_features.fl
+
+print("--- Testing Randomness ---")
+let r = random()
+print("random(): ")
+print(r)
+if r >= 0.0 && r < 1.0:
+    print("random() is in range [0, 1)")
+
+let ri = randint(1, 10)
+print("randint(1, 10): ")
+print(ri)
+if ri >= 1 && ri <= 10:
+    print("randint is in range [1, 10]")
+
+print("\n--- Testing List Conversion ---")
+let s = "Flux"
+let l = list(s)
+print("list('Flux'): ")
+print(l)
+print("type(list('Flux')): ")
+print(type(l))
+
+print("\n--- Testing Input (Simulated/Informational) ---")
+print("Note: input() and exit() are best tested interactively.")
+
+# print("Input test: ")
+# let user_input = input("Type something: ")
+# print("You typed: " + user_input)
+
+# print("Testing exit(0)...")
+# exit(0)
+# print("This should NOT print")
