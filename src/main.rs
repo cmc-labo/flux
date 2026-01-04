@@ -881,6 +881,117 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("list".to_string(), list_conv_fn);
 
+    let append_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("append() takes exactly 2 arguments (list, item)".to_string());
+        }
+        let list = match &args[0] {
+            Object::List(val) => val,
+            _ => return Err(format!("append() first argument must be a list, got {}", args[0])),
+        };
+        let item = args[1].clone();
+        let mut new_list = list.clone();
+        new_list.push(item);
+        Ok(Object::List(new_list))
+    });
+    env.borrow_mut().set("append".to_string(), append_fn);
+
+    let extend_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("extend() takes exactly 2 arguments (list1, list2)".to_string());
+        }
+        let list1 = match &args[0] {
+            Object::List(val) => val,
+            _ => return Err(format!("extend() first argument must be a list, got {}", args[0])),
+        };
+        let list2 = match &args[1] {
+            Object::List(val) => val,
+            _ => return Err(format!("extend() second argument must be a list, got {}", args[1])),
+        };
+        let mut new_list = list1.clone();
+        new_list.extend(list2.clone());
+        Ok(Object::List(new_list))
+    });
+    env.borrow_mut().set("extend".to_string(), extend_fn);
+
+    let insert_fn = Object::NativeFn(|args| {
+        if args.len() != 3 {
+            return Err("insert() takes exactly 3 arguments (list, index, item)".to_string());
+        }
+        let list = match &args[0] {
+            Object::List(val) => val,
+            _ => return Err(format!("insert() first argument must be a list, got {}", args[0])),
+        };
+        let index = match &args[1] {
+            Object::Integer(i) => *i as usize,
+            _ => return Err(format!("insert() second argument must be an integer, got {}", args[1])),
+        };
+        let item = args[2].clone();
+        if index > list.len() {
+            return Err(format!("insert() index {} out of range for list of length {}", index, list.len()));
+        }
+        let mut new_list = list.clone();
+        new_list.insert(index, item);
+        Ok(Object::List(new_list))
+    });
+    env.borrow_mut().set("insert".to_string(), insert_fn);
+
+    let capitalize_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("capitalize() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => {
+                if s.is_empty() {
+                    return Ok(Object::String("".to_string()));
+                }
+                let mut c = s.chars();
+                let first = c.next().unwrap().to_uppercase().to_string();
+                let rest = c.as_str().to_lowercase();
+                Ok(Object::String(format!("{}{}", first, rest)))
+            },
+            _ => Err(format!("capitalize() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("capitalize".to_string(), capitalize_fn);
+
+    let isspace_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("isspace() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_whitespace()))),
+            _ => Err(format!("isspace() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isspace".to_string(), isspace_fn);
+
+    let radians_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("radians() takes exactly 1 argument".to_string());
+        }
+        let deg = match &args[0] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err(format!("radians() argument must be numeric, got {}", args[0])),
+        };
+        Ok(Object::Float(deg.to_radians()))
+    });
+    env.borrow_mut().set("radians".to_string(), radians_fn);
+
+    let degrees_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("degrees() takes exactly 1 argument".to_string());
+        }
+        let rad = match &args[0] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err(format!("degrees() argument must be numeric, got {}", args[0])),
+        };
+        Ok(Object::Float(rad.to_degrees()))
+    });
+    env.borrow_mut().set("degrees".to_string(), degrees_fn);
+
     // Constants
     env.borrow_mut().set("pi".to_string(), Object::Float(std::f64::consts::PI));
     env.borrow_mut().set("e".to_string(), Object::Float(std::f64::consts::E));
