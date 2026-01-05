@@ -801,15 +801,27 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
 
     let count_fn = Object::NativeFn(|args| {
         if args.len() != 2 {
-            return Err("count() takes exactly 2 arguments (list, value)".to_string());
+            return Err("count() takes exactly 2 arguments".to_string());
         }
-        let list = match &args[0] {
-            Object::List(val) => val,
-            _ => return Err(format!("count() first argument must be a list, got {}", args[0])),
-        };
-        let target = &args[1];
-        let c = list.iter().filter(|&item| item == target).count();
-        Ok(Object::Integer(c as i64))
+        match &args[0] {
+            Object::List(list) => {
+                let target = &args[1];
+                let c = list.iter().filter(|&item| item == target).count();
+                Ok(Object::Integer(c as i64))
+            },
+            Object::String(s) => {
+                let sub = match &args[1] {
+                    Object::String(val) => val,
+                    _ => return Err(format!("count() second argument must be a string for string search, got {}", args[1])),
+                };
+                if sub.is_empty() {
+                    return Ok(Object::Integer((s.len() + 1) as i64));
+                }
+                let c = s.matches(sub).count();
+                Ok(Object::Integer(c as i64))
+            },
+            _ => Err(format!("count() first argument must be a list or string, got {}", args[0])),
+        }
     });
     env.borrow_mut().set("count".to_string(), count_fn);
 
@@ -991,6 +1003,138 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(Object::Float(rad.to_degrees()))
     });
     env.borrow_mut().set("degrees".to_string(), degrees_fn);
+
+    let pop_at_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 {
+            return Err("pop_at() takes 1 or 2 arguments (list, [index])".to_string());
+        }
+        let list = match &args[0] {
+            Object::List(val) => val,
+            _ => return Err(format!("pop_at() first argument must be a list, got {}", args[0])),
+        };
+        let mut new_list = list.clone();
+        if new_list.is_empty() {
+            return Ok(Object::List(new_list));
+        }
+        let index = if args.len() == 2 {
+            match &args[1] {
+                Object::Integer(i) => {
+                    if *i < 0 {
+                        let idx = (new_list.len() as i64 + *i) as usize;
+                        if idx < new_list.len() { idx } else { return Err(format!("pop_at() index {} out of range", i)); }
+                    } else {
+                        *i as usize
+                    }
+                },
+                _ => return Err(format!("pop_at() second argument must be an integer, got {}", args[1])),
+            }
+        } else {
+            new_list.len() - 1
+        };
+        if index < new_list.len() {
+            new_list.remove(index);
+        } else {
+            return Err(format!("pop_at() index {} out of range", index));
+        }
+        Ok(Object::List(new_list))
+    });
+    env.borrow_mut().set("pop_at".to_string(), pop_at_fn);
+
+    let remove_val_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("remove() takes exactly 2 arguments (list, item)".to_string());
+        }
+        let list = match &args[0] {
+            Object::List(val) => val,
+            _ => return Err(format!("remove() first argument must be a list, got {}", args[0])),
+        };
+        let target = &args[1];
+        let mut new_list = list.clone();
+        if let Some(pos) = new_list.iter().position(|x| x == target) {
+            new_list.remove(pos);
+        }
+        Ok(Object::List(new_list))
+    });
+    env.borrow_mut().set("remove".to_string(), remove_val_fn);
+
+    let index_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("index() takes exactly 2 arguments (list, item)".to_string());
+        }
+        let list = match &args[0] {
+            Object::List(val) => val,
+            _ => return Err(format!("index() first argument must be a list, got {}", args[0])),
+        };
+        let target = &args[1];
+        let pos = list.iter().position(|x| x == target);
+        match pos {
+            Some(p) => Ok(Object::Integer(p as i64)),
+            None => Ok(Object::Integer(-1)),
+        }
+    });
+    env.borrow_mut().set("index".to_string(), index_fn);
+
+    let title_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("title() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => {
+                let titled: String = s.split_whitespace()
+                    .map(|word| {
+                        let mut chars = word.chars();
+                        match chars.next() {
+                            None => String::new(),
+                            Some(f) => f.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
+                        }
+                    })
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                Ok(Object::String(titled))
+            },
+            _ => Err(format!("title() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("title".to_string(), title_fn);
+
+    let factorial_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("factorial() takes exactly 1 argument".to_string());
+        }
+        let n = match &args[0] {
+            Object::Integer(i) => *i,
+            _ => return Err(format!("factorial() argument must be an integer, got {}", args[0])),
+        };
+        if n < 0 {
+            return Err("factorial() argument must be non-negative".to_string());
+        }
+        let mut res: i64 = 1;
+        for i in 1..=n {
+            res = res.checked_mul(i).ok_or("factorial() result overflow")?;
+        }
+        Ok(Object::Integer(res))
+    });
+    env.borrow_mut().set("factorial".to_string(), factorial_fn);
+
+    let gcd_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("gcd() takes exactly 2 arguments".to_string());
+        }
+        let mut a = match &args[0] {
+            Object::Integer(i) => i.abs(),
+            _ => return Err(format!("gcd() arguments must be integers, got {}", args[0])),
+        };
+        let mut b = match &args[1] {
+            Object::Integer(i) => i.abs(),
+            _ => return Err(format!("gcd() arguments must be integers, got {}", args[1])),
+        };
+        while b > 0 {
+            a %= b;
+            std::mem::swap(&mut a, &mut b);
+        }
+        Ok(Object::Integer(a))
+    });
+    env.borrow_mut().set("gcd".to_string(), gcd_fn);
 
     // Constants
     env.borrow_mut().set("pi".to_string(), Object::Float(std::f64::consts::PI));

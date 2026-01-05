@@ -1,0 +1,58 @@
+# tests/test_round10_features.fl
+
+print("--- Testing List Utilities (Returning New Lists) ---")
+let l = [10, 20, 30, 40, 50]
+print("l: ")
+print(l)
+
+print("pop_at(l): ")
+print(pop_at(l)) # [10, 20, 30, 40]
+
+print("pop_at(l, 1): ")
+print(pop_at(l, 1)) # [10, 30, 40, 50]
+
+print("pop_at(l, -2): ")
+print(pop_at(l, -2)) # [10, 20, 30, 50]
+
+print("remove(l, 30): ")
+print(remove(l, 30)) # [10, 20, 40, 50]
+
+print("index(l, 40): ")
+print(index(l, 40)) # 3
+
+print("index(l, 99): ")
+print(index(l, 99)) # -1
+
+print("\n--- Testing String Utilities ---")
+let s = "hello flux language world"
+print("title('hello flux language world'): ")
+print(title(s))
+
+let s2 = "banana"
+print("count('banana', 'a'): ")
+print(count(s2, "a"))
+
+print("count('banana', 'ana'): ")
+print(count(s2, "ana")) # 1 (non-overlapping matches by default in Rust .matches())
+
+print("\n--- Testing Math Functions ---")
+print("factorial(5): ")
+print(factorial(5))
+
+print("gcd(48, 18): ")
+print(gcd(48, 18))
+
+print("\n--- Combined Test ---")
+let data = [1, 2, 3, 2, 1]
+print("Original list: ")
+print(data)
+let cleaned = remove(data, 2)
+print("After removing first 2: ")
+print(cleaned)
+print("Count of 1 in cleaned list: ")
+print(count(cleaned, 1))
+
+let msg = "  flux is cool  "
+if not isspace(msg):
+    print("Message is not just whitespace: ")
+    print(title(strip(msg)))
