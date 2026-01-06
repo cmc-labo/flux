@@ -367,7 +367,11 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                 rev_l.reverse();
                 Ok(Object::List(rev_l))
             },
-            _ => Err(format!("reverse() argument must be a list, got {}", args[0])),
+            Object::String(s) => {
+                let rev_s: String = s.chars().rev().collect();
+                Ok(Object::String(rev_s))
+            },
+            _ => Err(format!("reverse() argument must be a list or string, got {}", args[0])),
         }
     });
     env.borrow_mut().set("reverse".to_string(), reverse_fn);
@@ -1135,6 +1139,120 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(Object::Integer(a))
     });
     env.borrow_mut().set("gcd".to_string(), gcd_fn);
+
+    let chr_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("chr() takes exactly 1 argument".to_string());
+        }
+        let n = match &args[0] {
+            Object::Integer(i) => *i,
+            _ => return Err(format!("chr() argument must be an integer, got {}", args[0])),
+        };
+        match std::char::from_u32(n as u32) {
+            Some(c) => Ok(Object::String(c.to_string())),
+            None => Err(format!("chr() argument {} is not a valid Unicode code point", n)),
+        }
+    });
+    env.borrow_mut().set("chr".to_string(), chr_fn);
+
+    let ord_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("ord() takes exactly 1 argument".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(val) => val,
+            _ => return Err(format!("ord() argument must be a string, got {}", args[0])),
+        };
+        if s.chars().count() != 1 {
+            return Err(format!("ord() expected a character, but string of length {} found", s.len()));
+        }
+        let c = s.chars().next().unwrap();
+        Ok(Object::Integer(c as i64))
+    });
+    env.borrow_mut().set("ord".to_string(), ord_fn);
+
+    let hex_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("hex() takes exactly 1 argument".to_string());
+        }
+        let n = match &args[0] {
+            Object::Integer(i) => *i,
+            _ => return Err(format!("hex() argument must be an integer, got {}", args[0])),
+        };
+        Ok(Object::String(format!("0x{:x}", n)))
+    });
+    env.borrow_mut().set("hex".to_string(), hex_fn);
+
+    let oct_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("oct() takes exactly 1 argument".to_string());
+        }
+        let n = match &args[0] {
+            Object::Integer(i) => *i,
+            _ => return Err(format!("oct() argument must be an integer, got {}", args[0])),
+        };
+        Ok(Object::String(format!("0o{:o}", n)))
+    });
+    env.borrow_mut().set("oct".to_string(), oct_fn);
+
+    let bin_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("bin() takes exactly 1 argument".to_string());
+        }
+        let n = match &args[0] {
+            Object::Integer(i) => *i,
+            _ => return Err(format!("bin() argument must be an integer, got {}", args[0])),
+        };
+        Ok(Object::String(format!("0b{:b}", n)))
+    });
+    env.borrow_mut().set("bin".to_string(), bin_fn);
+
+    let clamp_fn = Object::NativeFn(|args| {
+        if args.len() != 3 {
+            return Err("clamp() takes exactly 3 arguments (val, min, max)".to_string());
+        }
+        let val = &args[0];
+        let min = &args[1];
+        let max = &args[2];
+        
+        match (val, min, max) {
+            (Object::Integer(v), Object::Integer(mi), Object::Integer(ma)) => {
+                Ok(Object::Integer((*v).clamp(*mi, *ma)))
+            },
+            (v, mi, ma) => {
+                let vf = match v { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => return Err("clamp() args must be numeric".to_string()) };
+                let mif = match mi { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => return Err("clamp() args must be numeric".to_string()) };
+                let maf = match ma { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => return Err("clamp() args must be numeric".to_string()) };
+                Ok(Object::Float(vf.clamp(mif, maf)))
+            }
+        }
+    });
+    env.borrow_mut().set("clamp".to_string(), clamp_fn);
+
+    let swap_fn = Object::NativeFn(|args| {
+        if args.len() != 3 {
+            return Err("swap() takes exactly 3 arguments (list, i, j)".to_string());
+        }
+        let list = match &args[0] {
+            Object::List(val) => val,
+            _ => return Err(format!("swap() first argument must be a list, got {}", args[0])),
+        };
+        let i = match &args[1] {
+            Object::Integer(idx) => *idx as usize,
+            _ => return Err(format!("swap() second argument must be an integer, got {}", args[1])),
+        };
+        let j = match &args[2] {
+            Object::Integer(idx) => *idx as usize,
+            _ => return Err(format!("swap() third argument must be an integer, got {}", args[2])),
+        };
+        if i >= list.len() || j >= list.len() {
+            return Err(format!("swap() index out of range: list length {}, indices {}, {}", list.len(), i, j));
+        }
+        let mut new_list = list.clone();
+        new_list.swap(i, j);
+        Ok(Object::List(new_list))
+    });
+    env.borrow_mut().set("swap".to_string(), swap_fn);
 
     // Constants
     env.borrow_mut().set("pi".to_string(), Object::Float(std::f64::consts::PI));

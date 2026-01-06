@@ -1,0 +1,53 @@
+# tests/test_round11_features.fl
+
+print("--- Testing Character Utilities ---")
+print("chr(65): ")
+print(chr(65))
+print("ord('A'): ")
+print(ord("A"))
+print("chr(ord('z')): ")
+print(chr(ord("z")))
+
+print("\n--- Testing Base Conversion ---")
+let n = 255
+print("n = 255")
+print("hex(n): ")
+print(hex(n))
+print("oct(n): ")
+print(oct(n))
+print("bin(n): ")
+print(bin(n))
+
+print("\n--- Testing Math Utility: clamp ---")
+print("clamp(10, 0, 100): ")
+print(clamp(10, 0, 100))
+print("clamp(-5, 0, 100): ")
+print(clamp(-5, 0, 100))
+print("clamp(150, 0, 100): ")
+print(clamp(150, 0, 100))
+print("clamp(3.14, 0.0, 1.0): ")
+print(clamp(3.14, 0.0, 1.0))
+
+print("\n--- Testing List Utility: swap ---")
+let l = [1, 2, 3, 4]
+print("l: ")
+print(l)
+print("swap(l, 0, 3): ")
+print(swap(l, 0, 3))
+
+print("\n--- Testing Extended reverse() ---")
+print("reverse([1, 2, 3]): ")
+print(reverse([1, 2, 3]))
+print("reverse('flux'): ")
+print(reverse("flux"))
+
+print("\n--- Combined Test ---")
+let s = "ABC"
+let reversed_hex = []
+for c in list(s):
+    let code = ord(c)
+    let clamped = clamp(code, 0, 255)
+    let h = hex(clamped)
+    let reversed_hex = append(reversed_hex, reverse(h))
+print("Reversed hex of 'ABC': ")
+print(reversed_hex)
