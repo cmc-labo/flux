@@ -1,0 +1,46 @@
+# tests/test_round12_features.fl
+
+print("--- Testing String Formatting ---")
+print("zfill('42', 5): ")
+print(zfill("42", 5))
+print("center('flux', 10): ")
+print(center("flux", 10))
+print("center('flux', 10, '*'): ")
+print(center("flux", 10, "*"))
+
+print("\n--- Testing System ---")
+let t = time()
+print("time(): ")
+print(t)
+if t > 1700000000.0:
+    print("Time looks like a reasonable Unix timestamp")
+
+print("\n--- Testing Math ---")
+print("isqrt(16): ")
+print(isqrt(16))
+print("isqrt(20): ")
+print(isqrt(20))
+print("hypot(3, 4): ")
+print(hypot(3, 4))
+
+print("\n--- Testing List Utilities ---")
+let l = [[1, 2], [3, 4], 5]
+print("l: ")
+print(l)
+print("flat(l): ")
+print(flat(l))
+
+print("\n--- Combined Test ---")
+let items = ["apple", "banana", "cherry"]
+let result = []
+for i in items:
+    let result = append(result, center(i, 10, "-"))
+print("Centered items: ")
+print(result)
+
+let flat_test = flat([[1, 2], [3, 4]])
+let total = 0
+for n in flat_test:
+    let total = total + n
+print("Sum of flattened list [1, 2, 3, 4]: ")
+print(total)

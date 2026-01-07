@@ -18,6 +18,7 @@ use std::env;
 use std::fs;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::time::{SystemTime, UNIX_EPOCH};
 use rand::Rng;
 
 fn register_builtins(env: Rc<RefCell<Environment>>) {
@@ -1253,6 +1254,131 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(Object::List(new_list))
     });
     env.borrow_mut().set("swap".to_string(), swap_fn);
+
+    let zfill_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("zfill() takes exactly 2 arguments (string, width)".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(val) => val,
+            _ => return Err(format!("zfill() first argument must be a string, got {}", args[0])),
+        };
+        let width = match &args[1] {
+            Object::Integer(i) => *i as usize,
+            _ => return Err(format!("zfill() second argument must be an integer, got {}", args[1])),
+        };
+        if s.len() >= width {
+            return Ok(Object::String(s.clone()));
+        }
+        let padding = "0".repeat(width - s.len());
+        Ok(Object::String(format!("{}{}", padding, s)))
+    });
+    env.borrow_mut().set("zfill".to_string(), zfill_fn);
+
+    let center_fn = Object::NativeFn(|args| {
+        if args.len() < 2 || args.len() > 3 {
+            return Err("center() takes 2 or 3 arguments (string, width, [fillchar])".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(val) => val,
+            _ => return Err(format!("center() first argument must be a string, got {}", args[0])),
+        };
+        let width = match &args[1] {
+            Object::Integer(i) => *i as usize,
+            _ => return Err(format!("center() second argument must be an integer, got {}", args[1])),
+        };
+        let fill = if args.len() == 3 {
+            match &args[2] {
+                Object::String(val) => {
+                    if val.chars().count() != 1 {
+                        return Err("center() fillchar must be a single character".to_string());
+                    }
+                    val.clone()
+                },
+                _ => return Err("center() fillchar must be a string".to_string()),
+            }
+        } else {
+            " ".to_string()
+        };
+
+        if s.len() >= width {
+            return Ok(Object::String(s.clone()));
+        }
+
+        let total_pad = width - s.len();
+        let left_pad = total_pad / 2;
+        let right_pad = total_pad - left_pad;
+        
+        Ok(Object::String(format!(
+            "{}{}{}",
+            fill.repeat(left_pad),
+            s,
+            fill.repeat(right_pad)
+        )))
+    });
+    env.borrow_mut().set("center".to_string(), center_fn);
+
+    let time_fn = Object::NativeFn(|_| {
+        let start = SystemTime::now();
+        let since_the_epoch = start.duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+        Ok(Object::Float(since_the_epoch.as_secs_f64()))
+    });
+    env.borrow_mut().set("time".to_string(), time_fn);
+
+    let isqrt_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("isqrt() takes exactly 1 argument".to_string());
+        }
+        let n = match &args[0] {
+            Object::Integer(i) => *i,
+            _ => return Err(format!("isqrt() argument must be an integer, got {}", args[0])),
+        };
+        if n < 0 {
+            return Err("isqrt() argument must be non-negative".to_string());
+        }
+        Ok(Object::Integer((n as f64).sqrt() as i64))
+    });
+    env.borrow_mut().set("isqrt".to_string(), isqrt_fn);
+
+    let hypot_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("hypot() takes exactly 2 arguments".to_string());
+        }
+        let x = match &args[0] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err("hypot() arguments must be numeric".to_string()),
+        };
+        let y = match &args[1] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err("hypot() arguments must be numeric".to_string()),
+        };
+        Ok(Object::Float(x.hypot(y)))
+    });
+    env.borrow_mut().set("hypot".to_string(), hypot_fn);
+
+    let flat_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("flat() takes exactly 1 argument (list)".to_string());
+        }
+        let list = match &args[0] {
+            Object::List(val) => val,
+            _ => return Err(format!("flat() argument must be a list, got {}", args[0])),
+        };
+        let mut flattened = Vec::new();
+        for item in list {
+            match item {
+                Object::List(sub_list) => {
+                    flattened.extend(sub_list.clone());
+                },
+                _ => flattened.push(item.clone()),
+            }
+        }
+        Ok(Object::List(flattened))
+    });
+    env.borrow_mut().set("flat".to_string(), flat_fn);
 
     // Constants
     env.borrow_mut().set("pi".to_string(), Object::Float(std::f64::consts::PI));
