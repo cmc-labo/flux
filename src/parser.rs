@@ -11,6 +11,7 @@ enum Precedence {
     Sum,         // +
     Product,     // * / %
     Prefix,      // -X or !X
+    Power,       // X ** Y
     Call,        // myFunction(X)
     Index,       // array[index] or object.property
 }
@@ -115,23 +116,33 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_print_statement(&mut self) -> Option<Statement> {
-        // Expect (
         if !self.expect_peek(Token::LParen) {
             return None;
         }
-        self.next_token(); // skip (
         
-        let expr = self.parse_expression(Precedence::Lowest)?;
-        
-        if !self.expect_peek(Token::RParen) {
-            return None;
+        let mut expressions = Vec::new();
+        if self.peek_token_is(&Token::RParen) {
+            self.next_token();
+        } else {
+            self.next_token();
+            expressions.push(self.parse_expression(Precedence::Lowest)?);
+            
+            while self.peek_token_is(&Token::Comma) {
+                self.next_token();
+                self.next_token();
+                expressions.push(self.parse_expression(Precedence::Lowest)?);
+            }
+            
+            if !self.expect_peek(Token::RParen) {
+                return None;
+            }
         }
         
         if self.peek_token_is(&Token::Newline) {
             self.next_token();
         }
         
-        Some(Statement::Print(expr))
+        Some(Statement::Print(expressions))
     }
 
     fn parse_expression_statement(&mut self) -> Option<Statement> {
@@ -391,7 +402,7 @@ impl<'a> Parser<'a> {
 
         while !self.peek_token_is(&Token::Newline) && !self.peek_token_is(&Token::EOF) && precedence < self.peek_precedence() {
             match self.peek_token {
-                Token::Plus | Token::Minus | Token::Star | Token::Slash | Token::Percent | Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual | Token::At | Token::And | Token::Or => {
+                Token::Plus | Token::Minus | Token::Star | Token::Slash | Token::Percent | Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual | Token::At | Token::DoubleStar | Token::And | Token::Or => {
                     self.next_token();
                     left_expr = self.parse_infix_expression(left_expr)?;
                 },
@@ -513,6 +524,7 @@ impl<'a> Parser<'a> {
             Token::LessThanOrEqual => InfixOperator::LessThanOrEqual,
             Token::GreaterThanOrEqual => InfixOperator::GreaterThanOrEqual,
             Token::At => InfixOperator::MatrixMultiply,
+            Token::DoubleStar => InfixOperator::Power,
             Token::And => InfixOperator::And,
             Token::Or => InfixOperator::Or,
             _ => return None,
@@ -579,6 +591,7 @@ impl<'a> Parser<'a> {
             Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual => Precedence::Equals,
             Token::Plus | Token::Minus => Precedence::Sum,
             Token::Star | Token::Slash | Token::Percent | Token::At => Precedence::Product,
+            Token::DoubleStar => Precedence::Power,
             Token::LParen => Precedence::Call,
             Token::Dot | Token::LBracket => Precedence::Index,
             _ => Precedence::Lowest,
@@ -592,6 +605,7 @@ impl<'a> Parser<'a> {
             Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual => Precedence::Equals,
             Token::Plus | Token::Minus => Precedence::Sum,
             Token::Star | Token::Slash | Token::Percent | Token::At => Precedence::Product,
+            Token::DoubleStar => Precedence::Power,
             Token::LParen => Precedence::Call,
             Token::Dot | Token::LBracket => Precedence::Index,
             _ => Precedence::Lowest,

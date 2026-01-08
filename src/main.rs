@@ -1383,6 +1383,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     // Constants
     env.borrow_mut().set("pi".to_string(), Object::Float(std::f64::consts::PI));
     env.borrow_mut().set("e".to_string(), Object::Float(std::f64::consts::E));
+    env.borrow_mut().set("PI".to_string(), Object::Float(std::f64::consts::PI));
+    env.borrow_mut().set("E".to_string(), Object::Float(std::f64::consts::E));
 
     // Constants
     env.borrow_mut().set("true".to_string(), Object::Boolean(true));

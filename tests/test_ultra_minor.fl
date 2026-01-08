@@ -1,0 +1,28 @@
+# test_ultra_minor.fl
+
+print("--- Testing List Operations ---")
+let l1 = [1, 2]
+let l2 = [3, 4]
+print("l1 + l2 =", l1 + l2)
+print("l1 * 3 =", l1 * 3)
+print("2 * l2 =", 2 * l2)
+
+print("\n--- Testing Power Operator ---")
+print("2 ** 3 =", 2 ** 3)
+print("2.5 ** 2 =", 2.5 ** 2)
+print("4 ** 0.5 =", 4 ** 0.5)
+
+print("\n--- Testing Multiple Arguments in print ---")
+print("Hello", "World", 123, [1, 2])
+
+print("\n--- Testing Math Constants ---")
+print("PI =", PI)
+print("E =", E)
+print("pi =", pi)
+print("e =", e)
+
+print("\n--- Testing Precedence (Power vs Multiplication/Prefix) ---")
+print("2 * 3 ** 2 =", 2 * 3 ** 2)  # Should be 2 * 9 = 18
+print("-2 ** 2 =", -2 ** 2)      # Should be -4 (like Python) or 4? 
+                                  # In Python -2**2 is -4 because ** > -
+                                  # Our parser: Power > Prefix, so should be -4.

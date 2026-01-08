@@ -7,7 +7,7 @@ pub enum Statement {
     If { condition: Expression, consequence: Block, alternative: Option<Block> },
     While { condition: Expression, body: Block },
     For { variable: String, iterable: Expression, body: Block },
-    Print(Expression),
+    Print(Vec<Expression>),
     IndexAssign { object: Expression, index: Expression, value: Expression },
 }
 
@@ -52,5 +52,6 @@ pub enum InfixOperator {
     GreaterThanOrEqual,
     And,
     Or,
+    Power,
     MatrixMultiply,
 }

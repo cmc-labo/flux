@@ -90,7 +90,15 @@ impl<'a> Lexer<'a> {
                 }
                 '+' => { self.chars.next(); Token::Plus }
                 '-' => { self.chars.next(); Token::Minus }
-                '*' => { self.chars.next(); Token::Star }
+                '*' => {
+                    self.chars.next();
+                    if let Some(&'*') = self.chars.peek() {
+                        self.chars.next();
+                        Token::DoubleStar
+                    } else {
+                        Token::Star
+                    }
+                }
                 '/' => { self.chars.next(); Token::Slash }
                 '%' => { self.chars.next(); Token::Percent }
                 '@' => { self.chars.next(); Token::At }

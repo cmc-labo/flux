@@ -60,9 +60,12 @@ impl Interpreter {
                 }
                 Ok(result)
             },
-            Statement::Print(expr) => {
-                let val = self.eval_expression(expr, env)?;
-                println!("{}", val);
+            Statement::Print(expressions) => {
+                let mut vals = Vec::new();
+                for expr in expressions {
+                    vals.push(self.eval_expression(expr, env.clone())?.to_string());
+                }
+                println!("{}", vals.join(" "));
                 Ok(Object::Null)
             },
             Statement::For { variable, iterable, body } => {
@@ -320,6 +323,7 @@ impl Interpreter {
                 InfixOperator::GreaterThan => Ok(Object::Boolean(l > r)),
                 InfixOperator::LessThanOrEqual => Ok(Object::Boolean(l <= r)),
                 InfixOperator::GreaterThanOrEqual => Ok(Object::Boolean(l >= r)),
+                InfixOperator::Power => Ok(Object::Float((l as f64).powf(r as f64))),
                 _ => Err(format!("Unknown operator for integers")),
             },
             (Object::Float(l), Object::Float(r)) => match operator {
@@ -333,6 +337,7 @@ impl Interpreter {
                   InfixOperator::GreaterThan => Ok(Object::Boolean(l > r)),
                   InfixOperator::LessThanOrEqual => Ok(Object::Boolean(l <= r)),
                   InfixOperator::GreaterThanOrEqual => Ok(Object::Boolean(l >= r)),
+                  InfixOperator::Power => Ok(Object::Float(l.powf(r))),
                   _ => Err(format!("Unsupported operator for floats: {:?}", operator)),
             },
             (Object::Float(l), Object::Integer(r)) => match operator {
@@ -346,6 +351,7 @@ impl Interpreter {
                 InfixOperator::GreaterThan => Ok(Object::Boolean(l > r as f64)),
                 InfixOperator::LessThanOrEqual => Ok(Object::Boolean(l <= r as f64)),
                 InfixOperator::GreaterThanOrEqual => Ok(Object::Boolean(l >= r as f64)),
+                InfixOperator::Power => Ok(Object::Float(l.powf(r as f64))),
                 _ => Err(format!("Unsupported operator for float and integer: {:?}", operator)),
             },
             (Object::Integer(l), Object::Float(r)) => match operator {
@@ -359,6 +365,7 @@ impl Interpreter {
                 InfixOperator::GreaterThan => Ok(Object::Boolean((l as f64) > r)),
                 InfixOperator::LessThanOrEqual => Ok(Object::Boolean((l as f64) <= r)),
                 InfixOperator::GreaterThanOrEqual => Ok(Object::Boolean((l as f64) >= r)),
+                InfixOperator::Power => Ok(Object::Float((l as f64).powf(r))),
                 _ => Err(format!("Unsupported operator for integer and float: {:?}", operator)),
             },
             (Object::Tensor(l), Object::Tensor(r)) => match operator {
@@ -391,6 +398,36 @@ impl Interpreter {
                     Ok(Object::String(s.repeat(i as usize)))
                 },
                 _ => Err(format!("Unsupported operator for integer and string: {:?}", operator)),
+            },
+            (Object::List(l1), Object::List(l2)) => match operator {
+                InfixOperator::Plus => {
+                    let mut res = l1.clone();
+                    res.extend(l2);
+                    Ok(Object::List(res))
+                },
+                _ => Err(format!("Unsupported operator for lists: {:?}", operator)),
+            },
+            (Object::List(l), Object::Integer(i)) => match operator {
+                InfixOperator::Multiply => {
+                    if i < 0 { return Err(format!("Negative list multiplication count: {}", i)); }
+                    let mut res = Vec::new();
+                    for _ in 0..i {
+                        res.extend(l.clone());
+                    }
+                    Ok(Object::List(res))
+                },
+                _ => Err(format!("Unsupported operator for list and integer: {:?}", operator)),
+            },
+            (Object::Integer(i), Object::List(l)) => match operator {
+                InfixOperator::Multiply => {
+                    if i < 0 { return Err(format!("Negative list multiplication count: {}", i)); }
+                    let mut res = Vec::new();
+                    for _ in 0..i {
+                        res.extend(l.clone());
+                    }
+                    Ok(Object::List(res))
+                },
+                _ => Err(format!("Unsupported operator for integer and list: {:?}", operator)),
             },
             // Handle mixed types?
             (l, r) => Err(format!("Type mismatch: {} {:?} {}", l, operator, r)),
