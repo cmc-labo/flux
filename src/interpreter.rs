@@ -86,6 +86,65 @@ impl Interpreter {
                     }
                 }
                 Ok(result)
+            },
+            Statement::IndexAssign { object, index, value } => {
+                let obj_expr = object.clone();
+                let obj = self.eval_expression(object, env.clone())?;
+                let idx = self.eval_expression(index, env.clone())?;
+                let val = self.eval_expression(value, env.clone())?;
+
+                match obj {
+                    Object::List(mut l) => {
+                        let i = match idx {
+                            Object::Integer(i) => i,
+                            _ => return Err(format!("Index must be integer, got {}", idx)),
+                        };
+                        if i < 0 || i >= l.len() as i64 {
+                            return Err(format!("Index out of bounds: {}", i));
+                        }
+                        l[i as usize] = val;
+                        
+                        // We need to update the source.
+                        // If it's an identifier, simple.
+                        if let Expression::Identifier(name) = obj_expr {
+                            env.borrow_mut().set(name, Object::List(l));
+                        } else {
+                            // For nested assignment like a[0][1] = 5, we'd need deeper integration.
+                            // For now, only top-level list variable indexing is supported for assignment.
+                            return Err(format!("Nested index assignment not yet supported"));
+                        }
+                    },
+                    Object::Tensor(mut t) => {
+                         // Similar for tensor?
+                         let i = match idx {
+                             Object::Integer(i) => i,
+                             _ => return Err(format!("Index must be integer, got {}", idx)),
+                         };
+                         let val_f = match val {
+                             Object::Float(f) => f,
+                             Object::Integer(i) => i as f64,
+                             _ => return Err(format!("Tensor value must be numeric, got {}", val)),
+                         };
+                         
+                         // We need a method in Tensor to set value.
+                         // For now, let's assume it's 1D for simplicity in implementation.
+                         if t.inner.ndim() != 1 {
+                             return Err(format!("Tensor index assignment currently only supported for 1D tensors"));
+                         }
+                         if i < 0 || i >= t.inner.len() as i64 {
+                             return Err(format!("Index out of bounds for tensor: {}", i));
+                         }
+                         t.inner[i as usize] = val_f;
+
+                         if let Expression::Identifier(name) = obj_expr {
+                            env.borrow_mut().set(name, Object::Tensor(t));
+                         } else {
+                            return Err(format!("Nested tensor index assignment not yet supported"));
+                         }
+                    }
+                    _ => return Err(format!("Cannot assign to index of {}", obj)),
+                }
+                Ok(Object::Null)
             }
         }
     }
@@ -166,9 +225,22 @@ impl Interpreter {
                         let ch = s.chars().nth(i as usize).unwrap();
                         Ok(Object::String(ch.to_string()))
                     },
-                    (Object::Tensor(_t), Object::Integer(_i)) => {
-                        // Simple indexing for tensor?
-                        Err(format!("Tensor indexing not yet fully implemented"))
+                    (Object::Tensor(t), Object::Integer(i)) => {
+                        if t.inner.ndim() == 0 {
+                            return Err(format!("Cannot index 0D tensor"));
+                        }
+                        let shape = t.inner.shape();
+                        if i < 0 || i >= shape[0] as i64 {
+                             return Err(format!("Index out of bounds: {} (shape: {:?})", i, shape));
+                        }
+                        
+                        if t.inner.ndim() == 1 {
+                            Ok(Object::Float(t.inner[i as usize]))
+                        } else {
+                            // Sub-tensor indexing (slice along the first axis)
+                            let sub = t.inner.index_axis(ndarray::Axis(0), i as usize);
+                            Ok(Object::Tensor(crate::tensor::Tensor { inner: sub.to_owned() }))
+                        }
                     },
                     (o, i) => Err(format!("Cannot index {} with {}", o, i)),
                 }

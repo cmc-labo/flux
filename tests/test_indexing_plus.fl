@@ -1,0 +1,34 @@
+# test_indexing_plus.fl
+
+print("--- Testing List Index Assignment ---")
+let l = [1, 2, 3]
+print(l)
+l[0] = 10
+l[2] = 30
+print(l)
+
+print("\n--- Testing Variable Reassignment (without let) ---")
+x = 100
+print(x)
+x = 200
+print(x)
+
+print("\n--- Testing Tensor Indexing (1D) ---")
+let t1 = tensor(3) # [1, 1, 1]
+print(t1)
+print(t1[0])
+t1[1] = 5.0
+print(t1)
+
+print("\n--- Testing Tensor Indexing (2D) ---")
+let m = matrix(2, 3) # [[1, 1, 1], [1, 1, 1]]
+print(m)
+let row = m[0]
+print("Row 0:")
+print(row)
+print("Sub-index:")
+print(row[0])
+
+print("\n--- Testing Error Cases ---")
+# l[5] = 10 # This should error
+# row[10] # This should error

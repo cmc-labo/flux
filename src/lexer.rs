@@ -244,14 +244,29 @@ impl<'a> Lexer<'a> {
     fn read_string(&mut self) -> Token {
         self.chars.next(); // skip "
         let mut literal = String::new();
-        while let Some(&ch) = self.chars.peek() {
+        while let Some(ch) = self.chars.next() {
             if ch == '"' {
                 break;
             }
-            literal.push(ch);
-            self.chars.next();
+            if ch == '\\' {
+                if let Some(next_ch) = self.chars.next() {
+                    match next_ch {
+                        'n' => literal.push('\n'),
+                        't' => literal.push('\t'),
+                        '\\' => literal.push('\\'),
+                        '"' => literal.push('"'),
+                        _ => {
+                            literal.push('\\');
+                            literal.push(next_ch);
+                        }
+                    }
+                } else {
+                    literal.push('\\');
+                }
+            } else {
+                literal.push(ch);
+            }
         }
-        self.chars.next(); // consume closing "
         Token::String(literal)
     }
 }

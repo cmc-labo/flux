@@ -137,6 +137,30 @@ impl<'a> Parser<'a> {
     fn parse_expression_statement(&mut self) -> Option<Statement> {
         let expr = self.parse_expression(Precedence::Lowest)?;
 
+        if self.peek_token_is(&Token::Assign) {
+            self.next_token(); // consume expr
+            self.next_token(); // consume =
+            let value = self.parse_expression(Precedence::Lowest)?;
+            
+            match expr {
+                Expression::Index { object, index } => {
+                    return Some(Statement::IndexAssign {
+                        object: *object,
+                        index: *index,
+                        value,
+                    });
+                }
+                Expression::Identifier(name) => {
+                    // Treat reassignment as let for now in environment (which it already does)
+                    return Some(Statement::Let { name, value });
+                }
+                _ => {
+                    self.errors.push(format!("Invalid assignment target: {:?}", expr));
+                    return None;
+                }
+            }
+        }
+
         if self.peek_token_is(&Token::Newline) {
             self.next_token();
         }

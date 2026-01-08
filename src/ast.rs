@@ -8,6 +8,7 @@ pub enum Statement {
     While { condition: Expression, body: Block },
     For { variable: String, iterable: Expression, body: Block },
     Print(Expression),
+    IndexAssign { object: Expression, index: Expression, value: Expression },
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -51,6 +52,5 @@ pub enum InfixOperator {
     GreaterThanOrEqual,
     And,
     Or,
-    Assign, // For now, maybe treated as statement? But Python allows x = y = 1. Let's keep it simple: assignment is a statement in our MVP.
     MatrixMultiply,
 }
