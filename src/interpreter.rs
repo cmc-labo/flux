@@ -54,11 +54,14 @@ impl Interpreter {
                         break;
                     }
                     result = self.eval_block(body.clone(), env.clone())?;
-                    if let Object::ReturnValue(_) = result {
-                        return Ok(result);
+                    match result {
+                        Object::Break => break,
+                        Object::Continue => continue,
+                        Object::ReturnValue(_) => return Ok(result),
+                        _ => {}
                     }
                 }
-                Ok(result)
+                Ok(Object::Null)
             },
             Statement::Print(expressions) => {
                 let mut vals = Vec::new();
@@ -84,11 +87,14 @@ impl Interpreter {
                 for el in elements {
                     env.borrow_mut().set(variable.clone(), el);
                     result = self.eval_block(body.clone(), env.clone())?;
-                    if let Object::ReturnValue(_) = result {
-                        return Ok(result);
+                    match result {
+                        Object::Break => break,
+                        Object::Continue => continue,
+                        Object::ReturnValue(_) => return Ok(result),
+                        _ => {}
                     }
                 }
-                Ok(result)
+                Ok(Object::Null)
             },
             Statement::IndexAssign { object, index, value } => {
                 let obj_expr = object.clone();
@@ -148,7 +154,9 @@ impl Interpreter {
                     _ => return Err(format!("Cannot assign to index of {}", obj)),
                 }
                 Ok(Object::Null)
-            }
+            },
+            Statement::Break => Ok(Object::Break),
+            Statement::Continue => Ok(Object::Continue),
         }
     }
 
@@ -156,8 +164,9 @@ impl Interpreter {
         let mut result = Object::Null;
         for stmt in block.statements {
             result = self.eval(stmt, env.clone())?;
-            if let Object::ReturnValue(_) = result {
-                return Ok(result);
+            match result {
+                Object::ReturnValue(_) | Object::Break | Object::Continue => return Ok(result),
+                _ => {}
             }
         }
         Ok(result)
@@ -383,6 +392,8 @@ impl Interpreter {
                 InfixOperator::Plus => Ok(Object::String(format!("{}{}", l, r))),
                 InfixOperator::Equal => Ok(Object::Boolean(l == r)),
                 InfixOperator::NotEqual => Ok(Object::Boolean(l != r)),
+                InfixOperator::In => Ok(Object::Boolean(r.contains(&l))),
+                InfixOperator::NotIn => Ok(Object::Boolean(!r.contains(&l))),
                 _ => Err(format!("Unsupported operator for strings: {:?}", operator)),
             },
             (Object::String(s), Object::Integer(i)) => match operator {
@@ -418,16 +429,21 @@ impl Interpreter {
                 },
                 _ => Err(format!("Unsupported operator for list and integer: {:?}", operator)),
             },
-            (Object::Integer(i), Object::List(l)) => match operator {
+            (l, Object::List(r)) => match operator {
+                InfixOperator::In => Ok(Object::Boolean(r.contains(&l))),
+                InfixOperator::NotIn => Ok(Object::Boolean(!r.contains(&l))),
                 InfixOperator::Multiply => {
-                    if i < 0 { return Err(format!("Negative list multiplication count: {}", i)); }
-                    let mut res = Vec::new();
-                    for _ in 0..i {
-                        res.extend(l.clone());
+                    if let Object::Integer(i) = l {
+                        if i < 0 { return Err(format!("Negative list multiplication count: {}", i)); }
+                        let mut res = Vec::new();
+                        for _ in 0..i {
+                            res.extend(r.clone());
+                        }
+                        return Ok(Object::List(res));
                     }
-                    Ok(Object::List(res))
-                },
-                _ => Err(format!("Unsupported operator for integer and list: {:?}", operator)),
+                    Err(format!("Unsupported operator for {} and list: {:?}", l, operator))
+                }
+                _ => Err(format!("Unsupported operator for list: {:?}", operator)),
             },
             // Handle mixed types?
             (l, r) => Err(format!("Type mismatch: {} {:?} {}", l, operator, r)),

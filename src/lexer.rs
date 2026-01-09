@@ -88,18 +88,45 @@ impl<'a> Lexer<'a> {
                         Token::Illegal("|".to_string())
                     }
                 }
-                '+' => { self.chars.next(); Token::Plus }
-                '-' => { self.chars.next(); Token::Minus }
+                '+' => {
+                    self.chars.next();
+                    if let Some(&'=') = self.chars.peek() {
+                        self.chars.next();
+                        Token::PlusAssign
+                    } else {
+                        Token::Plus
+                    }
+                }
+                '-' => {
+                    self.chars.next();
+                    if let Some(&'=') = self.chars.peek() {
+                        self.chars.next();
+                        Token::MinusAssign
+                    } else {
+                        Token::Minus
+                    }
+                }
                 '*' => {
                     self.chars.next();
                     if let Some(&'*') = self.chars.peek() {
                         self.chars.next();
                         Token::DoubleStar
+                    } else if let Some(&'=') = self.chars.peek() {
+                        self.chars.next();
+                        Token::StarAssign
                     } else {
                         Token::Star
                     }
                 }
-                '/' => { self.chars.next(); Token::Slash }
+                '/' => {
+                    self.chars.next();
+                    if let Some(&'=') = self.chars.peek() {
+                        self.chars.next();
+                        Token::SlashAssign
+                    } else {
+                        Token::Slash
+                    }
+                }
                 '%' => { self.chars.next(); Token::Percent }
                 '@' => { self.chars.next(); Token::At }
                 '(' => { self.chars.next(); Token::LParen }
@@ -220,7 +247,21 @@ impl<'a> Lexer<'a> {
             "or" => Token::Or,
             "for" => Token::For,
             "in" => Token::In,
-            "not" => Token::Not,
+            "not" => {
+                // Peek ahead for " in "
+                let remaining: String = self.chars.clone().collect();
+                if remaining.starts_with(" in ") || remaining.starts_with(" in\n") || remaining.starts_with(" in\t") {
+                    // Consume " in"
+                    self.chars.next(); // " "
+                    self.chars.next(); // "i"
+                    self.chars.next(); // "n"
+                    Token::NotIn
+                } else {
+                    Token::Not
+                }
+            },
+            "break" => Token::Break,
+            "continue" => Token::Continue,
             _ => Token::Identifier(literal),
         }
     }

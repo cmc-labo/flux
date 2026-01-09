@@ -17,6 +17,8 @@ pub enum Object {
     Tensor(crate::tensor::Tensor),
     PyObject(pyo3::Py<pyo3::types::PyAny>),
     List(Vec<Object>),
+    Break,
+    Continue,
 }
 
 impl Clone for Object {
@@ -37,6 +39,8 @@ impl Clone for Object {
                 })
             },
             Object::List(l) => Object::List(l.clone()),
+            Object::Break => Object::Break,
+            Object::Continue => Object::Continue,
         }
     }
 }
@@ -78,6 +82,8 @@ impl fmt::Display for Object {
                 }
                 write!(f, "]")
             }
+            Object::Break => write!(f, "break"),
+            Object::Continue => write!(f, "continue"),
         }
     }
 }

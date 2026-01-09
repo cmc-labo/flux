@@ -18,7 +18,10 @@ pub enum Token {
     Or,
     For,
     In,
+    NotIn,
     Not,
+    Break,
+    Continue,
 
     // Operators
     Plus,
@@ -28,6 +31,10 @@ pub enum Token {
     Slash,
     Percent,
     Assign,
+    PlusAssign,
+    MinusAssign,
+    StarAssign,
+    SlashAssign,
     Equal, // ==
     NotEqual, // !=
     LessThan, // <

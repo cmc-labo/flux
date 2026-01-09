@@ -1,0 +1,50 @@
+# Test Round 3 Improvements
+
+# 1. Membership tests
+print("Checking membership tests:")
+l = [1, 2, 3]
+print(1 in l)      # true
+print(4 in l)      # false
+print(1 not in l)  # false
+print(4 not in l)  # true
+
+s = "hello"
+print("h" in s)     # true
+print("z" in s)     # false
+print("he" in s)    # true
+print("z" not in s) # true
+
+# 2. Augmented Assignments
+print("\nChecking augmented assignments:")
+x = 10
+x += 5
+print(x) # 15
+x -= 3
+print(x) # 12
+x *= 2
+print(x) # 24
+x /= 4
+print(x) # 2.5 (Wait, 10+5-3=12, 12*2=24, 24/4=6.0)
+
+l[0] += 10
+print(l) # [11, 2, 3]
+
+# 3. Loop Control
+print("\nChecking loop control (break/continue):")
+i = 0
+while i < 10:
+    i += 1
+    if i == 5:
+        continue
+    if i == 8:
+        break
+    print(i)
+
+print("\nChecking for loop control:")
+for x in [1, 2, 3, 4, 5]:
+    if x == 2:
+        continue
+    if x == 4:
+        break
+    print(x)
+# Expected: 1 3 (with newlines)

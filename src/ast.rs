@@ -9,6 +9,8 @@ pub enum Statement {
     For { variable: String, iterable: Expression, body: Block },
     Print(Vec<Expression>),
     IndexAssign { object: Expression, index: Expression, value: Expression },
+    Break,
+    Continue,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -53,5 +55,7 @@ pub enum InfixOperator {
     And,
     Or,
     Power,
+    In,
+    NotIn,
     MatrixMultiply,
 }

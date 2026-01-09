@@ -152,6 +152,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::NativeFn(_) => Ok(Object::String("native_function".to_string())),
             Object::PyObject(_) => Ok(Object::String("pyobject".to_string())),
             Object::ReturnValue(_) => Ok(Object::String("return_value".to_string())),
+            Object::Break => Ok(Object::String("break".to_string())),
+            Object::Continue => Ok(Object::String("continue".to_string())),
         }
     });
     env.borrow_mut().set("type".to_string(), type_fn);

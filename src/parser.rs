@@ -62,6 +62,16 @@ impl<'a> Parser<'a> {
             Token::While => self.parse_while_statement(),
             Token::For => self.parse_for_statement(),
             Token::Print => self.parse_print_statement(),
+            Token::Break => {
+                self.next_token();
+                if self.peek_token_is(&Token::Newline) { self.next_token(); }
+                Some(Statement::Break)
+            }
+            Token::Continue => {
+                self.next_token();
+                if self.peek_token_is(&Token::Newline) { self.next_token(); }
+                Some(Statement::Continue)
+            }
             Token::Newline => None, // Skip empty lines
             _ => self.parse_expression_statement(),
         }
@@ -148,22 +158,53 @@ impl<'a> Parser<'a> {
     fn parse_expression_statement(&mut self) -> Option<Statement> {
         let expr = self.parse_expression(Precedence::Lowest)?;
 
-        if self.peek_token_is(&Token::Assign) {
+        if self.peek_token_is(&Token::Assign) 
+            || self.peek_token_is(&Token::PlusAssign)
+            || self.peek_token_is(&Token::MinusAssign)
+            || self.peek_token_is(&Token::StarAssign)
+            || self.peek_token_is(&Token::SlashAssign) {
+            
+            let tok = self.peek_token.clone();
             self.next_token(); // consume expr
-            self.next_token(); // consume =
+            self.next_token(); // consume operator
             let value = self.parse_expression(Precedence::Lowest)?;
             
+            let op = match tok {
+                Token::PlusAssign => Some(InfixOperator::Plus),
+                Token::MinusAssign => Some(InfixOperator::Minus),
+                Token::StarAssign => Some(InfixOperator::Multiply),
+                Token::SlashAssign => Some(InfixOperator::Divide),
+                _ => None,
+            };
+
             match expr {
                 Expression::Index { object, index } => {
+                    let final_value = if let Some(operator) = op {
+                        Expression::Infix {
+                            left: Box::new(Expression::Index { object: object.clone(), index: index.clone() }),
+                            operator,
+                            right: Box::new(value),
+                        }
+                    } else {
+                        value
+                    };
                     return Some(Statement::IndexAssign {
                         object: *object,
                         index: *index,
-                        value,
+                        value: final_value,
                     });
                 }
                 Expression::Identifier(name) => {
-                    // Treat reassignment as let for now in environment (which it already does)
-                    return Some(Statement::Let { name, value });
+                    let final_value = if let Some(operator) = op {
+                        Expression::Infix {
+                            left: Box::new(Expression::Identifier(name.clone())),
+                            operator,
+                            right: Box::new(value),
+                        }
+                    } else {
+                        value
+                    };
+                    return Some(Statement::Let { name, value: final_value });
                 }
                 _ => {
                     self.errors.push(format!("Invalid assignment target: {:?}", expr));
@@ -402,7 +443,7 @@ impl<'a> Parser<'a> {
 
         while !self.peek_token_is(&Token::Newline) && !self.peek_token_is(&Token::EOF) && precedence < self.peek_precedence() {
             match self.peek_token {
-                Token::Plus | Token::Minus | Token::Star | Token::Slash | Token::Percent | Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual | Token::At | Token::DoubleStar | Token::And | Token::Or => {
+                Token::Plus | Token::Minus | Token::Star | Token::Slash | Token::Percent | Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual | Token::In | Token::NotIn | Token::At | Token::DoubleStar | Token::And | Token::Or => {
                     self.next_token();
                     left_expr = self.parse_infix_expression(left_expr)?;
                 },
@@ -525,6 +566,8 @@ impl<'a> Parser<'a> {
             Token::GreaterThanOrEqual => InfixOperator::GreaterThanOrEqual,
             Token::At => InfixOperator::MatrixMultiply,
             Token::DoubleStar => InfixOperator::Power,
+            Token::In => InfixOperator::In,
+            Token::NotIn => InfixOperator::NotIn,
             Token::And => InfixOperator::And,
             Token::Or => InfixOperator::Or,
             _ => return None,
@@ -588,7 +631,7 @@ impl<'a> Parser<'a> {
         match self.peek_token {
             Token::Or => Precedence::LogicalOr,
             Token::And => Precedence::LogicalAnd,
-            Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual => Precedence::Equals,
+            Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual | Token::In | Token::NotIn => Precedence::Equals,
             Token::Plus | Token::Minus => Precedence::Sum,
             Token::Star | Token::Slash | Token::Percent | Token::At => Precedence::Product,
             Token::DoubleStar => Precedence::Power,
