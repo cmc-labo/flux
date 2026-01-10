@@ -127,7 +127,15 @@ impl<'a> Lexer<'a> {
                         Token::Slash
                     }
                 }
-                '%' => { self.chars.next(); Token::Percent }
+                '%' => {
+                    self.chars.next();
+                    if let Some(&'=') = self.chars.peek() {
+                        self.chars.next();
+                        Token::PercentAssign
+                    } else {
+                        Token::Percent
+                    }
+                }
                 '@' => { self.chars.next(); Token::At }
                 '(' => { self.chars.next(); Token::LParen }
                 ')' => { self.chars.next(); Token::RParen }

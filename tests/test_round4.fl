@@ -1,0 +1,37 @@
+# Test Round 4 Improvements
+
+# 1. Negative Indexing
+print("--- Negative Indexing ---")
+l = [10, 20, 30]
+print("l[-1] =", l[-1]) # 30
+print("l[-2] =", l[-2]) # 20
+l[-1] = 99
+print("l after l[-1]=99:", l) # [10, 20, 99]
+
+s = "Flux"
+print("s[-1] =", s[-1]) # x
+print("s[-4] =", s[-4]) # F
+
+# 2. Aliases
+print("\n--- Aliases ---")
+print("True is", True)
+print("False is", False)
+print("None is", None)
+if True:
+    print("True works in if")
+if not False:
+    print("not False works in if")
+
+# 3. Modulo Assignment
+print("\n--- Modulo Assignment ---")
+x = 10
+x %= 3
+print("10 %= 3 ->", x) # 1
+
+# 4. Enhanced min/max
+print("\n--- Enhanced min/max ---")
+print("min(1, 2, 3) =", min(1, 2, 3))
+print("max(10, 5, 20) =", max(10, 5, 20))
+print("min([1, 2, 3]) =", min([1, 2, 3]))
+print("max([10, 5, 20]) =", max([10, 5, 20]))
+print("min(1.5, 0.5, 2.5) =", min(1.5, 0.5, 2.5))

@@ -47,13 +47,12 @@ impl Interpreter {
                 }
             },
             Statement::While { condition, body } => {
-                let mut result = Object::Null;
                 loop {
                     let cond = self.eval_expression(condition.clone(), env.clone())?;
                     if !self.is_truthy(cond) {
                         break;
                     }
-                    result = self.eval_block(body.clone(), env.clone())?;
+                    let result = self.eval_block(body.clone(), env.clone())?;
                     match result {
                         Object::Break => break,
                         Object::Continue => continue,
@@ -83,10 +82,9 @@ impl Interpreter {
                     _ => return Err(format!("Cannot iterate over {}", iter_obj)),
                 };
 
-                let mut result = Object::Null;
                 for el in elements {
                     env.borrow_mut().set(variable.clone(), el);
-                    result = self.eval_block(body.clone(), env.clone())?;
+                    let result = self.eval_block(body.clone(), env.clone())?;
                     match result {
                         Object::Break => break,
                         Object::Continue => continue,
@@ -104,10 +102,11 @@ impl Interpreter {
 
                 match obj {
                     Object::List(mut l) => {
-                        let i = match idx {
+                        let mut i = match idx {
                             Object::Integer(i) => i,
                             _ => return Err(format!("Index must be integer, got {}", idx)),
                         };
+                        if i < 0 { i += l.len() as i64; }
                         if i < 0 || i >= l.len() as i64 {
                             return Err(format!("Index out of bounds: {}", i));
                         }
@@ -125,25 +124,24 @@ impl Interpreter {
                     },
                     Object::Tensor(mut t) => {
                          // Similar for tensor?
-                         let i = match idx {
-                             Object::Integer(i) => i,
-                             _ => return Err(format!("Index must be integer, got {}", idx)),
-                         };
-                         let val_f = match val {
-                             Object::Float(f) => f,
-                             Object::Integer(i) => i as f64,
-                             _ => return Err(format!("Tensor value must be numeric, got {}", val)),
-                         };
-                         
-                         // We need a method in Tensor to set value.
-                         // For now, let's assume it's 1D for simplicity in implementation.
-                         if t.inner.ndim() != 1 {
-                             return Err(format!("Tensor index assignment currently only supported for 1D tensors"));
-                         }
-                         if i < 0 || i >= t.inner.len() as i64 {
-                             return Err(format!("Index out of bounds for tensor: {}", i));
-                         }
-                         t.inner[i as usize] = val_f;
+                          let mut i = match idx {
+                              Object::Integer(i) => i,
+                              _ => return Err(format!("Index must be integer, got {}", idx)),
+                          };
+                          let val_f = match val {
+                              Object::Float(f) => f,
+                              Object::Integer(i) => i as f64,
+                              _ => return Err(format!("Tensor value must be numeric, got {}", val)),
+                          };
+                          
+                          if t.inner.ndim() != 1 {
+                              return Err(format!("Tensor index assignment currently only supported for 1D tensors"));
+                          }
+                          if i < 0 { i += t.inner.len() as i64; }
+                          if i < 0 || i >= t.inner.len() as i64 {
+                              return Err(format!("Index out of bounds for tensor: {}", i));
+                          }
+                          t.inner[i as usize] = val_f;
 
                          if let Expression::Identifier(name) = obj_expr {
                             env.borrow_mut().set(name, Object::Tensor(t));
@@ -224,24 +222,27 @@ impl Interpreter {
                 let idx = self.eval_expression(*index, env)?;
                 
                 match (obj, idx) {
-                    (Object::List(l), Object::Integer(i)) => {
+                    (Object::List(l), Object::Integer(mut i)) => {
+                        if i < 0 { i += l.len() as i64; }
                         if i < 0 || i >= l.len() as i64 {
                             return Err(format!("Index out of bounds: {}", i));
                         }
                         Ok(l[i as usize].clone())
                     },
-                    (Object::String(s), Object::Integer(i)) => {
+                    (Object::String(s), Object::Integer(mut i)) => {
+                        if i < 0 { i += s.len() as i64; }
                         if i < 0 || i >= s.len() as i64 {
                             return Err(format!("Index out of bounds: {}", i));
                         }
                         let ch = s.chars().nth(i as usize).unwrap();
                         Ok(Object::String(ch.to_string()))
                     },
-                    (Object::Tensor(t), Object::Integer(i)) => {
+                    (Object::Tensor(t), Object::Integer(mut i)) => {
                         if t.inner.ndim() == 0 {
                             return Err(format!("Cannot index 0D tensor"));
                         }
                         let shape = t.inner.shape();
+                        if i < 0 { i += shape[0] as i64; }
                         if i < 0 || i >= shape[0] as i64 {
                              return Err(format!("Index out of bounds: {} (shape: {:?})", i, shape));
                         }

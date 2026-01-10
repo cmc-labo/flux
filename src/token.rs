@@ -35,6 +35,7 @@ pub enum Token {
     MinusAssign,
     StarAssign,
     SlashAssign,
+    PercentAssign,
     Equal, // ==
     NotEqual, // !=
     LessThan, // <

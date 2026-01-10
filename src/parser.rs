@@ -162,7 +162,8 @@ impl<'a> Parser<'a> {
             || self.peek_token_is(&Token::PlusAssign)
             || self.peek_token_is(&Token::MinusAssign)
             || self.peek_token_is(&Token::StarAssign)
-            || self.peek_token_is(&Token::SlashAssign) {
+            || self.peek_token_is(&Token::SlashAssign)
+            || self.peek_token_is(&Token::PercentAssign) {
             
             let tok = self.peek_token.clone();
             self.next_token(); // consume expr
@@ -174,6 +175,7 @@ impl<'a> Parser<'a> {
                 Token::MinusAssign => Some(InfixOperator::Minus),
                 Token::StarAssign => Some(InfixOperator::Multiply),
                 Token::SlashAssign => Some(InfixOperator::Divide),
+                Token::PercentAssign => Some(InfixOperator::Modulo),
                 _ => None,
             };
 
