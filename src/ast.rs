@@ -1,5 +1,13 @@
+use crate::span::Span;
+
 #[derive(Debug, PartialEq, Clone)]
-pub enum Statement {
+pub struct Statement {
+    pub kind: StatementKind,
+    pub span: Span,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum StatementKind {
     Let { name: String, value: Expression },
     Return(Option<Expression>),
     Expression(Expression),
@@ -16,10 +24,17 @@ pub enum Statement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Block {
     pub statements: Vec<Statement>,
+    pub span: Span,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Expression {
+pub struct Expression {
+    pub kind: ExpressionKind,
+    pub span: Span,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ExpressionKind {
     Identifier(String),
     Integer(i64),
     Float(f64),

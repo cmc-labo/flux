@@ -1,17 +1,21 @@
 mod token;
 mod lexer;
 mod ast;
+mod span;
 mod parser;
 mod object;
 mod environment;
 mod interpreter;
 mod tensor;
+mod error;
 
 use lexer::Lexer;
 use parser::Parser;
 use interpreter::Interpreter;
 use environment::Environment;
 use object::Object;
+use error::FluxError;
+use miette::Report;
 use pyo3::types::PyAnyMethods;
 use std::io::{self, Write};
 use std::env;
@@ -1399,25 +1403,30 @@ fn main() {
 
     if args.len() > 1 {
         let filename = &args[1];
-        let input = fs::read_to_string(filename).expect("Something went wrong reading the file");
-        let lexer = Lexer::new(&input);
+        let contents = fs::read_to_string(filename).expect("Something went wrong reading the file");
+        
+        let lexer = Lexer::new(&contents);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
         
         if !parser.errors.is_empty() {
-            println!("Parser errors:");
-            for msg in parser.errors {
-                println!("\t{}", msg);
+            for err in parser.errors {
+                let flux_err = FluxError::new_parse(err.message, err.span);
+                let report = Report::new(flux_err).with_source_code(contents.clone());
+                println!("{:?}", report);
             }
         } else {
             let env = Rc::new(RefCell::new(Environment::new()));
             register_builtins(env.clone());
-            
             let mut interpreter = Interpreter::new();
             for stmt in program {
                 match interpreter.eval(stmt, env.clone()) {
                     Ok(_) => {},
-                    Err(e) => println!("Runtime Error: {}", e),
+                    Err(e) => {
+                        let report = Report::new(e).with_source_code(contents.clone());
+                        println!("{:?}", report);
+                        break;
+                    },
                 }
             }
         }
@@ -1444,16 +1453,24 @@ fn main() {
             let program = parser.parse_program();
             
             if !parser.errors.is_empty() {
-                println!("Parser errors:");
-                for msg in parser.errors {
-                    println!("\t{}", msg);
+                for err in parser.errors {
+                    let flux_err = FluxError::new_parse(err.message, err.span);
+                    let report = Report::new(flux_err).with_source_code(input.clone());
+                    println!("{:?}", report);
                 }
             } else {
                 let mut interpreter = Interpreter::new();
                 for stmt in program {
                     match interpreter.eval(stmt, env.clone()) {
-                        Ok(obj) => println!("{}", obj),
-                        Err(e) => println!("Runtime Error: {}", e),
+                        Ok(obj) => {
+                             if obj != Object::Null {
+                                 println!("{}", obj);
+                             }
+                        },
+                        Err(e) => {
+                            let report = Report::new(e).with_source_code(input.clone());
+                            println!("{:?}", report);
+                        },
                     }
                 }
             }

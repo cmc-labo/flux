@@ -8,6 +8,15 @@ Flux is an experimental programming language designed to combine the simplicity 
 - **Rust-Powered**: Built in Rust for memory safety and performance.
 - **AI/ML Native**: First-class support for Tensor operations (Powered by `ndarray` for CPU).
 
+## Why Flux?
+
+While frameworks like **PyTorch** are incredibly powerful, they often suffer from significant **Python interpreter overhead** when executing many small tensor operations in tight loops. The "glue" code that orchestrates tensor kernels is written in Python, which can become a bottleneck when kernel execution time is comparable to the overhead of the Python runtime.
+
+Flux addresses this by:
+1.  **Native Orchestration**: The entire execution loop is built in Rust.
+2.  **Lean Runtime**: No heavy Python VM weighing down the orchestration logic.
+3.  **Future-Proofing**: Designed to eventually compile down to optimized bytecode or machine code, providing the interface of Python with the raw speed of a compiled library.
+
 ## Getting Started
 
 ### Prerequisites

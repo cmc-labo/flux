@@ -1,14 +1,14 @@
-use crate::ast::{Statement, Expression, Block, PrefixOperator, InfixOperator};
+use crate::ast::{Statement, StatementKind, Expression, ExpressionKind, Block, PrefixOperator, InfixOperator};
+use crate::span::Span;
 use crate::object::Object;
 use crate::environment::Environment;
+use crate::error::FluxError;
 use std::rc::Rc;
 use std::cell::RefCell;
 use pyo3::prelude::*;
 
 
 pub struct Interpreter {
-    // Global environment? Or passed to eval?
-    // Let's keep it simple: eval takes env.
 }
 
 impl Interpreter {
@@ -16,27 +16,28 @@ impl Interpreter {
         Interpreter {}
     }
 
-    pub fn eval(&mut self, node: Statement, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
-        match node {
-            Statement::Expression(expr) => self.eval_expression(expr, env),
-            Statement::Let { name, value } => {
+    pub fn eval(&mut self, node: Statement, env: Rc<RefCell<Environment>>) -> Result<Object, FluxError> {
+        let span = node.span;
+        match node.kind {
+            StatementKind::Expression(expr) => self.eval_expression(expr, env),
+            StatementKind::Let { name, value } => {
                 let val = self.eval_expression(value, env.clone())?;
                 env.borrow_mut().set(name, val.clone());
-                Ok(val) // Return value of assignment?
+                Ok(val)
             },
-            Statement::Return(expr_opt) => {
+            StatementKind::Return(expr_opt) => {
                 let val = match expr_opt {
                     Some(expr) => self.eval_expression(expr, env)?,
                     None => Object::Null,
                 };
                 Ok(Object::ReturnValue(Box::new(val)))
             },
-            Statement::FunctionDef { name, params, body } => {
+            StatementKind::FunctionDef { name, params, body } => {
                 let func = Object::Function { params, body, env: env.clone() };
                 env.borrow_mut().set(name, func.clone());
                 Ok(Object::Null)
             },
-            Statement::If { condition, consequence, elif_branches, alternative } => {
+            StatementKind::If { condition, consequence, elif_branches, alternative } => {
                 let cond = self.eval_expression(condition, env.clone())?;
                 if self.is_truthy(cond) {
                     self.eval_block(consequence, env)
@@ -60,7 +61,7 @@ impl Interpreter {
                     }
                 }
             },
-            Statement::While { condition, body } => {
+            StatementKind::While { condition, body } => {
                 loop {
                     let cond = self.eval_expression(condition.clone(), env.clone())?;
                     if !self.is_truthy(cond) {
@@ -76,7 +77,7 @@ impl Interpreter {
                 }
                 Ok(Object::Null)
             },
-            Statement::Print(expressions) => {
+            StatementKind::Print(expressions) => {
                 let mut vals = Vec::new();
                 for expr in expressions {
                     vals.push(self.eval_expression(expr, env.clone())?.to_string());
@@ -84,16 +85,14 @@ impl Interpreter {
                 println!("{}", vals.join(" "));
                 Ok(Object::Null)
             },
-            Statement::For { variable, iterable, body } => {
+            StatementKind::For { variable, iterable, body } => {
                 let iter_obj = self.eval_expression(iterable, env.clone())?;
                 let elements = match iter_obj {
                     Object::List(l) => l,
                     Object::Tensor(_t) => {
-                        // For simplicity, iterate over the first dimension if it's a tensor?
-                        // Or just error for now.
-                        return Err(format!("Tensor iteration not yet implemented"));
+                        return Err(FluxError::new_runtime(format!("Tensor iteration not yet implemented"), span));
                     },
-                    _ => return Err(format!("Cannot iterate over {}", iter_obj)),
+                    _ => return Err(FluxError::new_runtime(format!("Cannot iterate over {}", iter_obj), span)),
                 };
 
                 for el in elements {
@@ -108,7 +107,7 @@ impl Interpreter {
                 }
                 Ok(Object::Null)
             },
-            Statement::IndexAssign { object, index, value } => {
+            StatementKind::IndexAssign { object, index, value } => {
                 let obj_expr = object.clone();
                 let obj = self.eval_expression(object, env.clone())?;
                 let idx = self.eval_expression(index, env.clone())?;
@@ -118,69 +117,64 @@ impl Interpreter {
                     Object::List(mut l) => {
                         let mut i = match idx {
                             Object::Integer(i) => i,
-                            _ => return Err(format!("Index must be integer, got {}", idx)),
+                            _ => return Err(FluxError::new_runtime(format!("Index must be integer, got {}", idx), span)),
                         };
                         if i < 0 { i += l.len() as i64; }
                         if i < 0 || i >= l.len() as i64 {
-                            return Err(format!("Index out of bounds: {}", i));
+                            return Err(FluxError::new_runtime(format!("Index out of bounds: {}", i), span));
                         }
                         l[i as usize] = val;
                         
-                        // We need to update the source.
-                        // If it's an identifier, simple.
-                        if let Expression::Identifier(name) = obj_expr {
+                        if let ExpressionKind::Identifier(name) = obj_expr.kind {
                             env.borrow_mut().set(name, Object::List(l));
                         } else {
-                            // For nested assignment like a[0][1] = 5, we'd need deeper integration.
-                            // For now, only top-level list variable indexing is supported for assignment.
-                            return Err(format!("Nested index assignment not yet supported"));
+                            return Err(FluxError::new_runtime(format!("Nested index assignment not yet supported"), span));
                         }
                     },
                     Object::Tensor(mut t) => {
-                         // Similar for tensor?
                           let mut i = match idx {
                               Object::Integer(i) => i,
-                              _ => return Err(format!("Index must be integer, got {}", idx)),
+                              _ => return Err(FluxError::new_runtime(format!("Index must be integer, got {}", idx), span)),
                           };
                           let val_f = match val {
                               Object::Float(f) => f,
                               Object::Integer(i) => i as f64,
-                              _ => return Err(format!("Tensor value must be numeric, got {}", val)),
+                              _ => return Err(FluxError::new_runtime(format!("Tensor value must be numeric, got {}", val), span)),
                           };
                           
                           if t.inner.ndim() != 1 {
-                              return Err(format!("Tensor index assignment currently only supported for 1D tensors"));
+                              return Err(FluxError::new_runtime(format!("Tensor index assignment currently only supported for 1D tensors"), span));
                           }
                           if i < 0 { i += t.inner.len() as i64; }
                           if i < 0 || i >= t.inner.len() as i64 {
-                              return Err(format!("Index out of bounds for tensor: {}", i));
+                              return Err(FluxError::new_runtime(format!("Index out of bounds for tensor: {}", i), span));
                           }
                           t.inner[i as usize] = val_f;
 
-                         if let Expression::Identifier(name) = obj_expr {
+                         if let ExpressionKind::Identifier(name) = obj_expr.kind {
                             env.borrow_mut().set(name, Object::Tensor(t));
                          } else {
-                            return Err(format!("Nested tensor index assignment not yet supported"));
+                            return Err(FluxError::new_runtime(format!("Nested tensor index assignment not yet supported"), span));
                          }
                     }
                     Object::Dictionary(mut d) => {
                         d.insert(idx, val);
-                        if let Expression::Identifier(name) = obj_expr {
+                        if let ExpressionKind::Identifier(name) = obj_expr.kind {
                             env.borrow_mut().set(name, Object::Dictionary(d));
                         } else {
-                            return Err(format!("Nested dictionary index assignment not yet supported"));
+                            return Err(FluxError::new_runtime(format!("Nested dictionary index assignment not yet supported"), span));
                         }
                     }
-                    _ => return Err(format!("Cannot assign to index of {}", obj)),
+                    _ => return Err(FluxError::new_runtime(format!("Cannot assign to index of {}", obj), span)),
                 }
                 Ok(Object::Null)
             },
-            Statement::Break => Ok(Object::Break),
-            Statement::Continue => Ok(Object::Continue),
+            StatementKind::Break => Ok(Object::Break),
+            StatementKind::Continue => Ok(Object::Continue),
         }
     }
 
-    pub fn eval_block(&mut self, block: Block, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
+    pub fn eval_block(&mut self, block: Block, env: Rc<RefCell<Environment>>) -> Result<Object, FluxError> {
         let mut result = Object::Null;
         for stmt in block.statements {
             result = self.eval(stmt, env.clone())?;
@@ -192,54 +186,55 @@ impl Interpreter {
         Ok(result)
     }
 
-    fn eval_expression(&mut self, expr: Expression, env: Rc<RefCell<Environment>>) -> Result<Object, String> {
-        match expr {
-            Expression::Integer(i) => Ok(Object::Integer(i)),
-            Expression::Float(f) => Ok(Object::Float(f)),
-            Expression::String(s) => Ok(Object::String(s)),
-            Expression::Identifier(name) => {
+    fn eval_expression(&mut self, expr: Expression, env: Rc<RefCell<Environment>>) -> Result<Object, FluxError> {
+        let span = expr.span;
+        match expr.kind {
+            ExpressionKind::Integer(i) => Ok(Object::Integer(i)),
+            ExpressionKind::Float(f) => Ok(Object::Float(f)),
+            ExpressionKind::String(s) => Ok(Object::String(s)),
+            ExpressionKind::Identifier(name) => {
                 match env.borrow().get(&name) {
                     Some(obj) => Ok(obj),
-                    None => Err(format!("Identifier not found: {}", name)),
+                    None => Err(FluxError::new_runtime(format!("Identifier not found: {}", name), span)),
                 }
             },
-            Expression::Prefix { operator, right } => {
+            ExpressionKind::Prefix { operator, right } => {
                 let right_val = self.eval_expression(*right, env)?;
-                self.eval_prefix_expression(operator, right_val)
+                self.eval_prefix_expression(operator, right_val).map_err(|e| FluxError::new_runtime(e, span))
             },
-            Expression::Infix { left, operator, right } => {
+            ExpressionKind::Infix { left, operator, right } => {
                 let left_val = self.eval_expression(*left, env.clone())?;
                 let right_val = self.eval_expression(*right, env)?;
-                self.eval_infix_expression(operator, left_val, right_val)
+                self.eval_infix_expression(operator, left_val, right_val).map_err(|e| FluxError::new_runtime(e, span))
             },
-            Expression::Call { function, arguments } => {
+            ExpressionKind::Call { function, arguments } => {
                 let func = self.eval_expression(*function, env.clone())?;
                 let args = arguments.into_iter()
                     .map(|arg| self.eval_expression(arg, env.clone()))
-                    .collect::<Result<Vec<Object>, String>>()?;
+                    .collect::<Result<Vec<Object>, FluxError>>()?;
                 self.apply_function(func, args)
             },
-            Expression::Get { object, name } => {
+            ExpressionKind::Get { object, name } => {
                 let obj = self.eval_expression(*object, env)?;
                 match obj {
                     Object::PyObject(py_obj) => {
                         pyo3::Python::with_gil(|py| {
                             let getattr = py_obj.getattr(py, name.as_str())
-                                .map_err(|e| format!("Python getattr error: {}", e))?;
+                                .map_err(|e| FluxError::new_runtime(format!("Python getattr error: {}", e), span))?;
                             Ok(Object::PyObject(getattr.into()))
                         })
                     },
-                    _ => Err(format!("Property access not supported on {}", obj)),
+                    _ => Err(FluxError::new_runtime(format!("Property access not supported on {}", obj), span)),
                 }
             },
-            Expression::List(elements) => {
+            ExpressionKind::List(elements) => {
                 let mut objs = Vec::new();
                 for el in elements {
                     objs.push(self.eval_expression(el, env.clone())?);
                 }
                 Ok(Object::List(objs))
             },
-            Expression::Index { object, index } => {
+            ExpressionKind::Index { object, index } => {
                 let obj = self.eval_expression(*object, env.clone())?;
                 let idx = self.eval_expression(*index, env)?;
                 
@@ -247,32 +242,31 @@ impl Interpreter {
                     (Object::List(l), Object::Integer(mut i)) => {
                         if i < 0 { i += l.len() as i64; }
                         if i < 0 || i >= l.len() as i64 {
-                            return Err(format!("Index out of bounds: {}", i));
+                            return Err(FluxError::new_runtime(format!("Index out of bounds: {}", i), span));
                         }
                         Ok(l[i as usize].clone())
                     },
                     (Object::String(s), Object::Integer(mut i)) => {
                         if i < 0 { i += s.len() as i64; }
                         if i < 0 || i >= s.len() as i64 {
-                            return Err(format!("Index out of bounds: {}", i));
+                            return Err(FluxError::new_runtime(format!("Index out of bounds: {}", i), span));
                         }
                         let ch = s.chars().nth(i as usize).unwrap();
                         Ok(Object::String(ch.to_string()))
                     },
                     (Object::Tensor(t), Object::Integer(mut i)) => {
                         if t.inner.ndim() == 0 {
-                            return Err(format!("Cannot index 0D tensor"));
+                            return Err(FluxError::new_runtime(format!("Cannot index 0D tensor"), span));
                         }
                         let shape = t.inner.shape();
                         if i < 0 { i += shape[0] as i64; }
                         if i < 0 || i >= shape[0] as i64 {
-                             return Err(format!("Index out of bounds: {} (shape: {:?})", i, shape));
+                             return Err(FluxError::new_runtime(format!("Index out of bounds: {} (shape: {:?})", i, shape), span));
                         }
                         
                         if t.inner.ndim() == 1 {
                             Ok(Object::Float(t.inner[i as usize]))
                         } else {
-                            // Sub-tensor indexing (slice along the first axis)
                             let sub = t.inner.index_axis(ndarray::Axis(0), i as usize);
                             Ok(Object::Tensor(crate::tensor::Tensor { inner: sub.to_owned() }))
                         }
@@ -280,17 +274,17 @@ impl Interpreter {
                     (Object::Dictionary(d), k) => {
                         match d.get(&k) {
                             Some(v) => Ok(v.clone()),
-                            None => Err(format!("Key not found: {}", k)),
+                            None => Err(FluxError::new_runtime(format!("Key not found: {}", k), span)),
                         }
                     },
-                    (o, i) => Err(format!("Cannot index {} with {}", o, i)),
+                    (o, i) => Err(FluxError::new_runtime(format!("Cannot index {} with {}", o, i), span)),
                 }
             },
-            Expression::ListComprehension { element, variable, iterable, condition } => {
+            ExpressionKind::ListComprehension { element, variable, iterable, condition } => {
                 let iter_obj = self.eval_expression(*iterable, env.clone())?;
                 let elements = match iter_obj {
                     Object::List(l) => l,
-                    _ => return Err(format!("Cannot iterate over {} in list comprehension", iter_obj)),
+                    _ => return Err(FluxError::new_runtime(format!("Cannot iterate over {} in list comprehension", iter_obj), span)),
                 };
 
                 let mut result_list = Vec::new();
@@ -311,7 +305,7 @@ impl Interpreter {
                 }
                  Ok(Object::List(result_list))
             },
-            Expression::Dictionary(pairs) => {
+            ExpressionKind::Dictionary(pairs) => {
                 let mut map = std::collections::HashMap::new();
                 for (key_expr, val_expr) in pairs {
                     let key = self.eval_expression(key_expr, env.clone())?;
@@ -511,7 +505,7 @@ impl Interpreter {
         }
     }
 
-    fn apply_function(&mut self, func: Object, args: Vec<Object>) -> Result<Object, String> {
+    fn apply_function(&mut self, func: Object, args: Vec<Object>) -> Result<Object, FluxError> {
         match func {
             Object::Function { params, body, env } => {
                 let extended_env = Environment::new_enclosed(env);
@@ -528,7 +522,7 @@ impl Interpreter {
                     Ok(evaluated)
                 }
             },
-            Object::NativeFn(func) => func(args),
+            Object::NativeFn(func) => func(args).map_err(|e| FluxError::new_runtime(e, Span::new(0, 0))), // Spans for builtins?
             Object::PyObject(py_obj) => {
                 pyo3::Python::with_gil(|py| {
                     let args_vec: Vec<pyo3::Py<pyo3::types::PyAny>> = args.iter().map(|arg| {
@@ -544,9 +538,8 @@ impl Interpreter {
                     
                     let py_args = pyo3::types::PyTuple::new(py, args_vec).unwrap();
                     let res = py_obj.call1(py, py_args)
-                        .map_err(|e| format!("Python call error: {}", e))?;
+                        .map_err(|e| FluxError::new_runtime(format!("Python call error: {}", e), Span::new(0, 0)))?;
                     
-                    // Convert result back to Object
                     if let Ok(i) = res.extract::<i64>(py) {
                         Ok(Object::Integer(i))
                     } else if let Ok(f) = res.extract::<f64>(py) {
@@ -560,7 +553,7 @@ impl Interpreter {
                     }
                 })
             },
-            _ => Err(format!("Not a function: {}", func)),
+            _ => Err(FluxError::new_runtime(format!("Not a function: {}", func), Span::new(0, 0))),
         }
     }
 
