@@ -8,10 +8,14 @@ enum Precedence {
     LogicalOr,   // or
     LogicalAnd,  // and
     Equals,      // ==
+    BitwiseOr,   // |
+    BitwiseXor,  // ^
+    BitwiseAnd,  // &
+    Shift,       // << >>
     Sum,         // +
     Product,     // * / %
-    Prefix,      // -X or !X
-    Power,       // X ** Y
+    Prefix,      // unary - or ! or ~
+    Power,       // **
     Call,        // myFunction(X)
     Index,       // array[index] or object.property
 }
@@ -163,7 +167,13 @@ impl<'a> Parser<'a> {
             || self.peek_token_is(&Token::MinusAssign)
             || self.peek_token_is(&Token::StarAssign)
             || self.peek_token_is(&Token::SlashAssign)
-            || self.peek_token_is(&Token::PercentAssign) {
+            || self.peek_token_is(&Token::PercentAssign)
+            || self.peek_token_is(&Token::DoubleStarAssign)
+            || self.peek_token_is(&Token::AmpersandAssign)
+            || self.peek_token_is(&Token::PipeAssign)
+            || self.peek_token_is(&Token::CaretAssign)
+            || self.peek_token_is(&Token::ShiftLeftAssign)
+            || self.peek_token_is(&Token::ShiftRightAssign) {
             
             let tok = self.peek_token.clone();
             self.next_token(); // consume expr
@@ -176,6 +186,12 @@ impl<'a> Parser<'a> {
                 Token::StarAssign => Some(InfixOperator::Multiply),
                 Token::SlashAssign => Some(InfixOperator::Divide),
                 Token::PercentAssign => Some(InfixOperator::Modulo),
+                Token::DoubleStarAssign => Some(InfixOperator::Power),
+                Token::AmpersandAssign => Some(InfixOperator::BitwiseAnd),
+                Token::PipeAssign => Some(InfixOperator::BitwiseOr),
+                Token::CaretAssign => Some(InfixOperator::BitwiseXor),
+                Token::ShiftLeftAssign => Some(InfixOperator::ShiftLeft),
+                Token::ShiftRightAssign => Some(InfixOperator::ShiftRight),
                 _ => None,
             };
 
@@ -347,7 +363,24 @@ impl<'a> Parser<'a> {
         self.next_token(); // consume Newline
 
         let consequence = self.parse_block();
+        let mut elif_branches = Vec::new();
         let mut alternative = None;
+
+        // Check for elif
+        while self.cur_token_is(&Token::Dedent) && self.peek_token_is(&Token::Elif) {
+            self.next_token(); // move to elif
+            self.next_token(); // skip elif
+            let elif_condition = self.parse_expression(Precedence::Lowest)?;
+            if !self.expect_peek(Token::Colon) {
+                return None;
+            }
+            if !self.expect_peek(Token::Newline) {
+                return None;
+            }
+            self.next_token(); // consume Newline
+            let elif_consequence = self.parse_block();
+            elif_branches.push((elif_condition, elif_consequence));
+        }
 
         // Check for else
         // parse_block ends at Dedent.
@@ -367,7 +400,7 @@ impl<'a> Parser<'a> {
             alternative = Some(self.parse_block());
         }
 
-        Some(Statement::If { condition, consequence, alternative })
+        Some(Statement::If { condition, consequence, elif_branches, alternative })
     }
     
     fn parse_while_statement(&mut self) -> Option<Statement> {
@@ -428,7 +461,7 @@ impl<'a> Parser<'a> {
             Token::Integer(i) => Some(Expression::Integer(*i)),
             Token::Float(f) => Some(Expression::Float(*f)),
             Token::String(s) => Some(Expression::String(s.clone())),
-            Token::Minus | Token::Not => {
+            Token::Minus | Token::Not | Token::Tilde => {
                 self.parse_prefix_expression()
             },
             Token::LParen => {
@@ -440,12 +473,13 @@ impl<'a> Parser<'a> {
                 expr
             },
             Token::LBracket => self.parse_list_literal(),
+            Token::LBrace => self.parse_dictionary_literal(),
             _ => None,
         }?;
 
         while !self.peek_token_is(&Token::Newline) && !self.peek_token_is(&Token::EOF) && precedence < self.peek_precedence() {
             match self.peek_token {
-                Token::Plus | Token::Minus | Token::Star | Token::Slash | Token::Percent | Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual | Token::In | Token::NotIn | Token::At | Token::DoubleStar | Token::And | Token::Or => {
+                Token::Plus | Token::Minus | Token::Star | Token::Slash | Token::Percent | Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual | Token::In | Token::NotIn | Token::At | Token::DoubleStar | Token::And | Token::Or | Token::Ampersand | Token::Pipe | Token::Caret | Token::ShiftLeft | Token::ShiftRight => {
                     self.next_token();
                     left_expr = self.parse_infix_expression(left_expr)?;
                 },
@@ -527,6 +561,38 @@ impl<'a> Parser<'a> {
         Some(Expression::List(elements))
     }
 
+    fn parse_dictionary_literal(&mut self) -> Option<Expression> {
+        let mut pairs = Vec::new();
+
+        if self.peek_token_is(&Token::RBrace) {
+            self.next_token(); // move to }
+            return Some(Expression::Dictionary(pairs));
+        }
+
+        self.next_token(); // skip {
+        
+        loop {
+            let key = self.parse_expression(Precedence::Lowest)?;
+            if !self.expect_peek(Token::Colon) {
+                return None;
+            }
+            self.next_token(); // skip :
+            let value = self.parse_expression(Precedence::Lowest)?;
+            pairs.push((key, value));
+            
+            if self.peek_token_is(&Token::RBrace) {
+                self.next_token();
+                break;
+            }
+            if !self.expect_peek(Token::Comma) {
+                return None;
+            }
+            self.next_token(); // skip ,
+        }
+        
+        Some(Expression::Dictionary(pairs))
+    }
+
     fn parse_index_expression(&mut self, left: Expression) -> Option<Expression> {
         let index = self.parse_expression(Precedence::Lowest)?;
 
@@ -544,6 +610,7 @@ impl<'a> Parser<'a> {
         let operator = match self.cur_token {
             Token::Minus => PrefixOperator::Minus,
             Token::Not => PrefixOperator::Not,
+            Token::Tilde => PrefixOperator::BitwiseNot,
             _ => return None,
         };
         
@@ -572,6 +639,11 @@ impl<'a> Parser<'a> {
             Token::NotIn => InfixOperator::NotIn,
             Token::And => InfixOperator::And,
             Token::Or => InfixOperator::Or,
+            Token::Ampersand => InfixOperator::BitwiseAnd,
+            Token::Pipe => InfixOperator::BitwiseOr,
+            Token::Caret => InfixOperator::BitwiseXor,
+            Token::ShiftLeft => InfixOperator::ShiftLeft,
+            Token::ShiftRight => InfixOperator::ShiftRight,
             _ => return None,
         };
 
@@ -635,6 +707,10 @@ impl<'a> Parser<'a> {
             Token::And => Precedence::LogicalAnd,
             Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual | Token::In | Token::NotIn => Precedence::Equals,
             Token::Plus | Token::Minus => Precedence::Sum,
+            Token::ShiftLeft | Token::ShiftRight => Precedence::Shift,
+            Token::Ampersand => Precedence::BitwiseAnd,
+            Token::Caret => Precedence::BitwiseXor,
+            Token::Pipe => Precedence::BitwiseOr,
             Token::Star | Token::Slash | Token::Percent | Token::At => Precedence::Product,
             Token::DoubleStar => Precedence::Power,
             Token::LParen => Precedence::Call,
@@ -649,6 +725,10 @@ impl<'a> Parser<'a> {
             Token::And => Precedence::LogicalAnd,
             Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual => Precedence::Equals,
             Token::Plus | Token::Minus => Precedence::Sum,
+            Token::ShiftLeft | Token::ShiftRight => Precedence::Shift,
+            Token::Ampersand => Precedence::BitwiseAnd,
+            Token::Caret => Precedence::BitwiseXor,
+            Token::Pipe => Precedence::BitwiseOr,
             Token::Star | Token::Slash | Token::Percent | Token::At => Precedence::Product,
             Token::DoubleStar => Precedence::Power,
             Token::LParen => Precedence::Call,

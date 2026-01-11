@@ -1,0 +1,65 @@
+# tests/test_round13_features.fl
+
+print("--- Testing 'elif' Statement ---")
+let x = 15
+if x < 10:
+    print("x is less than 10")
+elif x < 20:
+    print("x is between 10 and 20")
+elif x < 30:
+    print("x is between 20 and 30")
+else:
+    print("x is 30 or more")
+
+x = 25
+if x < 10:
+    print("small")
+elif x < 20:
+    print("medium")
+elif x < 30:
+    print("large")
+else:
+    print("huge")
+
+print("\n--- Testing Dictionary Literals ---")
+let d = {"a": 1, "b": 2, "c": 3}
+print("d =", d)
+print("d['a'] =", d["a"])
+d["b"] = 20
+print("d after update =", d)
+d["new"] = 100
+print("d after new key =", d)
+
+let empty_dict = {}
+print("empty_dict =", empty_dict)
+if empty_dict:
+    print("empty_dict is truthy")
+else:
+    print("empty_dict is falsy")
+
+print("\n--- Testing Bitwise Operators ---")
+let a = 10 # 1010
+let b = 12 # 1100
+print("a =", a, ", b =", b)
+print("a & b =", a & b)   # 1000 = 8
+print("a | b =", a | b)   # 1110 = 14
+print("a ^ b =", a ^ b)   # 0110 = 6
+print("~a =", ~a)         # -(10+1) = -11
+print("a << 2 =", a << 2) # 101000 = 40
+print("a >> 1 =", a >> 1) # 0101 = 5
+
+print("\n--- Testing Augmented Assignments ---")
+let y = 10
+y **= 2
+print("10 **= 2 ->", y)
+y &= 8
+print("100 &= 8 ->", y)
+y |= 4
+print("8 |= 4 ->", y)
+y ^= 12
+print("12 ^= 12 ->", y)
+y = 1
+y <<= 3
+print("1 <<= 3 ->", y)
+y >>= 2
+print("8 >>= 2 ->", y)

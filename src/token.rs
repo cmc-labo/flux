@@ -11,6 +11,7 @@ pub enum Token {
     Return,
     If,
     Else,
+    Elif,
     While,
     Let,
     Print,
@@ -36,6 +37,12 @@ pub enum Token {
     StarAssign,
     SlashAssign,
     PercentAssign,
+    DoubleStarAssign, // **=
+    AmpersandAssign, // &=
+    PipeAssign, // |=
+    CaretAssign, // ^=
+    ShiftLeftAssign, // <<=
+    ShiftRightAssign, // >>=
     Equal, // ==
     NotEqual, // !=
     LessThan, // <
@@ -44,8 +51,16 @@ pub enum Token {
     GreaterThanOrEqual, // >=
     At, // @
     Dot, // .
+    Ampersand, // &
+    Pipe, // |
+    Caret, // ^
+    Tilde, // ~
+    ShiftLeft, // <<
+    ShiftRight, // >>
     LBracket, // [
     RBracket, // ]
+    LBrace, // {
+    RBrace, // }
     
     // Delimiters
     LParen,

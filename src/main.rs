@@ -131,6 +131,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                     Ok(Object::Integer(len as i64))
                 })
             },
+            Object::Dictionary(d) => Ok(Object::Integer(d.len() as i64)),
             _ => Err(format!("len() not supported for {}", args[0])),
         }
     });
@@ -154,6 +155,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::ReturnValue(_) => Ok(Object::String("return_value".to_string())),
             Object::Break => Ok(Object::String("break".to_string())),
             Object::Continue => Ok(Object::String("continue".to_string())),
+            Object::Dictionary(_) => Ok(Object::String("dict".to_string())),
         }
     });
     env.borrow_mut().set("type".to_string(), type_fn);

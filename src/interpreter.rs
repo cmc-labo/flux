@@ -36,14 +36,28 @@ impl Interpreter {
                 env.borrow_mut().set(name, func.clone());
                 Ok(Object::Null)
             },
-            Statement::If { condition, consequence, alternative } => {
+            Statement::If { condition, consequence, elif_branches, alternative } => {
                 let cond = self.eval_expression(condition, env.clone())?;
                 if self.is_truthy(cond) {
                     self.eval_block(consequence, env)
-                } else if let Some(alt) = alternative {
-                    self.eval_block(alt, env)
                 } else {
-                    Ok(Object::Null)
+                    let mut handled = false;
+                    let mut result = Ok(Object::Null);
+                    for (elif_cond_expr, elif_body) in elif_branches {
+                        let elif_cond = self.eval_expression(elif_cond_expr, env.clone())?;
+                        if self.is_truthy(elif_cond) {
+                            result = self.eval_block(elif_body, env.clone());
+                            handled = true;
+                            break;
+                        }
+                    }
+                    if handled {
+                        result
+                    } else if let Some(alt) = alternative {
+                        self.eval_block(alt, env)
+                    } else {
+                        Ok(Object::Null)
+                    }
                 }
             },
             Statement::While { condition, body } => {
@@ -148,6 +162,14 @@ impl Interpreter {
                          } else {
                             return Err(format!("Nested tensor index assignment not yet supported"));
                          }
+                    }
+                    Object::Dictionary(mut d) => {
+                        d.insert(idx, val);
+                        if let Expression::Identifier(name) = obj_expr {
+                            env.borrow_mut().set(name, Object::Dictionary(d));
+                        } else {
+                            return Err(format!("Nested dictionary index assignment not yet supported"));
+                        }
                     }
                     _ => return Err(format!("Cannot assign to index of {}", obj)),
                 }
@@ -255,6 +277,12 @@ impl Interpreter {
                             Ok(Object::Tensor(crate::tensor::Tensor { inner: sub.to_owned() }))
                         }
                     },
+                    (Object::Dictionary(d), k) => {
+                        match d.get(&k) {
+                            Some(v) => Ok(v.clone()),
+                            None => Err(format!("Key not found: {}", k)),
+                        }
+                    },
                     (o, i) => Err(format!("Cannot index {} with {}", o, i)),
                 }
             },
@@ -281,7 +309,16 @@ impl Interpreter {
                         result_list.push(val);
                     }
                 }
-                Ok(Object::List(result_list))
+                 Ok(Object::List(result_list))
+            },
+            Expression::Dictionary(pairs) => {
+                let mut map = std::collections::HashMap::new();
+                for (key_expr, val_expr) in pairs {
+                    let key = self.eval_expression(key_expr, env.clone())?;
+                    let val = self.eval_expression(val_expr, env.clone())?;
+                    map.insert(key, val);
+                }
+                Ok(Object::Dictionary(map))
             }
         }
     }
@@ -297,6 +334,10 @@ impl Interpreter {
                 Object::Boolean(b) => Ok(Object::Boolean(!b)),
                 Object::Null => Ok(Object::Boolean(true)),
                 _ => Ok(Object::Boolean(false)), // Python-like truthiness?
+            },
+            PrefixOperator::BitwiseNot => match right {
+                Object::Integer(i) => Ok(Object::Integer(!i)),
+                _ => Err(format!("Bitwise NOT not supported for {}", right)),
             },
         }
     }
@@ -333,7 +374,26 @@ impl Interpreter {
                 InfixOperator::GreaterThan => Ok(Object::Boolean(l > r)),
                 InfixOperator::LessThanOrEqual => Ok(Object::Boolean(l <= r)),
                 InfixOperator::GreaterThanOrEqual => Ok(Object::Boolean(l >= r)),
-                InfixOperator::Power => Ok(Object::Float((l as f64).powf(r as f64))),
+                InfixOperator::Power => {
+                    if r >= 0 {
+                        Ok(Object::Integer(l.pow(r as u32)))
+                    } else {
+                        Ok(Object::Float((l as f64).powf(r as f64)))
+                    }
+                },
+                InfixOperator::BitwiseAnd => Ok(Object::Integer(l & r)),
+                InfixOperator::BitwiseOr => Ok(Object::Integer(l | r)),
+                InfixOperator::BitwiseXor => Ok(Object::Integer(l ^ r)),
+                InfixOperator::ShiftLeft => {
+                    if r < 0 { return Err(format!("Negative shift count: {}", r)); }
+                    if r >= 64 { return Ok(Object::Integer(0)); }
+                    Ok(Object::Integer(l << r))
+                },
+                InfixOperator::ShiftRight => {
+                    if r < 0 { return Err(format!("Negative shift count: {}", r)); }
+                    if r >= 64 { return Ok(Object::Integer(if l >= 0 { 0 } else { -1 })); }
+                    Ok(Object::Integer(l >> r))
+                },
                 _ => Err(format!("Unknown operator for integers")),
             },
             (Object::Float(l), Object::Float(r)) => match operator {

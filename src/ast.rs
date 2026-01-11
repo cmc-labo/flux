@@ -4,7 +4,7 @@ pub enum Statement {
     Return(Option<Expression>),
     Expression(Expression),
     FunctionDef { name: String, params: Vec<String>, body: Block },
-    If { condition: Expression, consequence: Block, alternative: Option<Block> },
+    If { condition: Expression, consequence: Block, elif_branches: Vec<(Expression, Block)>, alternative: Option<Block> },
     While { condition: Expression, body: Block },
     For { variable: String, iterable: Expression, body: Block },
     Print(Vec<Expression>),
@@ -29,6 +29,7 @@ pub enum Expression {
     Call { function: Box<Expression>, arguments: Vec<Expression> },
     Get { object: Box<Expression>, name: String }, // obj.name
     List(Vec<Expression>),
+    Dictionary(Vec<(Expression, Expression)>),
     Index { object: Box<Expression>, index: Box<Expression> },
     ListComprehension { element: Box<Expression>, variable: String, iterable: Box<Expression>, condition: Option<Box<Expression>> },
 }
@@ -37,6 +38,7 @@ pub enum Expression {
 pub enum PrefixOperator {
     Minus,
     Not, // ! or not
+    BitwiseNot, // ~
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -58,4 +60,9 @@ pub enum InfixOperator {
     In,
     NotIn,
     MatrixMultiply,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    ShiftLeft,
+    ShiftRight,
 }

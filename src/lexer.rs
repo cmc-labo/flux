@@ -57,6 +57,14 @@ impl<'a> Lexer<'a> {
                     if let Some(&'=') = self.chars.peek() {
                         self.chars.next();
                         Token::LessThanOrEqual
+                    } else if let Some(&'<') = self.chars.peek() {
+                        self.chars.next();
+                        if let Some(&'=') = self.chars.peek() {
+                            self.chars.next();
+                            Token::ShiftLeftAssign
+                        } else {
+                            Token::ShiftLeft
+                        }
                     } else {
                         Token::LessThan
                     }
@@ -66,6 +74,14 @@ impl<'a> Lexer<'a> {
                     if let Some(&'=') = self.chars.peek() {
                         self.chars.next();
                         Token::GreaterThanOrEqual
+                    } else if let Some(&'>') = self.chars.peek() {
+                        self.chars.next();
+                        if let Some(&'=') = self.chars.peek() {
+                            self.chars.next();
+                            Token::ShiftRightAssign
+                        } else {
+                            Token::ShiftRight
+                        }
                     } else {
                         Token::GreaterThan
                     }
@@ -75,8 +91,11 @@ impl<'a> Lexer<'a> {
                     if let Some(&'&') = self.chars.peek() {
                         self.chars.next();
                         Token::And
+                    } else if let Some(&'=') = self.chars.peek() {
+                        self.chars.next();
+                        Token::AmpersandAssign
                     } else {
-                        Token::Illegal("&".to_string())
+                        Token::Ampersand
                     }
                 }
                 '|' => {
@@ -84,8 +103,11 @@ impl<'a> Lexer<'a> {
                     if let Some(&'|') = self.chars.peek() {
                         self.chars.next();
                         Token::Or
+                    } else if let Some(&'=') = self.chars.peek() {
+                        self.chars.next();
+                        Token::PipeAssign
                     } else {
-                        Token::Illegal("|".to_string())
+                        Token::Pipe
                     }
                 }
                 '+' => {
@@ -110,7 +132,12 @@ impl<'a> Lexer<'a> {
                     self.chars.next();
                     if let Some(&'*') = self.chars.peek() {
                         self.chars.next();
-                        Token::DoubleStar
+                        if let Some(&'=') = self.chars.peek() {
+                            self.chars.next();
+                            Token::DoubleStarAssign
+                        } else {
+                            Token::DoubleStar
+                        }
                     } else if let Some(&'=') = self.chars.peek() {
                         self.chars.next();
                         Token::StarAssign
@@ -136,6 +163,16 @@ impl<'a> Lexer<'a> {
                         Token::Percent
                     }
                 }
+                '^' => {
+                    self.chars.next();
+                    if let Some(&'=') = self.chars.peek() {
+                        self.chars.next();
+                        Token::CaretAssign
+                    } else {
+                        Token::Caret
+                    }
+                }
+                '~' => { self.chars.next(); Token::Tilde }
                 '@' => { self.chars.next(); Token::At }
                 '(' => { self.chars.next(); Token::LParen }
                 ')' => { self.chars.next(); Token::RParen }
@@ -144,6 +181,8 @@ impl<'a> Lexer<'a> {
                 '.' => { self.chars.next(); Token::Dot }
                 '[' => { self.chars.next(); Token::LBracket }
                 ']' => { self.chars.next(); Token::RBracket }
+                '{' => { self.chars.next(); Token::LBrace }
+                '}' => { self.chars.next(); Token::RBrace }
                 '#' => {
                     self.skip_comment();
                     self.next_token()
@@ -248,6 +287,7 @@ impl<'a> Lexer<'a> {
             "return" => Token::Return,
             "if" => Token::If,
             "else" => Token::Else,
+            "elif" => Token::Elif,
             "while" => Token::While,
             "let" => Token::Let,
             "print" => Token::Print,

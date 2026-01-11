@@ -17,6 +17,7 @@ pub enum Object {
     Tensor(crate::tensor::Tensor),
     PyObject(pyo3::Py<pyo3::types::PyAny>),
     List(Vec<Object>),
+    Dictionary(std::collections::HashMap<Object, Object>),
     Break,
     Continue,
 }
@@ -39,6 +40,7 @@ impl Clone for Object {
                 })
             },
             Object::List(l) => Object::List(l.clone()),
+            Object::Dictionary(d) => Object::Dictionary(d.clone()),
             Object::Break => Object::Break,
             Object::Continue => Object::Continue,
         }
@@ -55,8 +57,32 @@ impl PartialEq for Object {
             (Object::Null, Object::Null) => true,
             (Object::Tensor(l), Object::Tensor(r)) => l == r,
             (Object::List(l), Object::List(r)) => l == r,
+            (Object::Dictionary(l), Object::Dictionary(r)) => l == r,
             // For others, return false for now
             _ => false,
+        }
+    }
+}
+
+impl Eq for Object {}
+
+impl std::hash::Hash for Object {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            Object::Integer(i) => i.hash(state),
+            Object::String(s) => s.hash(state),
+            Object::Boolean(b) => b.hash(state),
+            Object::Null => (),
+            Object::Float(f) => {
+                // Warning: hashing floats is dangerous
+                f.to_bits().hash(state);
+            }
+            _ => {
+                // Non-hashable types? Using address or just ignoring?
+                // Python lists are not hashable.
+                // For now, let's just use discriminant.
+            }
         }
     }
 }
@@ -82,6 +108,14 @@ impl fmt::Display for Object {
                 }
                 write!(f, "]")
             }
+            Object::Dictionary(pairs) => {
+                write!(f, "{{")?;
+                for (i, (k, v)) in pairs.iter().enumerate() {
+                    if i > 0 { write!(f, ", ")?; }
+                    write!(f, "{}: {}", k, v)?;
+                }
+                write!(f, "}}")
+            }
             Object::Break => write!(f, "break"),
             Object::Continue => write!(f, "continue"),
         }
@@ -96,6 +130,7 @@ impl Object {
             Object::Integer(i) => *i != 0,
             Object::String(s) => !s.is_empty(),
             Object::List(l) => !l.is_empty(),
+            Object::Dictionary(d) => !d.is_empty(),
             _ => true,
         }
     }
