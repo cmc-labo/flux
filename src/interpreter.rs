@@ -3,17 +3,20 @@ use crate::span::Span;
 use crate::object::Object;
 use crate::environment::Environment;
 use crate::error::FluxError;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 use pyo3::prelude::*;
 
-
 pub struct Interpreter {
+    pub modules: HashMap<String, Object>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
-        Interpreter {}
+        Interpreter {
+            modules: HashMap::new(),
+        }
     }
 
     pub fn eval(&mut self, node: Statement, env: Rc<RefCell<Environment>>) -> Result<Object, FluxError> {
@@ -171,6 +174,50 @@ impl Interpreter {
             },
             StatementKind::Break => Ok(Object::Break),
             StatementKind::Continue => Ok(Object::Continue),
+            StatementKind::Import { path, alias } => {
+                let module_name = if let Some(a) = &alias {
+                    a.clone()
+                } else {
+                    std::path::Path::new(&path)
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .map(|s| s.to_string())
+                        .unwrap_or(path.clone())
+                };
+
+                if let Some(module) = self.modules.get(&path) {
+                    env.borrow_mut().set(module_name, module.clone());
+                    return Ok(Object::Null);
+                }
+
+                let file_path = if path.ends_with(".fl") {
+                    path.clone()
+                } else {
+                    format!("{}.fl", path)
+                };
+
+                let content = std::fs::read_to_string(&file_path)
+                    .map_err(|e| FluxError::new_runtime(format!("Could not read module file {}: {}", file_path, e), span))?;
+
+                let lexer = crate::lexer::Lexer::new(&content);
+                let mut parser = crate::parser::Parser::new(lexer);
+                let program = parser.parse_program();
+
+                if !parser.errors.is_empty() {
+                    return Err(FluxError::new_parse(parser.errors[0].message.clone(), parser.errors[0].span));
+                }
+
+                let module_env = Rc::new(RefCell::new(Environment::new()));
+                for stmt in program {
+                    self.eval(stmt, module_env.clone())?;
+                }
+
+                let module = Object::Module { name: module_name.clone(), env: module_env };
+                self.modules.insert(path.clone(), module.clone());
+                env.borrow_mut().set(module_name, module);
+
+                Ok(Object::Null)
+            }
         }
     }
 
@@ -223,6 +270,12 @@ impl Interpreter {
                                 .map_err(|e| FluxError::new_runtime(format!("Python getattr error: {}", e), span))?;
                             Ok(Object::PyObject(getattr.into()))
                         })
+                    },
+                    Object::Module { name: _, env: module_env } => {
+                        match module_env.borrow().get(&name) {
+                            Some(v) => Ok(v),
+                            None => Err(FluxError::new_runtime(format!("Member '{}' not found in module", name), span)),
+                        }
                     },
                     _ => Err(FluxError::new_runtime(format!("Property access not supported on {}", obj), span)),
                 }

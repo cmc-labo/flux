@@ -23,6 +23,7 @@ pub enum Token {
     Not,
     Break,
     Continue,
+    Import,
 
     // Operators
     Plus,

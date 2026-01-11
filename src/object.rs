@@ -20,6 +20,7 @@ pub enum Object {
     Dictionary(std::collections::HashMap<Object, Object>),
     Break,
     Continue,
+    Module { name: String, env: Rc<RefCell<Environment>> },
 }
 
 impl Clone for Object {
@@ -43,6 +44,7 @@ impl Clone for Object {
             Object::Dictionary(d) => Object::Dictionary(d.clone()),
             Object::Break => Object::Break,
             Object::Continue => Object::Continue,
+            Object::Module { name, env } => Object::Module { name: name.clone(), env: env.clone() },
         }
     }
 }
@@ -118,6 +120,7 @@ impl fmt::Display for Object {
             }
             Object::Break => write!(f, "break"),
             Object::Continue => write!(f, "continue"),
+            Object::Module { name, .. } => write!(f, "module({})", name),
         }
     }
 }

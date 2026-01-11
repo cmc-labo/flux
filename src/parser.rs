@@ -80,6 +80,7 @@ impl<'a> Parser<'a> {
             Token::While => self.parse_while_statement(),
             Token::For => self.parse_for_statement(),
             Token::Print => self.parse_print_statement(),
+            Token::Import => self.parse_import_statement(),
             Token::Break => {
                 let start = self.cur_span;
                 self.next_token();
@@ -180,6 +181,45 @@ impl<'a> Parser<'a> {
         
         Some(Statement {
             kind: StatementKind::Print(expressions),
+            span: start.join(end),
+        })
+    }
+
+    fn parse_import_statement(&mut self) -> Option<Statement> {
+        let start = self.cur_span;
+        self.next_token(); // skip import
+
+        let path = match &self.cur_token {
+            Token::String(s) => s.clone(),
+            Token::Identifier(s) => s.clone(),
+            _ => {
+                let msg = format!("Expected string or identifier after import, got {:?}", self.cur_token);
+                self.errors.push(ParserError { message: msg, span: self.cur_span });
+                return None;
+            }
+        };
+
+        let mut alias = None;
+        let mut end = self.cur_span;
+
+        if self.peek_token_is_identifier("as") {
+            self.next_token(); // as
+            if !self.expect_peek(Token::Identifier("".to_string())) {
+                return None;
+            }
+            alias = match &self.cur_token {
+                Token::Identifier(s) => Some(s.clone()),
+                _ => None,
+            };
+            end = self.cur_span;
+        }
+
+        if self.peek_token_is(&Token::Newline) {
+            self.next_token();
+        }
+
+        Some(Statement {
+            kind: StatementKind::Import { path, alias },
             span: start.join(end),
         })
     }
@@ -847,6 +887,13 @@ impl<'a> Parser<'a> {
         match (&self.cur_token, t) {
             (Token::Identifier(_), Token::Identifier(_)) => true,
             (t1, t2) => t1 == t2,
+        }
+    }
+
+    fn peek_token_is_identifier(&self, name: &str) -> bool {
+        match &self.peek_token {
+            Token::Identifier(n) => n == name,
+            _ => false,
         }
     }
 }

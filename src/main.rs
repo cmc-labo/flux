@@ -160,6 +160,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::Break => Ok(Object::String("break".to_string())),
             Object::Continue => Ok(Object::String("continue".to_string())),
             Object::Dictionary(_) => Ok(Object::String("dict".to_string())),
+            Object::Module { .. } => Ok(Object::String("module".to_string())),
         }
     });
     env.borrow_mut().set("type".to_string(), type_fn);

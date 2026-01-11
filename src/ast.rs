@@ -19,6 +19,7 @@ pub enum StatementKind {
     IndexAssign { object: Expression, index: Expression, value: Expression },
     Break,
     Continue,
+    Import { path: String, alias: Option<String> },
 }
 
 #[derive(Debug, PartialEq, Clone)]

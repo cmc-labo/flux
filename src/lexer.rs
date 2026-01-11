@@ -311,6 +311,7 @@ impl<'a> Lexer<'a> {
             },
             "break" => Token::Break,
             "continue" => Token::Continue,
+            "import" => Token::Import,
             _ => Token::Identifier(literal),
         };
         (token, span)
