@@ -196,25 +196,35 @@ impl Interpreter {
                     format!("{}.fl", path)
                 };
 
-                let content = std::fs::read_to_string(&file_path)
-                    .map_err(|e| FluxError::new_runtime(format!("Could not read module file {}: {}", file_path, e), span))?;
+                let content_res = std::fs::read_to_string(&file_path);
+                
+                if let Ok(content) = content_res {
+                    let lexer = crate::lexer::Lexer::new(&content);
+                    let mut parser = crate::parser::Parser::new(lexer);
+                    let program = parser.parse_program();
 
-                let lexer = crate::lexer::Lexer::new(&content);
-                let mut parser = crate::parser::Parser::new(lexer);
-                let program = parser.parse_program();
+                    if !parser.errors.is_empty() {
+                        return Err(FluxError::new_parse(parser.errors[0].message.clone(), parser.errors[0].span));
+                    }
 
-                if !parser.errors.is_empty() {
-                    return Err(FluxError::new_parse(parser.errors[0].message.clone(), parser.errors[0].span));
+                    let module_env = Rc::new(RefCell::new(Environment::new()));
+                    for stmt in program {
+                        self.eval(stmt, module_env.clone())?;
+                    }
+
+                    let module = Object::Module { name: module_name.clone(), env: module_env };
+                    self.modules.insert(path.clone(), module.clone());
+                    env.borrow_mut().set(module_name, module);
+                } else {
+                    // Try as Python module
+                    let py_module = pyo3::Python::with_gil(|py| {
+                        pyo3::types::PyModule::import(py, path.as_str())
+                            .map(|m| Object::PyObject(m.into()))
+                            .map_err(|e| FluxError::new_runtime(format!("Failed to import Flux or Python module '{}': {}", path, e), span))
+                    })?;
+                    self.modules.insert(path.clone(), py_module.clone());
+                    env.borrow_mut().set(module_name, py_module);
                 }
-
-                let module_env = Rc::new(RefCell::new(Environment::new()));
-                for stmt in program {
-                    self.eval(stmt, module_env.clone())?;
-                }
-
-                let module = Object::Module { name: module_name.clone(), env: module_env };
-                self.modules.insert(path.clone(), module.clone());
-                env.borrow_mut().set(module_name, module);
 
                 Ok(Object::Null)
             }
@@ -259,16 +269,16 @@ impl Interpreter {
                 let args = arguments.into_iter()
                     .map(|arg| self.eval_expression(arg, env.clone()))
                     .collect::<Result<Vec<Object>, FluxError>>()?;
-                self.apply_function(func, args)
+                self.apply_function(func, args, span)
             },
             ExpressionKind::Get { object, name } => {
                 let obj = self.eval_expression(*object, env)?;
                 match obj {
                     Object::PyObject(py_obj) => {
                         pyo3::Python::with_gil(|py| {
-                            let getattr = py_obj.getattr(py, name.as_str())
+                            let getattr = py_obj.bind(py).getattr(name.as_str())
                                 .map_err(|e| FluxError::new_runtime(format!("Python getattr error: {}", e), span))?;
-                            Ok(Object::PyObject(getattr.into()))
+                            self.py_to_flux(py, getattr, span)
                         })
                     },
                     Object::Module { name: _, env: module_env } => {
@@ -558,7 +568,7 @@ impl Interpreter {
         }
     }
 
-    fn apply_function(&mut self, func: Object, args: Vec<Object>) -> Result<Object, FluxError> {
+    fn apply_function(&mut self, func: Object, args: Vec<Object>, span: Span) -> Result<Object, FluxError> {
         match func {
             Object::Function { params, body, env } => {
                 let extended_env = Environment::new_enclosed(env);
@@ -575,38 +585,119 @@ impl Interpreter {
                     Ok(evaluated)
                 }
             },
-            Object::NativeFn(func) => func(args).map_err(|e| FluxError::new_runtime(e, Span::new(0, 0))), // Spans for builtins?
+            Object::NativeFn(func) => func(args).map_err(|e| FluxError::new_runtime(e, span)),
             Object::PyObject(py_obj) => {
                 pyo3::Python::with_gil(|py| {
-                    let args_vec: Vec<pyo3::Py<pyo3::types::PyAny>> = args.iter().map(|arg| {
-                        match arg {
-                            Object::Integer(i) => (*i).into_pyobject(py).unwrap().as_any().clone().unbind(),
-                            Object::Float(f) => (*f).into_pyobject(py).unwrap().as_any().clone().unbind(),
-                            Object::String(s) => s.into_pyobject(py).unwrap().as_any().clone().unbind(),
-                            Object::Boolean(b) => (*b).into_pyobject(py).unwrap().as_any().clone().unbind(),
-                            Object::PyObject(p) => p.clone_ref(py),
-                            _ => py.None(),
-                        }
-                    }).collect();
-                    
-                    let py_args = pyo3::types::PyTuple::new(py, args_vec).unwrap();
-                    let res = py_obj.call1(py, py_args)
-                        .map_err(|e| FluxError::new_runtime(format!("Python call error: {}", e), Span::new(0, 0)))?;
-                    
-                    if let Ok(i) = res.extract::<i64>(py) {
-                        Ok(Object::Integer(i))
-                    } else if let Ok(f) = res.extract::<f64>(py) {
-                        Ok(Object::Float(f))
-                    } else if let Ok(s) = res.extract::<String>(py) {
-                        Ok(Object::String(s))
-                    } else if let Ok(b) = res.extract::<bool>(py) {
-                        Ok(Object::Boolean(b))
-                    } else {
-                        Ok(Object::PyObject(res.into()))
+                    let mut py_args = Vec::new();
+                    for arg in args {
+                        py_args.push(self.flux_to_py(py, arg, span)?);
                     }
+                    
+                    let py_args_tuple = pyo3::types::PyTuple::new(py, py_args)
+                        .map_err(|e| FluxError::new_runtime(format!("Failed to create Python tuple: {}", e), span))?;
+                    
+                    let res = py_obj.bind(py).call1(py_args_tuple)
+                        .map_err(|e| FluxError::new_runtime(format!("Python call error: {}", e), span))?;
+                    
+                    self.py_to_flux(py, res, span)
                 })
             },
-            _ => Err(FluxError::new_runtime(format!("Not a function: {}", func), Span::new(0, 0))),
+            _ => Err(FluxError::new_runtime(format!("Not a function: {}", func), span)),
+        }
+    }
+
+    fn flux_to_py<'py>(&self, py: Python<'py>, obj: Object, span: Span) -> Result<Bound<'py, pyo3::PyAny>, FluxError> {
+        match obj {
+            Object::Integer(i) => Ok(i.into_pyobject(py).map_err(|e| FluxError::new_runtime(e.to_string(), span))?.as_any().clone()),
+            Object::Float(f) => Ok(f.into_pyobject(py).map_err(|e| FluxError::new_runtime(e.to_string(), span))?.as_any().clone()),
+            Object::String(s) => Ok(s.into_pyobject(py).map_err(|e| FluxError::new_runtime(e.to_string(), span))?.as_any().clone()),
+            Object::Boolean(b) => Ok(pyo3::types::PyBool::new(py, b).as_any().clone()),
+            Object::Null => Ok(py.None().into_bound(py)),
+            Object::List(l) => {
+                let py_list = pyo3::types::PyList::empty(py);
+                for item in l {
+                    py_list.append(self.flux_to_py(py, item, span)?)
+                        .map_err(|e| FluxError::new_runtime(format!("Failed to append to Python list: {}", e), span))?;
+                }
+                Ok(py_list.into_any())
+            },
+            Object::Dictionary(d) => {
+                let py_dict = pyo3::types::PyDict::new(py);
+                for (k, v) in d {
+                    py_dict.set_item(self.flux_to_py(py, k, span)?, self.flux_to_py(py, v, span)?)
+                        .map_err(|e| FluxError::new_runtime(format!("Failed to set item in Python dict: {}", e), span))?;
+                }
+                Ok(py_dict.into_any())
+            },
+            Object::Tensor(t) => {
+                // If numpy is available, convert to numpy array
+                let np = pyo3::types::PyModule::import(py, "numpy")
+                    .map_err(|e| FluxError::new_runtime(format!("Failed to import numpy for tensor conversion: {}", e), span))?;
+                
+                let data = t.inner.as_slice().unwrap().to_vec();
+                let shape = t.inner.shape().to_vec();
+                
+                let py_data = data.into_pyobject(py).unwrap();
+                let py_shape = shape.into_pyobject(py).unwrap();
+                
+                let array = np.call_method1("array", (py_data,))
+                    .map_err(|e| FluxError::new_runtime(format!("Numpy array creation failed: {}", e), span))?;
+                let reshaped = array.call_method1("reshape", (py_shape,))
+                    .map_err(|e| FluxError::new_runtime(format!("Numpy reshape failed: {}", e), span))?;
+                
+                Ok(reshaped)
+            },
+            Object::PyObject(p) => Ok(p.into_bound(py)),
+            _ => Err(FluxError::new_runtime(format!("Cannot convert {} to Python", obj), span)),
+        }
+    }
+
+    fn py_to_flux<'py>(&self, py: Python<'py>, obj: Bound<'py, pyo3::PyAny>, span: Span) -> Result<Object, FluxError> {
+        if let Ok(i) = obj.extract::<i64>() {
+            Ok(Object::Integer(i))
+        } else if let Ok(f) = obj.extract::<f64>() {
+            Ok(Object::Float(f))
+        } else if let Ok(s) = obj.extract::<String>() {
+            Ok(Object::String(s))
+        } else if let Ok(b) = obj.extract::<bool>() {
+            Ok(Object::Boolean(b))
+        } else if obj.is_none() {
+            Ok(Object::Null)
+        } else if obj.is_instance_of::<pyo3::types::PyList>() {
+            let py_list = obj.downcast::<pyo3::types::PyList>().unwrap();
+            let mut flux_list = Vec::new();
+            for item in py_list.iter() {
+                flux_list.push(self.py_to_flux(py, item, span)?);
+            }
+            Ok(Object::List(flux_list))
+        } else if obj.is_instance_of::<pyo3::types::PyDict>() {
+            let py_dict = obj.downcast::<pyo3::types::PyDict>().unwrap();
+            let mut flux_dict = std::collections::HashMap::new();
+            for (k, v) in py_dict.iter() {
+                flux_dict.insert(self.py_to_flux(py, k, span)?, self.py_to_flux(py, v, span)?);
+            }
+            Ok(Object::Dictionary(flux_dict))
+        } else {
+            // Check if it's a numpy array
+            let np_res = pyo3::types::PyModule::import(py, "numpy");
+            if let Ok(np) = np_res {
+                let is_ndarray = obj.is_instance(np.getattr("ndarray").unwrap().as_ref()).unwrap_or(false);
+                if is_ndarray {
+                    let flatten = obj.call_method0("flatten")
+                        .map_err(|e| FluxError::new_runtime(format!("Numpy flatten failed: {}", e), span))?;
+                    let data: Vec<f64> = flatten.extract()
+                        .map_err(|e| FluxError::new_runtime(format!("Failed to extract numpy data: {}", e), span))?;
+                    let shape_obj = obj.getattr("shape")
+                        .map_err(|e| FluxError::new_runtime(format!("Failed to get numpy shape: {}", e), span))?;
+                    let shape: Vec<usize> = shape_obj.extract()
+                        .map_err(|e| FluxError::new_runtime(format!("Failed to extract numpy shape: {}", e), span))?;
+                    
+                    let t = crate::tensor::Tensor::new(data, shape)
+                        .map_err(|e| FluxError::new_runtime(e, span))?;
+                    return Ok(Object::Tensor(t));
+                }
+            }
+            Ok(Object::PyObject(obj.into()))
         }
     }
 

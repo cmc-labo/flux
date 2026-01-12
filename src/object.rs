@@ -3,6 +3,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::environment::Environment;
+use pyo3::types::PyAnyMethods;
 
 #[derive(Debug)]
 pub enum Object {
@@ -101,7 +102,14 @@ impl fmt::Display for Object {
             Object::Function { .. } => write!(f, "function"),
             Object::NativeFn(_) => write!(f, "native_function"),
             Object::Tensor(val) => write!(f, "{}", val),
-            Object::PyObject(val) => write!(f, "PyObject({:?})", val),
+            Object::PyObject(val) => {
+                pyo3::Python::with_gil(|py| {
+                    let s = val.bind(py).repr()
+                        .map(|r| r.to_string())
+                        .unwrap_or_else(|_| "PyObject(error)".to_string());
+                    write!(f, "{}", s)
+                })
+            },
             Object::List(elements) => {
                 write!(f, "[")?;
                 for (i, el) in elements.iter().enumerate() {
