@@ -409,27 +409,6 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("max".to_string(), max_fn);
 
-    let mean_fn = Object::NativeFn(|args| {
-        if args.len() != 1 {
-            return Err("mean() takes exactly 1 argument".to_string());
-        }
-        match &args[0] {
-            Object::List(l) => {
-                if l.is_empty() { return Err("mean() arg is an empty sequence".to_string()); }
-                let mut total = 0.0;
-                for item in l {
-                    match item {
-                        Object::Integer(i) => total += *i as f64,
-                        Object::Float(f) => total += f,
-                        _ => return Err(format!("mean() encountered non-numeric element: {}", item)),
-                    }
-                }
-                Ok(Object::Float(total / l.len() as f64))
-            },
-            _ => Err(format!("mean() argument must be a list, got {}", args[0])),
-        }
-    });
-    env.borrow_mut().set("mean".to_string(), mean_fn);
 
     let all_fn = Object::NativeFn(|args| {
         if args.len() != 1 {
