@@ -500,11 +500,47 @@ impl Interpreter {
                     let res = l.add(&r)?;
                     Ok(Object::Tensor(res))
                 },
+                InfixOperator::Minus => {
+                    let res = l.sub(&r)?;
+                    Ok(Object::Tensor(res))
+                },
+                InfixOperator::Multiply => {
+                    let res = l.mul(&r)?;
+                    Ok(Object::Tensor(res))
+                },
+                InfixOperator::Divide => {
+                    let res = l.div(&r)?;
+                    Ok(Object::Tensor(res))
+                },
                 InfixOperator::MatrixMultiply => {
                     let res = l.matmul(&r)?;
                     Ok(Object::Tensor(res))
                 },
                 _ => Err(format!("Unsupported operator for tensors: {:?}", operator)),
+            },
+            (Object::Tensor(t), Object::Float(f)) => match operator {
+                InfixOperator::Plus => Ok(Object::Tensor(t.add_scalar(f))),
+                InfixOperator::Minus => Ok(Object::Tensor(t.sub_scalar(f))),
+                InfixOperator::Multiply => Ok(Object::Tensor(t.mul_scalar(f))),
+                InfixOperator::Divide => Ok(Object::Tensor(t.div_scalar(f))),
+                _ => Err(format!("Unsupported operator for tensor and float: {:?}", operator)),
+            },
+            (Object::Tensor(t), Object::Integer(i)) => match operator {
+                InfixOperator::Plus => Ok(Object::Tensor(t.add_scalar(i as f64))),
+                InfixOperator::Minus => Ok(Object::Tensor(t.sub_scalar(i as f64))),
+                InfixOperator::Multiply => Ok(Object::Tensor(t.mul_scalar(i as f64))),
+                InfixOperator::Divide => Ok(Object::Tensor(t.div_scalar(i as f64))),
+                _ => Err(format!("Unsupported operator for tensor and integer: {:?}", operator)),
+            },
+            (Object::Float(f), Object::Tensor(t)) => match operator {
+                InfixOperator::Plus => Ok(Object::Tensor(t.add_scalar(f))),
+                InfixOperator::Multiply => Ok(Object::Tensor(t.mul_scalar(f))),
+                _ => Err(format!("Unsupported operator for float and tensor: {:?}", operator)),
+            },
+            (Object::Integer(i), Object::Tensor(t)) => match operator {
+                InfixOperator::Plus => Ok(Object::Tensor(t.add_scalar(i as f64))),
+                InfixOperator::Multiply => Ok(Object::Tensor(t.mul_scalar(i as f64))),
+                _ => Err(format!("Unsupported operator for integer and tensor: {:?}", operator)),
             },
             (Object::String(l), Object::String(r)) => match operator {
                 InfixOperator::Plus => Ok(Object::String(format!("{}{}", l, r))),

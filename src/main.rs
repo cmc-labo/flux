@@ -165,6 +165,87 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("type".to_string(), type_fn);
 
+    let zeros_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("zeros() takes exactly 1 argument (shape)".to_string()); }
+        let shape = match &args[0] {
+            Object::List(l) => l.iter().map(|item| match item {
+                Object::Integer(i) => *i as usize,
+                _ => 0
+            }).collect::<Vec<usize>>(),
+            _ => return Err("zeros() argument must be a list of integers".to_string()),
+        };
+        Ok(Object::Tensor(crate::tensor::Tensor::zeros(shape)))
+    });
+    env.borrow_mut().set("zeros".to_string(), zeros_fn);
+
+    let ones_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("ones() takes exactly 1 argument (shape)".to_string()); }
+        let shape = match &args[0] {
+            Object::List(l) => l.iter().map(|item| match item {
+                Object::Integer(i) => *i as usize,
+                _ => 0
+            }).collect::<Vec<usize>>(),
+            _ => return Err("ones() argument must be a list of integers".to_string()),
+        };
+        Ok(Object::Tensor(crate::tensor::Tensor::ones(shape)))
+    });
+    env.borrow_mut().set("ones".to_string(), ones_fn);
+
+    let rand_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("rand() takes exactly 1 argument (shape)".to_string()); }
+        let shape = match &args[0] {
+            Object::List(l) => l.iter().map(|item| match item {
+                Object::Integer(i) => *i as usize,
+                _ => 0
+            }).collect::<Vec<usize>>(),
+            _ => return Err("rand() argument must be a list of integers".to_string()),
+        };
+        Ok(Object::Tensor(crate::tensor::Tensor::rand(shape)))
+    });
+    env.borrow_mut().set("rand".to_string(), rand_fn);
+
+    let reshape_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("reshape() takes exactly 2 arguments (tensor, shape)".to_string()); }
+        let t = match &args[0] {
+            Object::Tensor(t) => t,
+            _ => return Err("reshape() first argument must be a tensor".to_string()),
+        };
+        let shape = match &args[1] {
+            Object::List(l) => l.iter().map(|item| match item {
+                Object::Integer(i) => *i as usize,
+                _ => 0
+            }).collect::<Vec<usize>>(),
+            _ => return Err("reshape() second argument must be a list of integers".to_string()),
+        };
+        t.reshape(shape).map(Object::Tensor)
+    });
+    env.borrow_mut().set("reshape".to_string(), reshape_fn);
+
+    let transpose_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("transpose() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Tensor(t) => Ok(Object::Tensor(t.transpose())),
+            _ => Err("transpose() argument must be a tensor".to_string()),
+        }
+    });
+    env.borrow_mut().set("transpose".to_string(), transpose_fn);
+
+    let dot_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("dot() takes exactly 2 arguments".to_string()); }
+        let a = match &args[0] { Object::Tensor(t) => t, _ => return Err("dot() args must be tensors".to_string()) };
+        let b = match &args[1] { Object::Tensor(t) => t, _ => return Err("dot() args must be tensors".to_string()) };
+        a.matmul(b).map(Object::Tensor)
+    });
+    env.borrow_mut().set("dot".to_string(), dot_fn);
+
+    let dot_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("dot() takes exactly 2 arguments".to_string()); }
+        let a = match &args[0] { Object::Tensor(t) => t, _ => return Err("dot() args must be tensors".to_string()) };
+        let b = match &args[1] { Object::Tensor(t) => t, _ => return Err("dot() args must be tensors".to_string()) };
+        a.matmul(b).map(Object::Tensor)
+    });
+    env.borrow_mut().set("dot".to_string(), dot_fn);
+
     let abs_fn = Object::NativeFn(|args| {
         if args.len() != 1 {
             return Err("abs() takes exactly 1 argument".to_string());
@@ -182,6 +263,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             return Err("sum() takes exactly 1 argument".to_string());
         }
         match &args[0] {
+            Object::Tensor(t) => Ok(Object::Float(t.sum())),
             Object::List(l) => {
                 let mut total_int = 0;
                 let mut total_float = 0.0;
@@ -213,10 +295,33 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                     Ok(Object::Integer(total_int))
                 }
             },
-            _ => Err(format!("sum() argument must be a list, got {}", args[0])),
+            _ => Err(format!("sum() argument must be a list or tensor, got {}", args[0])),
         }
     });
     env.borrow_mut().set("sum".to_string(), sum_fn);
+
+    let mean_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("mean() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::Tensor(t) => Ok(t.mean().map(Object::Float).unwrap_or(Object::Null)),
+            Object::List(l) => {
+                if l.is_empty() { return Ok(Object::Null); }
+                let mut total = 0.0;
+                for item in l {
+                    match item {
+                        Object::Integer(i) => total += *i as f64,
+                        Object::Float(f) => total += f,
+                        _ => return Err(format!("mean() encountered non-numeric element: {}", item)),
+                    }
+                }
+                Ok(Object::Float(total / l.len() as f64))
+            },
+            _ => Err(format!("mean() argument must be a list or tensor, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("mean".to_string(), mean_fn);
 
     let min_fn = Object::NativeFn(|args| {
         if args.len() == 0 {
