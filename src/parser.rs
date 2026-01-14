@@ -98,6 +98,56 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_type(&mut self) -> Option<crate::ast::Type> {
+        let t = match self.cur_token {
+            Token::Identifier(ref name) => {
+                match name.as_str() {
+                    "int" => crate::ast::Type::Int,
+                    "float" => crate::ast::Type::Float,
+                    "string" => crate::ast::Type::String,
+                    "bool" => crate::ast::Type::Bool,
+                    "null" | "None" => crate::ast::Type::Null,
+                    "tensor" => crate::ast::Type::Tensor,
+                    "any" => crate::ast::Type::Any,
+                    "list" => {
+                        if self.peek_token_is(&Token::LBracket) {
+                            self.next_token(); // consume list
+                            self.next_token(); // consume [
+                            let inner = self.parse_type()?;
+                            if !self.expect_peek(Token::RBracket) { return None; }
+                            crate::ast::Type::List(Box::new(inner))
+                        } else {
+                            crate::ast::Type::List(Box::new(crate::ast::Type::Any))
+                        }
+                    },
+                    "dict" => {
+                        if self.peek_token_is(&Token::LBracket) {
+                            self.next_token(); // consume dict
+                            self.next_token(); // consume [
+                            let key = self.parse_type()?;
+                            if !self.expect_peek(Token::Comma) { return None; }
+                            self.next_token();
+                            let val = self.parse_type()?;
+                            if !self.expect_peek(Token::RBracket) { return None; }
+                            crate::ast::Type::Dictionary(Box::new(key), Box::new(val))
+                        } else {
+                            crate::ast::Type::Dictionary(Box::new(crate::ast::Type::Any), Box::new(crate::ast::Type::Any))
+                        }
+                    },
+                    _ => {
+                        self.errors.push(ParserError { message: format!("Unknown type: {}", name), span: self.cur_span });
+                        return None;
+                    }
+                }
+            },
+             _ => {
+                self.errors.push(ParserError { message: format!("Expected type identifier, got {:?}", self.cur_token), span: self.cur_span });
+                return None;
+            }
+        };
+        Some(t)
+    }
+
     fn parse_let_statement(&mut self) -> Option<Statement> {
         let start = self.cur_span;
         if !self.expect_peek(Token::Identifier("".to_string())) {
@@ -108,6 +158,13 @@ impl<'a> Parser<'a> {
             Token::Identifier(n) => n.clone(),
             _ => return None,
         };
+
+        let mut type_hint = None;
+        if self.peek_token_is(&Token::Colon) {
+            self.next_token(); // identifier
+            self.next_token(); // :
+            type_hint = self.parse_type();
+        }
 
         if !self.expect_peek(Token::Assign) {
             return None;
@@ -123,7 +180,7 @@ impl<'a> Parser<'a> {
 
         Some(Statement {
             span: start.join(value.span),
-            kind: StatementKind::Let { name, value },
+            kind: StatementKind::Let { name, value, type_hint },
         })
     }
 
@@ -299,7 +356,7 @@ impl<'a> Parser<'a> {
                     };
                     return Some(Statement {
                         span: start.join(value.span),
-                        kind: StatementKind::Let { name, value: final_value },
+                        kind: StatementKind::Let { name, value: final_value, type_hint: None },
                     });
                 }
                 _ => {
@@ -365,6 +422,13 @@ impl<'a> Parser<'a> {
         }
 
         let params = self.parse_function_params()?;
+        
+        let mut return_type = None;
+        if self.peek_token_is(&Token::Arrow) {
+            self.next_token(); // )
+            self.next_token(); // ->
+            return_type = self.parse_type();
+        }
 
         if !self.expect_peek(Token::Colon) {
             return None;
@@ -380,11 +444,11 @@ impl<'a> Parser<'a> {
         
         Some(Statement {
             span: start.join(end),
-            kind: StatementKind::FunctionDef { name, params, body }
+            kind: StatementKind::FunctionDef { name, params, body, return_type }
         })
     }
 
-    fn parse_function_params(&mut self) -> Option<Vec<String>> {
+    fn parse_function_params(&mut self) -> Option<Vec<(String, Option<crate::ast::Type>)>> {
         let mut params = Vec::new();
 
         if self.peek_token_is(&Token::RParen) {
@@ -394,18 +458,33 @@ impl<'a> Parser<'a> {
 
         self.next_token();
 
-        match &self.cur_token {
-            Token::Identifier(ident) => params.push(ident.clone()),
+        let name = match &self.cur_token {
+            Token::Identifier(ident) => ident.clone(),
             _ => return None,
+        };
+        
+        let mut p_type = None;
+        if self.peek_token_is(&Token::Colon) {
+            self.next_token(); // identifier
+            self.next_token(); // :
+            p_type = self.parse_type();
         }
+        params.push((name, p_type));
 
         while self.peek_token_is(&Token::Comma) {
-            self.next_token();
-            self.next_token();
-            match &self.cur_token {
-                Token::Identifier(ident) => params.push(ident.clone()),
+            self.next_token(); // comma
+            self.next_token(); // next identifier
+            let name = match &self.cur_token {
+                Token::Identifier(ident) => ident.clone(),
                 _ => return None,
+            };
+            let mut p_type = None;
+            if self.peek_token_is(&Token::Colon) {
+                self.next_token(); // identifier
+                self.next_token(); // :
+                p_type = self.parse_type();
             }
+            params.push((name, p_type));
         }
 
         if !self.expect_peek(Token::RParen) {

@@ -8,6 +8,7 @@ mod environment;
 mod interpreter;
 mod tensor;
 mod error;
+mod type_checker;
 
 use lexer::Lexer;
 use parser::Parser;
@@ -1501,17 +1502,23 @@ fn main() {
                 println!("{:?}", report);
             }
         } else {
-            let env = Rc::new(RefCell::new(Environment::new()));
-            register_builtins(env.clone());
-            let mut interpreter = Interpreter::new();
-            for stmt in program {
-                match interpreter.eval(stmt, env.clone()) {
-                    Ok(_) => {},
-                    Err(e) => {
-                        let report = Report::new(e).with_source_code(contents.clone());
-                        println!("{:?}", report);
-                        break;
-                    },
+            let mut type_checker = crate::type_checker::TypeChecker::new();
+            if let Err(e) = type_checker.check(&program) {
+                let report = Report::new(e).with_source_code(contents.clone());
+                println!("{:?}", report);
+            } else {
+                let env = Rc::new(RefCell::new(Environment::new()));
+                register_builtins(env.clone());
+                let mut interpreter = Interpreter::new();
+                for stmt in program {
+                    match interpreter.eval(stmt, env.clone()) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            let report = Report::new(e).with_source_code(contents.clone());
+                            println!("{:?}", report);
+                            break;
+                        },
+                    }
                 }
             }
         }
@@ -1521,6 +1528,8 @@ fn main() {
         
         let env = Rc::new(RefCell::new(Environment::new()));
         register_builtins(env.clone());
+        let mut interpreter = Interpreter::new();
+        let mut type_checker = crate::type_checker::TypeChecker::new();
 
         loop {
             print!(">> ");
@@ -1544,18 +1553,22 @@ fn main() {
                     println!("{:?}", report);
                 }
             } else {
-                let mut interpreter = Interpreter::new();
-                for stmt in program {
-                    match interpreter.eval(stmt, env.clone()) {
-                        Ok(obj) => {
-                             if obj != Object::Null {
-                                 println!("{}", obj);
-                             }
-                        },
-                        Err(e) => {
-                            let report = Report::new(e).with_source_code(input.clone());
-                            println!("{:?}", report);
-                        },
+                if let Err(e) = type_checker.check(&program) {
+                    let report = Report::new(e).with_source_code(input.clone());
+                    println!("{:?}", report);
+                } else {
+                    for stmt in program {
+                        match interpreter.eval(stmt, env.clone()) {
+                            Ok(obj) => {
+                                 if obj != Object::Null {
+                                     println!("{}", obj);
+                                 }
+                            },
+                            Err(e) => {
+                                let report = Report::new(e).with_source_code(input.clone());
+                                println!("{:?}", report);
+                            },
+                        }
                     }
                 }
             }

@@ -23,7 +23,7 @@ impl Interpreter {
         let span = node.span;
         match node.kind {
             StatementKind::Expression(expr) => self.eval_expression(expr, env),
-            StatementKind::Let { name, value } => {
+            StatementKind::Let { name, value, type_hint: _ } => {
                 let val = self.eval_expression(value, env.clone())?;
                 env.borrow_mut().set(name, val.clone());
                 Ok(val)
@@ -35,8 +35,12 @@ impl Interpreter {
                 };
                 Ok(Object::ReturnValue(Box::new(val)))
             },
-            StatementKind::FunctionDef { name, params, body } => {
-                let func = Object::Function { params, body, env: env.clone() };
+            StatementKind::FunctionDef { name, params, body, return_type: _ } => {
+                let func = Object::Function { 
+                    params: params.into_iter().map(|(n, _)| n).collect(), 
+                    body, 
+                    env: env.clone() 
+                };
                 env.borrow_mut().set(name, func.clone());
                 Ok(Object::Null)
             },

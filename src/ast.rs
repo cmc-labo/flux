@@ -7,11 +7,34 @@ pub struct Statement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum Type {
+    Int,
+    Float,
+    String,
+    Bool,
+    Null,
+    List(Box<Type>),
+    Dictionary(Box<Type>, Box<Type>),
+    Tensor,
+    Any,
+    Function(Vec<Type>, Box<Type>),
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum StatementKind {
-    Let { name: String, value: Expression },
+    Let { 
+        name: String, 
+        value: Expression,
+        type_hint: Option<Type>,
+    },
     Return(Option<Expression>),
     Expression(Expression),
-    FunctionDef { name: String, params: Vec<String>, body: Block },
+    FunctionDef { 
+        name: String, 
+        params: Vec<(String, Option<Type>)>, 
+        body: Block,
+        return_type: Option<Type>,
+    },
     If { condition: Expression, consequence: Block, elif_branches: Vec<(Expression, Block)>, alternative: Option<Block> },
     While { condition: Expression, body: Block },
     For { variable: String, iterable: Expression, body: Block },

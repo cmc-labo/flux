@@ -68,6 +68,7 @@ pub enum Token {
     RParen,
     Colon,
     Comma,
+    Arrow, // ->
     
     // Structure
     Newline,

@@ -131,6 +131,9 @@ impl<'a> Lexer<'a> {
                     if let Some(&'=') = self.chars.peek() {
                         self.next_char();
                         (Token::MinusAssign, Span::new(start, self.pos - start))
+                    } else if let Some(&'>') = self.chars.peek() {
+                        self.next_char();
+                        (Token::Arrow, Span::new(start, self.pos - start))
                     } else {
                         (Token::Minus, Span::new(start, self.pos - start))
                     }

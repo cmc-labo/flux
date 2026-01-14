@@ -1,0 +1,263 @@
+use crate::ast::{Statement, StatementKind, Expression, ExpressionKind, Type, InfixOperator, Block};
+use crate::error::FluxError;
+use crate::span::Span;
+use std::collections::HashMap;
+
+#[derive(Clone)]
+pub struct TypeEnv {
+    vars: HashMap<String, Type>,
+    parent: Option<Box<TypeEnv>>,
+}
+
+impl TypeEnv {
+    pub fn new() -> Self {
+        TypeEnv {
+            vars: HashMap::new(),
+            parent: None,
+        }
+    }
+
+    pub fn extend(parent: TypeEnv) -> Self {
+        TypeEnv {
+            vars: HashMap::new(),
+            parent: Some(Box::new(parent)),
+        }
+    }
+
+    pub fn set(&mut self, name: String, ty: Type) {
+        self.vars.insert(name, ty);
+    }
+
+    pub fn get(&self, name: &str) -> Option<Type> {
+        if let Some(ty) = self.vars.get(name) {
+            Some(ty.clone())
+        } else if let Some(parent) = &self.parent {
+            parent.get(name)
+        } else {
+            None
+        }
+    }
+}
+
+pub struct TypeChecker {
+    current_return_type: Option<Type>,
+}
+
+impl TypeChecker {
+    pub fn new() -> Self {
+        TypeChecker {
+            current_return_type: None,
+        }
+    }
+
+    fn default_env() -> TypeEnv {
+        let mut env = TypeEnv::new();
+        env.set("len".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Int)));
+        env.set("print".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Null)));
+        env.set("type".to_string(), Type::Function(vec![Type::Any], Box::new(Type::String)));
+        env.set("range".to_string(), Type::Function(vec![Type::Int], Box::new(Type::List(Box::new(Type::Int)))));
+        env.set("zeros".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
+        env.set("ones".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
+        env.set("rand".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
+        env.set("sum".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("mean".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env
+    }
+
+    pub fn check(&mut self, statements: &[Statement]) -> Result<(), FluxError> {
+        let mut env = Self::default_env();
+        for stmt in statements {
+            self.check_statement(stmt, &mut env)?;
+        }
+        Ok(())
+    }
+
+    fn check_statement(&mut self, stmt: &Statement, env: &mut TypeEnv) -> Result<(), FluxError> {
+        match &stmt.kind {
+            StatementKind::Let { name, value, type_hint } => {
+                let inferred = self.infer_type(value, env)?;
+                if let Some(hint) = type_hint {
+                    if !self.is_compatible(hint, &inferred) {
+                        return Err(FluxError::new_type(
+                            format!("Type mismatch for '{}': declared {:?}, but got {:?}", name, hint, inferred),
+                            stmt.span
+                        ));
+                    }
+                    env.set(name.clone(), hint.clone());
+                } else {
+                    env.set(name.clone(), inferred);
+                }
+            }
+            StatementKind::FunctionDef { name, params, body, return_type } => {
+                let ret_ty = return_type.clone().unwrap_or(Type::Any);
+                let func_ty = Type::Function(
+                    params.iter().map(|(_, t)| t.clone().unwrap_or(Type::Any)).collect(),
+                    Box::new(ret_ty.clone())
+                );
+                env.set(name.clone(), func_ty);
+
+                let mut sub_env = TypeEnv::extend(env.clone());
+                for (p_name, p_type) in params {
+                    sub_env.set(p_name.clone(), p_type.clone().unwrap_or(Type::Any));
+                }
+
+                let old_ret = self.current_return_type.take();
+                self.current_return_type = Some(ret_ty);
+                self.check_block(body, &mut sub_env)?;
+                self.current_return_type = old_ret;
+            }
+            StatementKind::Return(expr_opt) => {
+                let ret_ty = match expr_opt {
+                    Some(expr) => self.infer_type(expr, env)?,
+                    None => Type::Null,
+                };
+                if let Some(expected) = &self.current_return_type {
+                    if !self.is_compatible(expected, &ret_ty) {
+                        return Err(FluxError::new_type(
+                            format!("Return type mismatch: expected {:?}, but got {:?}", expected, ret_ty),
+                            stmt.span
+                        ));
+                    }
+                }
+            }
+            StatementKind::If { condition, consequence, elif_branches, alternative } => {
+                let _cond_ty = self.infer_type(condition, env)?;
+                // condition should be truthy, almost anything works in Flux but maybe warn?
+                self.check_block(consequence, &mut TypeEnv::extend(env.clone()))?;
+                for (elif_cond, elif_body) in elif_branches {
+                    self.infer_type(elif_cond, env)?;
+                    self.check_block(elif_body, &mut TypeEnv::extend(env.clone()))?;
+                }
+                if let Some(alt) = alternative {
+                    self.check_block(alt, &mut TypeEnv::extend(env.clone()))?;
+                }
+            }
+            StatementKind::While { condition, body } => {
+                self.infer_type(condition, env)?;
+                self.check_block(body, &mut TypeEnv::extend(env.clone()))?;
+            }
+            StatementKind::For { variable, iterable, body } => {
+                let iter_ty = self.infer_type(iterable, env)?;
+                let elem_ty = match iter_ty {
+                    Type::List(inner) => *inner,
+                    Type::Tensor => Type::Float,
+                    Type::String => Type::String,
+                    _ => Type::Any,
+                };
+                let mut sub_env = TypeEnv::extend(env.clone());
+                sub_env.set(variable.clone(), elem_ty);
+                self.check_block(body, &mut sub_env)?;
+            }
+            StatementKind::Expression(expr) => {
+                self.infer_type(expr, env)?;
+            }
+            StatementKind::Print(expressions) => {
+                for expr in expressions {
+                    self.infer_type(expr, env)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn check_block(&mut self, block: &Block, env: &mut TypeEnv) -> Result<(), FluxError> {
+        for stmt in &block.statements {
+            self.check_statement(stmt, env)?;
+        }
+        Ok(())
+    }
+
+    fn infer_type(&self, expr: &Expression, env: &TypeEnv) -> Result<Type, FluxError> {
+        match &expr.kind {
+            ExpressionKind::Integer(_) => Ok(Type::Int),
+            ExpressionKind::Float(_) => Ok(Type::Float),
+            ExpressionKind::String(_) => Ok(Type::String),
+            ExpressionKind::Identifier(name) => {
+                env.get(name).ok_or_else(|| FluxError::new_type(format!("Undefined variable: {}", name), expr.span))
+            }
+            ExpressionKind::List(elements) => {
+                if elements.is_empty() {
+                    Ok(Type::List(Box::new(Type::Any)))
+                } else {
+                    let mut common_ty = self.infer_type(&elements[0], env)?;
+                    for el in &elements[1..] {
+                        let el_ty = self.infer_type(el, env)?;
+                        if el_ty != common_ty {
+                            // If elements differ, fallback to Any for now or handle union
+                            common_ty = Type::Any;
+                            break;
+                        }
+                    }
+                    Ok(Type::List(Box::new(common_ty)))
+                }
+            }
+            ExpressionKind::Infix { left, operator, right } => {
+                let l_ty = self.infer_type(left, env)?;
+                let r_ty = self.infer_type(right, env)?;
+                match operator {
+                    InfixOperator::Plus | InfixOperator::Minus | InfixOperator::Multiply | InfixOperator::Divide | InfixOperator::Modulo => {
+                        if l_ty == Type::Int && r_ty == Type::Int { Ok(Type::Int) }
+                        else if (l_ty == Type::Int || l_ty == Type::Float) && (r_ty == Type::Int || r_ty == Type::Float) { Ok(Type::Float) }
+                        else if l_ty == Type::Tensor || r_ty == Type::Tensor { Ok(Type::Tensor) }
+                        else { Ok(Type::Any) }
+                    }
+                    InfixOperator::Equal | InfixOperator::NotEqual | InfixOperator::LessThan | InfixOperator::GreaterThan |
+                    InfixOperator::LessThanOrEqual | InfixOperator::GreaterThanOrEqual | InfixOperator::And | InfixOperator::Or |
+                    InfixOperator::In | InfixOperator::NotIn => Ok(Type::Bool),
+                    InfixOperator::Power => Ok(Type::Float),
+                    InfixOperator::MatrixMultiply => Ok(Type::Tensor),
+                    _ => Ok(Type::Any),
+                }
+            }
+            ExpressionKind::Prefix { operator: _, right } => {
+                self.infer_type(right, env)
+            }
+            ExpressionKind::Call { function, arguments } => {
+                let func_ty = self.infer_type(function, env)?;
+                match func_ty {
+                    Type::Function(params, ret) => {
+                        // Check argument count
+                        if arguments.len() != params.len() {
+                             // Some functions might have varargs, but for now strict
+                        }
+                        Ok(*ret)
+                    }
+                    _ => Ok(Type::Any), // Might be a PyObject or NativeFn we didn't track well
+                }
+            }
+            ExpressionKind::Index { object, index: _ } => {
+                let obj_ty = self.infer_type(object, env)?;
+                match obj_ty {
+                    Type::List(inner) => Ok(*inner),
+                    Type::String => Ok(Type::String),
+                    Type::Tensor => Ok(Type::Float), // Tensor index returns float for now
+                    _ => Ok(Type::Any),
+                }
+            }
+            ExpressionKind::Get { object: _, name: _ } => {
+                 // Attribute access. Hard to type without more info.
+                 Ok(Type::Any)
+            }
+            _ => Ok(Type::Any),
+        }
+    }
+
+    fn is_compatible(&self, expected: &Type, actual: &Type) -> bool {
+        if expected == &Type::Any || actual == &Type::Any {
+            return true;
+        }
+        if expected == actual {
+            return true;
+        }
+        // int is compatible with float (automatic coercion)
+        if expected == &Type::Float && actual == &Type::Int {
+            return true;
+        }
+        // Handle List compatibility
+        if let (Type::List(e_inner), Type::List(a_inner)) = (expected, actual) {
+            return self.is_compatible(e_inner, a_inner);
+        }
+        false
+    }
+}
