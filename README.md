@@ -1,75 +1,102 @@
 # Flux Language
 
-Flux is an experimental programming language designed to combine the simplicity of Python with the performance and safety of Rust, specifically targeting AI/ML workloads.
+Flux is a high-performance, AI-native programming language designed to bridge the gap between Python's developer productivity and Rust's runtime efficiency. 
 
-## Features
+> [!IMPORTANT]
+> **Performance Goal**: Minimize Python interpreter overhead in AI orchestration by providing a lean, Rust-powered execution environment for Tensor workloads.
 
-- **Python-like Syntax**: Clean, indentation-based code structure.
-- **Rust-Powered**: Built in Rust for memory safety and performance.
-- **AI/ML Native**: First-class support for Tensor operations (Powered by `ndarray` for CPU).
+---
 
-## Why Flux?
+## 💡 Design Philosophy & Specifications
 
-While frameworks like **PyTorch** are incredibly powerful, they often suffer from significant **Python interpreter overhead** when executing many small tensor operations in tight loops. The "glue" code that orchestrates tensor kernels is written in Python, which can become a bottleneck when kernel execution time is comparable to the overhead of the Python runtime.
+### 1. High-Speed Orchestration
+Frameworks like PyTorch are powerful but often bottlenecked by the Python Global Interpreter Lock (GIL) and VM overhead during complex coordination of small kernels. Flux eliminates this by keeping the entire execution loop inside a memory-safe Rust binary.
 
-Flux addresses this by:
-1.  **Native Orchestration**: The entire execution loop is built in Rust.
-2.  **Lean Runtime**: No heavy Python VM weighing down the orchestration logic.
-3.  **Future-Proofing**: Designed to eventually compile down to optimized bytecode or machine code, providing the interface of Python with the raw speed of a compiled library.
+### 2. Gradual Typing System
+Flux offers a unique blend of dynamic flexibility and static safety.
+- **Dynamic by Default**: Move fast without boilerplate.
+- **Static when Needed**: Use type hints for critical path validation and documentation.
 
-## Getting Started
+### 3. AI-First Standard Library
+Unlike general-purpose languages, Flux treats `Tensor` as a first-class citizen, with native syntax and optimized operators.
+
+---
+
+## 🛠️ Language Guide
+
+### Syntax Overview
+Flux uses a clean, indentation-based syntax similar to Python.
+
+```python
+# Function with type hints
+def compute_loss(pred: tensor, target: tensor) -> float:
+    let diff = pred - target
+    return mean(diff * diff)
+
+let p = rand([4, 4])
+let t = ones([4, 4])
+print("Loss:", compute_loss(p, t))
+```
+
+### Type System
+The static type checker runs before execution, catching errors early.
+
+| Type | Description |
+| :--- | :--- |
+| `int` | 64-bit signed integer |
+| `float` | 64-bit IEEE floating point |
+| `string` | UTF-8 encoded string |
+| `bool` | Boolean (`True`, `False`) |
+| `list[T]` | Generic list (e.g., `list[int]`) |
+| `tensor` | Multi-dimensional array (f64) |
+| `any` | Opt-out of type checking |
+
+---
+
+## 🐍 Python Interoperability
+Leverage the massive Python ecosystem directly from Flux.
+
+```python
+import numpy as np
+
+let arr = np.array([1, 2, 3])
+print("Numpy Array from Flux:", arr)
+```
+- **Bi-directional conversion**: Pass Tensors between Flux and NumPy seamlessly.
+- **Exception Handling**: Python errors are translated into Flux errors with accurate source mapping.
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-
-- [Rust](https://www.rust-lang.org/tools/install) (latest stable version)
+- [Rust](https://www.rust-lang.org/tools/install) (stable)
 
 ### Installation
-
-Clone the repository:
-
 ```bash
 git clone https://github.com/cmc-labo/flux.git
 cd flux
+cargo build --release
 ```
 
 ### Usage
+- **Run Script**: `cargo run -- path/to/script.fl`
+- **Interactive REPL**: `cargo run` (Start typing Flux code directly!)
 
-Run a script using the interpreter:
+---
 
-```bash
-cargo run -- path/to/script.fl
-```
+## 🗺️ Roadmap & Support Matrix
 
-### Example
+| Feature | Status | Technology |
+| :--- | :--- | :--- |
+| **Basic Control Flow** | ✅ Full | If, While, For-In |
+| **Static Type Hints** | ✅ Initial | `TypeChecker` pass |
+| **Tensor Ops** | ✅ CPU | `ndarray` backend |
+| **Python Interop** | ✅ Robust | `PyO3` |
+| **GPU Support** | 🔄 Planned | `wgpu` or `Burn` |
+| **AOT Compiler** | 📅 Backlog | LLVM/MLIR |
 
-Create a file named `example.fl`:
+---
 
-```python
-def add_tensors(size):
-    let t1 = tensor(size)
-    let t2 = tensor(size)
-    return t1 + t2
-
-let result = add_tensors(3)
-print(result)
-```
-
-Run it:
-
-```bash
-cargo run -- example.fl
-```
-
-## Roadmap
-
-- [x] Basic Lexer & Parser (Indentation support)
-- [x] Interpreter with Variables & Functions
-- [x] Basic Tensor Type & Addition
-- [x] Matrix Multiplication (`@` operator)
-- [x] Python Interop (`py_import`)
-- [ ] GPU Acceleration (wgpu/CUDA)
-- [ ] Python Interop
-
-## License
-
+## 📄 License
 MIT
