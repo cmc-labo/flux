@@ -7,7 +7,7 @@ Flux is a high-performance, AI-native programming language designed to bridge th
 
 ---
 
-## 💡 Design Philosophy & Specifications
+## Design Philosophy & Specifications
 
 ### 1. High-Speed Orchestration
 Frameworks like PyTorch are powerful but often bottlenecked by the Python Global Interpreter Lock (GIL) and VM overhead during complex coordination of small kernels. Flux eliminates this by keeping the entire execution loop inside a memory-safe Rust binary.
@@ -22,7 +22,7 @@ Unlike general-purpose languages, Flux treats `Tensor` as a first-class citizen,
 
 ---
 
-## 🛠️ Language Guide
+## Language Guide
 
 ### Syntax Overview
 Flux uses a clean, indentation-based syntax similar to Python.
@@ -53,7 +53,7 @@ The static type checker runs before execution, catching errors early.
 
 ---
 
-## 🐍 Python Interoperability
+## Python Interoperability
 Leverage the massive Python ecosystem directly from Flux.
 
 ```python
@@ -67,7 +67,7 @@ print("Numpy Array from Flux:", arr)
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - [Rust](https://www.rust-lang.org/tools/install) (stable)
@@ -85,7 +85,7 @@ cargo build --release
 
 ---
 
-## 🗺️ Roadmap & Support Matrix
+## Roadmap & Support Matrix
 
 | Feature | Status | Technology |
 | :--- | :--- | :--- |
