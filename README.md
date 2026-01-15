@@ -89,14 +89,14 @@ cargo build --release
 
 | Feature | Status | Technology |
 | :--- | :--- | :--- |
-| **Basic Control Flow** | ✅ Full | If, While, For-In |
-| **Static Type Hints** | ✅ Initial | `TypeChecker` pass |
-| **Tensor Ops** | ✅ CPU | `ndarray` backend |
-| **Python Interop** | ✅ Robust | `PyO3` |
-| **GPU Support** | 🔄 Planned | `wgpu` or `Burn` |
-| **AOT Compiler** | 📅 Backlog | LLVM/MLIR |
+| **Basic Control Flow** | Full | If, While, For-In |
+| **Static Type Hints** | Initial | `TypeChecker` pass |
+| **Tensor Ops** | CPU | `ndarray` backend |
+| **Python Interop** | Robust | `PyO3` |
+| **GPU Support** | Planned | `wgpu` or `Burn` |
+| **AOT Compiler** | Backlog | LLVM/MLIR |
 
 ---
 
-## 📄 License
+## License
 MIT
