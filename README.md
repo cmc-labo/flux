@@ -2,7 +2,6 @@
 
 Flux is a high-performance, AI-native programming language designed to bridge the gap between Python's developer productivity and Rust's runtime efficiency. 
 
-> [!IMPORTANT]
 > **Performance Goal**: Minimize Python interpreter overhead in AI orchestration by providing a lean, Rust-powered execution environment for Tensor workloads.
 
 ---
