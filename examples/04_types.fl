@@ -1,0 +1,17 @@
+# Type Hints & Static Checking Example
+
+# Function with type hints
+def add_integers(a: int, b: int) -> int:
+    return a + b
+
+let x: int = 5
+let y: int = 10
+let z = add_integers(x, y)
+print("Result of typed function:", z)
+
+# List with type hints
+let scores: list[float] = [85.5, 90.0, 78.5]
+print("Typed list:", scores)
+
+# This would fail at check-time if uncommented:
+# let error: int = "string"

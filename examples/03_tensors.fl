@@ -1,0 +1,29 @@
+# Tensor Operations Example
+
+# Creation
+let t1 = ones([2, 3])
+let t2 = rand([2, 3])
+
+print("Tensor t1 (ones):")
+print(t1)
+
+# Arithmetic
+let t3 = t1 + t2
+print("t1 + t2:")
+print(t3)
+
+# Scalar math
+let t4 = t1 * 10.0
+print("t1 * 10.0:")
+print(t4)
+
+# Matrix Multiplication
+let a = ones([2, 2])
+let b = ones([2, 2])
+let c = a @ b
+print("Matrix Multiply result:")
+print(c)
+
+# Reductions
+print("Sum of t3:", sum(t3))
+print("Mean of t3:", mean(t3))

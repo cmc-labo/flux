@@ -1,0 +1,17 @@
+# Flux Basics Example
+
+# Variables and Types
+let x: int = 10
+let name = "Flux Language"
+let pi: float = 3.14159
+
+print("Name:", name)
+print("Calculation:", x * pi)
+
+# Lists
+let my_list = [1, 2, 3, "mixed"]
+print("List:", my_list)
+print("Length:", len(my_list))
+
+# Built-in type function
+print("Type of pi:", type(pi))

@@ -1,0 +1,17 @@
+# Python Interoperability Example
+
+import numpy as np
+import math as py_math
+
+# Using Numpy
+let nd_arr = np.array([1, 2, 3, 4, 5])
+print("Numpy array:", nd_arr)
+print("Numpy sum:", nd_arr.sum())
+
+# Using math module
+let val = 16.0
+let root = py_math.sqrt(val)
+print("Square root of", val, "is", root)
+
+# You can even use Python's print
+np.print("Numpy print works too!")

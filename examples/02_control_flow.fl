@@ -1,0 +1,19 @@
+# Control Flow Example
+
+let count = 0
+while count < 3:
+    print("Loop iteration:", count)
+    count = count + 1
+
+let val = 42
+if val > 50:
+    print("Large value")
+elif val > 20:
+    print("Medium value")
+else:
+    print("Small value")
+
+# For-in loop
+let items = ["apple", "banana", "cherry"]
+for item in items:
+    print("I like", item)

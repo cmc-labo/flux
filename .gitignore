@@ -7,3 +7,4 @@ Cargo.lock
 *.fl
 !test.fl
 !test_*.fl
+!examples/*.fl
