@@ -4,7 +4,6 @@ use std::iter::Peekable;
 use std::str::Chars;
 
 pub struct Lexer<'a> {
-    input: &'a str,
     chars: Peekable<Chars<'a>>,
     pos: usize,
     indent_stack: Vec<usize>,
@@ -14,7 +13,6 @@ pub struct Lexer<'a> {
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         Lexer {
-            input,
             chars: input.chars().peekable(),
             pos: 0,
             indent_stack: vec![0],

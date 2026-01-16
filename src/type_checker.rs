@@ -40,12 +40,14 @@ impl TypeEnv {
 }
 
 pub struct TypeChecker {
+    env: TypeEnv,
     current_return_type: Option<Type>,
 }
 
 impl TypeChecker {
     pub fn new() -> Self {
         TypeChecker {
+            env: Self::default_env(),
             current_return_type: None,
         }
     }
@@ -65,11 +67,15 @@ impl TypeChecker {
     }
 
     pub fn check(&mut self, statements: &[Statement]) -> Result<(), FluxError> {
-        let mut env = Self::default_env();
-        for stmt in statements {
-            self.check_statement(stmt, &mut env)?;
-        }
-        Ok(())
+        let mut env = std::mem::replace(&mut self.env, TypeEnv::new());
+        let result = (|| {
+            for stmt in statements {
+                self.check_statement(stmt, &mut env)?;
+            }
+            Ok(())
+        })();
+        self.env = env;
+        result
     }
 
     fn check_statement(&mut self, stmt: &Statement, env: &mut TypeEnv) -> Result<(), FluxError> {
@@ -121,7 +127,7 @@ impl TypeChecker {
                 }
             }
             StatementKind::If { condition, consequence, elif_branches, alternative } => {
-                let _cond_ty = self.infer_type(condition, env)?;
+                let _ = self.infer_type(condition, env)?;
                 // condition should be truthy, almost anything works in Flux but maybe warn?
                 self.check_block(consequence, &mut TypeEnv::extend(env.clone()))?;
                 for (elif_cond, elif_body) in elif_branches {
@@ -230,9 +236,20 @@ impl TypeChecker {
                 let obj_ty = self.infer_type(object, env)?;
                 match obj_ty {
                     Type::List(inner) => Ok(*inner),
+                    Type::Dictionary(_, val) => Ok(*val),
                     Type::String => Ok(Type::String),
                     Type::Tensor => Ok(Type::Float), // Tensor index returns float for now
                     _ => Ok(Type::Any),
+                }
+            }
+            ExpressionKind::Dictionary(pairs) => {
+                if pairs.is_empty() {
+                    Ok(Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any)))
+                } else {
+                    let k_ty = self.infer_type(&pairs[0].0, env)?;
+                    let v_ty = self.infer_type(&pairs[0].1, env)?;
+                    // For now, assume all match first. Could improve to find common supertype.
+                    Ok(Type::Dictionary(Box::new(k_ty), Box::new(v_ty)))
                 }
             }
             ExpressionKind::Get { object: _, name: _ } => {
@@ -257,6 +274,10 @@ impl TypeChecker {
         // Handle List compatibility
         if let (Type::List(e_inner), Type::List(a_inner)) = (expected, actual) {
             return self.is_compatible(e_inner, a_inner);
+        }
+        // Handle Dictionary compatibility
+        if let (Type::Dictionary(e_k, e_v), Type::Dictionary(a_k, a_v)) = (expected, actual) {
+            return self.is_compatible(e_k, a_k) && self.is_compatible(e_v, a_v);
         }
         false
     }
