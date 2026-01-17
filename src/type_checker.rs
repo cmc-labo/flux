@@ -154,6 +154,40 @@ impl TypeChecker {
                 sub_env.set(variable.clone(), elem_ty);
                 self.check_block(body, &mut sub_env)?;
             }
+            StatementKind::IndexAssign { object, index, value } => {
+                let obj_ty = self.infer_type(object, env)?;
+                let idx_ty = self.infer_type(index, env)?;
+                let val_ty = self.infer_type(value, env)?;
+
+                match obj_ty {
+                    Type::List(inner) => {
+                        if idx_ty != Type::Int {
+                            return Err(FluxError::new_type(format!("List index must be int, got {:?}", idx_ty), stmt.span));
+                        }
+                        if !self.is_compatible(&inner, &val_ty) {
+                            return Err(FluxError::new_type(format!("Cannot assign {:?} to list of {:?}", val_ty, inner), stmt.span));
+                        }
+                    }
+                    Type::Dictionary(k, v) => {
+                        if !self.is_compatible(&k, &idx_ty) {
+                            return Err(FluxError::new_type(format!("Dictionary key mismatch: expected {:?}, got {:?}", k, idx_ty), stmt.span));
+                        }
+                        if !self.is_compatible(&v, &val_ty) {
+                            return Err(FluxError::new_type(format!("Dictionary value mismatch: expected {:?}, got {:?}", v, val_ty), stmt.span));
+                        }
+                    }
+                    Type::Tensor => {
+                        // Tensors usually support slicing/indexing but for now assume float assign
+                    }
+                    _ => {}
+                }
+            }
+            StatementKind::Import { path, alias } => {
+                let name = alias.clone().unwrap_or_else(|| {
+                    path.split('.').last().unwrap_or(path).to_string()
+                });
+                env.set(name, Type::Any);
+            }
             StatementKind::Expression(expr) => {
                 self.infer_type(expr, env)?;
             }
@@ -213,11 +247,17 @@ impl TypeChecker {
                     InfixOperator::In | InfixOperator::NotIn => Ok(Type::Bool),
                     InfixOperator::Power => Ok(Type::Float),
                     InfixOperator::MatrixMultiply => Ok(Type::Tensor),
-                    _ => Ok(Type::Any),
+                    InfixOperator::BitwiseAnd | InfixOperator::BitwiseOr | InfixOperator::BitwiseXor |
+                    InfixOperator::ShiftLeft | InfixOperator::ShiftRight => Ok(Type::Int),
                 }
             }
-            ExpressionKind::Prefix { operator: _, right } => {
-                self.infer_type(right, env)
+            ExpressionKind::Prefix { operator, right } => {
+                let r_ty = self.infer_type(right, env)?;
+                match operator {
+                    crate::ast::PrefixOperator::Minus => Ok(r_ty),
+                    crate::ast::PrefixOperator::Not => Ok(Type::Bool),
+                    crate::ast::PrefixOperator::BitwiseNot => Ok(Type::Int),
+                }
             }
             ExpressionKind::Call { function, arguments } => {
                 let func_ty = self.infer_type(function, env)?;
@@ -256,7 +296,23 @@ impl TypeChecker {
                  // Attribute access. Hard to type without more info.
                  Ok(Type::Any)
             }
-            _ => Ok(Type::Any),
+            ExpressionKind::ListComprehension { element, variable, iterable, condition } => {
+                let iter_ty = self.infer_type(iterable, env)?;
+                let elem_ty = match iter_ty {
+                    Type::List(inner) => *inner,
+                    Type::Tensor => Type::Float,
+                    _ => Type::Any,
+                };
+                let mut sub_env = TypeEnv::extend(env.clone());
+                sub_env.set(variable.clone(), elem_ty);
+                
+                if let Some(cond) = condition {
+                    self.infer_type(cond, &sub_env)?;
+                }
+                
+                let res_ty = self.infer_type(element, &sub_env)?;
+                Ok(Type::List(Box::new(res_ty)))
+            }
         }
     }
 
