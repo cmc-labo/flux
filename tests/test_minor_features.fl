@@ -1,0 +1,30 @@
+# test_minor_features.fl
+
+print("--- Testing Dictionary Functions ---")
+let d = {"a": 1, "b": 2, "c": 3}
+print("Dict:", d)
+print("Keys (unordered):", keys(d))
+print("Values (unordered):", values(d))
+print("Items (unordered):", items(d))
+
+print("Get 'a':", get(d, "a"))
+print("Get 'z' (default null):", get(d, "z"))
+print("Get 'z' (default 999):", get(d, "z", 999))
+
+print("\n--- Testing String Functions ---")
+let s_left = "   left"
+let s_right = "right   "
+let s_both = "  both  "
+
+print("Original:", "'   left'", "Lstrip:", "'" + lstrip(s_left) + "'")
+print("Original:", "'right   '", "Rstrip:", "'" + rstrip(s_right) + "'")
+print("Original:", "'  both  '", "Lstrip:", "'" + lstrip(s_both) + "'", "Rstrip:", "'" + rstrip(s_both) + "'")
+
+print("\n--- Testing Unique Function ---")
+let l_dup = [1, 2, 3, 2, 1, 4, 1]
+print("Original list:", l_dup)
+print("Unique list:", unique(l_dup))
+
+let l_str_dup = ["a", "b", "a", "c"]
+print("Original str list:", l_str_dup)
+print("Unique str list:", unique(l_str_dup))

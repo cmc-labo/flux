@@ -63,6 +63,13 @@ impl TypeChecker {
         env.set("rand".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
         env.set("sum".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("mean".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("keys".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("values".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("items".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::List(Box::new(Type::Any)))))));
+        env.set("get".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any)), Type::Any, Type::Any], Box::new(Type::Any)));
+        env.set("lstrip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("rstrip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("unique".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
         env
     }
 
