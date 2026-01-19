@@ -1,0 +1,25 @@
+# test_round5.fl
+
+# Test dot
+let t1 = ones([2, 2])
+let t2 = ones([2, 2])
+let dot_res = dot(t1, t2)
+print("Dot result:")
+print(dot_res)
+
+# Test dictionary keys and values
+let d = {"a": 1, "b": 2, "c": 3}
+let k = keys(d)
+let v = values(d)
+
+# Sort keys/values for consistent output (since map order is undefined)
+let k_sorted = sorted(k)
+let v_sorted = sorted(v)
+
+print("Keys:", k_sorted)
+print("Values:", v_sorted)
+
+# Test input (simulated via echo in shell or uncomment for manual)
+# print("Enter something:")
+# let s = input()
+# print("You entered:", s)

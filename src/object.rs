@@ -1,4 +1,6 @@
+
 use crate::ast::Block;
+
 use std::fmt;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -37,7 +39,7 @@ impl Clone for Object {
             Object::NativeFn(f) => Object::NativeFn(*f),
             Object::Tensor(t) => Object::Tensor(t.clone()),
             Object::PyObject(p) => {
-                pyo3::Python::with_gil(|py| {
+                pyo3::Python::attach(|py| {
                     Object::PyObject(p.clone_ref(py))
                 })
             },
@@ -103,7 +105,7 @@ impl fmt::Display for Object {
             Object::NativeFn(_) => write!(f, "native_function"),
             Object::Tensor(val) => write!(f, "{}", val),
             Object::PyObject(val) => {
-                pyo3::Python::with_gil(|py| {
+                pyo3::Python::attach(|py| {
                     let s = val.bind(py).repr()
                         .map(|r| r.to_string())
                         .unwrap_or_else(|_| "PyObject(error)".to_string());

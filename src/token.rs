@@ -69,6 +69,7 @@ pub enum Token {
     Colon,
     Comma,
     Arrow, // ->
+    Semicolon, // ;
     
     // Structure
     Newline,

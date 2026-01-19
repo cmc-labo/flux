@@ -221,7 +221,7 @@ impl Interpreter {
                     env.borrow_mut().set(module_name, module);
                 } else {
                     // Try as Python module
-                    let py_module = pyo3::Python::with_gil(|py| {
+                    let py_module = pyo3::Python::attach(|py| {
                         pyo3::types::PyModule::import(py, path.as_str())
                             .map(|m| Object::PyObject(m.into()))
                             .map_err(|e| FluxError::new_runtime(format!("Failed to import Flux or Python module '{}': {}", path, e), span))
@@ -279,7 +279,7 @@ impl Interpreter {
                 let obj = self.eval_expression(*object, env)?;
                 match obj {
                     Object::PyObject(py_obj) => {
-                        pyo3::Python::with_gil(|py| {
+                        pyo3::Python::attach(|py| {
                             let getattr = py_obj.bind(py).getattr(name.as_str())
                                 .map_err(|e| FluxError::new_runtime(format!("Python getattr error: {}", e), span))?;
                             self.py_to_flux(py, getattr, span)
@@ -627,7 +627,7 @@ impl Interpreter {
             },
             Object::NativeFn(func) => func(args).map_err(|e| FluxError::new_runtime(e, span)),
             Object::PyObject(py_obj) => {
-                pyo3::Python::with_gil(|py| {
+                pyo3::Python::attach(|py| {
                     let mut py_args = Vec::new();
                     for arg in args {
                         py_args.push(self.flux_to_py(py, arg, span)?);
@@ -704,14 +704,14 @@ impl Interpreter {
         } else if obj.is_none() {
             Ok(Object::Null)
         } else if obj.is_instance_of::<pyo3::types::PyList>() {
-            let py_list = obj.downcast::<pyo3::types::PyList>().unwrap();
+            let py_list = obj.cast::<pyo3::types::PyList>().unwrap();
             let mut flux_list = Vec::new();
             for item in py_list.iter() {
                 flux_list.push(self.py_to_flux(py, item, span)?);
             }
             Ok(Object::List(flux_list))
         } else if obj.is_instance_of::<pyo3::types::PyDict>() {
-            let py_dict = obj.downcast::<pyo3::types::PyDict>().unwrap();
+            let py_dict = obj.cast::<pyo3::types::PyDict>().unwrap();
             let mut flux_dict = std::collections::HashMap::new();
             for (k, v) in py_dict.iter() {
                 flux_dict.insert(self.py_to_flux(py, k, span)?, self.py_to_flux(py, v, span)?);

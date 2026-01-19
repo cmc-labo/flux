@@ -174,6 +174,10 @@ impl<'a> Parser<'a> {
 
         let value = self.parse_expression(Precedence::Lowest)?;
 
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
         if self.peek_token_is(&Token::Newline) {
             self.next_token();
         }
@@ -196,6 +200,10 @@ impl<'a> Parser<'a> {
             end = val.span;
             Some(val)
         };
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
 
         if self.peek_token_is(&Token::Newline) {
             self.next_token();
@@ -232,6 +240,9 @@ impl<'a> Parser<'a> {
         }
         
         let end = self.cur_span;
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
         if self.peek_token_is(&Token::Newline) {
             self.next_token();
         }
@@ -269,6 +280,10 @@ impl<'a> Parser<'a> {
                 _ => None,
             };
             end = self.cur_span;
+        }
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
         }
 
         if self.peek_token_is(&Token::Newline) {
@@ -364,6 +379,10 @@ impl<'a> Parser<'a> {
                     return None;
                 }
             }
+        }
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
         }
 
         if self.peek_token_is(&Token::Newline) {

@@ -1,6 +1,5 @@
 use crate::ast::{Statement, StatementKind, Expression, ExpressionKind, Type, InfixOperator, Block};
 use crate::error::FluxError;
-use crate::span::Span;
 use std::collections::HashMap;
 
 #[derive(Clone)]
@@ -70,6 +69,9 @@ impl TypeChecker {
         env.set("lstrip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
         env.set("rstrip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
         env.set("unique".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("dot".to_string(), Type::Function(vec![Type::Tensor, Type::Tensor], Box::new(Type::Tensor)));
+        env.set("input".to_string(), Type::Function(vec![Type::Any], Box::new(Type::String)));
+        env.set("sorted".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
         env
     }
 

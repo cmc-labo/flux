@@ -1,3 +1,4 @@
+
 mod token;
 mod lexer;
 mod ast;
@@ -70,7 +71,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
         match &args[0] {
             Object::String(module_name) => {
-                pyo3::Python::with_gil(|py| {
+                pyo3::Python::attach(|py| {
                     let module = pyo3::types::PyModule::import(py, module_name.as_str())
                         .map_err(|e| format!("Failed to import module: {}", e))?;
                     Ok(Object::PyObject(module.into()))
@@ -130,7 +131,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                 }
             },
             Object::PyObject(py_obj) => {
-                pyo3::Python::with_gil(|py| {
+                pyo3::Python::attach(|py| {
                     let len = py_obj.bind(py).len()
                         .map_err(|e| format!("Python len() error: {}", e))?;
                     Ok(Object::Integer(len as i64))
@@ -239,13 +240,6 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("dot".to_string(), dot_fn);
 
-    let dot_fn = Object::NativeFn(|args| {
-        if args.len() != 2 { return Err("dot() takes exactly 2 arguments".to_string()); }
-        let a = match &args[0] { Object::Tensor(t) => t, _ => return Err("dot() args must be tensors".to_string()) };
-        let b = match &args[1] { Object::Tensor(t) => t, _ => return Err("dot() args must be tensors".to_string()) };
-        a.matmul(b).map(Object::Tensor)
-    });
-    env.borrow_mut().set("dot".to_string(), dot_fn);
 
     let abs_fn = Object::NativeFn(|args| {
         if args.len() != 1 {
@@ -797,6 +791,59 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(Object::Boolean(s.ends_with(suffix)))
     });
     env.borrow_mut().set("endswith".to_string(), endswith_fn);
+
+    let input_fn = Object::NativeFn(|args| {
+        if args.len() > 1 {
+            return Err("input() takes at most 1 argument (prompt)".to_string());
+        }
+        if args.len() == 1 {
+             match &args[0] {
+                Object::String(prompt) => {
+                    print!("{}", prompt);
+                    io::stdout().flush().map_err(|e| format!("Flush error: {}", e))?;
+                },
+                _ => return Err(format!("input() prompt must be a string, got {}", args[0])),
+            }
+        }
+        let mut buffer = String::new();
+        io::stdin().read_line(&mut buffer).map_err(|e| format!("Failed to read input: {}", e))?;
+        if buffer.ends_with('\n') {
+            buffer.pop();
+            if buffer.ends_with('\r') {
+                buffer.pop();
+            }
+        }
+        Ok(Object::String(buffer))
+    });
+    env.borrow_mut().set("input".to_string(), input_fn);
+
+    let keys_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("keys() takes exactly 1 argument (dictionary)".to_string());
+        }
+        match &args[0] {
+            Object::Dictionary(d) => {
+                let keys: Vec<Object> = d.keys().cloned().collect();
+                Ok(Object::List(keys))
+            },
+            _ => Err(format!("keys() argument must be a dictionary, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("keys".to_string(), keys_fn);
+
+    let values_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("values() takes exactly 1 argument (dictionary)".to_string());
+        }
+        match &args[0] {
+            Object::Dictionary(d) => {
+                let values: Vec<Object> = d.values().cloned().collect();
+                Ok(Object::List(values))
+            },
+            _ => Err(format!("values() argument must be a dictionary, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("values".to_string(), values_fn);
 
     let zip_fn = Object::NativeFn(|args| {
         if args.len() != 2 {

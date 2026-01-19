@@ -1,0 +1,5 @@
+let x = 10;
+print(x);
+let y = x * 2;
+print(y)
+return y;

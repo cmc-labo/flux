@@ -185,6 +185,7 @@ impl<'a> Lexer<'a> {
                 '(' => { self.next_char(); (Token::LParen, Span::new(start, self.pos - start)) }
                 ')' => { self.next_char(); (Token::RParen, Span::new(start, self.pos - start)) }
                 ':' => { self.next_char(); (Token::Colon, Span::new(start, self.pos - start)) }
+                ';' => { self.next_char(); (Token::Semicolon, Span::new(start, self.pos - start)) }
                 ',' => { self.next_char(); (Token::Comma, Span::new(start, self.pos - start)) }
                 '.' => { self.next_char(); (Token::Dot, Span::new(start, self.pos - start)) }
                 '[' => { self.next_char(); (Token::LBracket, Span::new(start, self.pos - start)) }
