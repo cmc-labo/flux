@@ -43,6 +43,7 @@ pub enum StatementKind {
     Break,
     Continue,
     Import { path: String, alias: Option<String> },
+    Assert { condition: Expression, message: Option<Expression> },
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -71,6 +72,7 @@ pub enum ExpressionKind {
     Dictionary(Vec<(Expression, Expression)>),
     Index { object: Box<Expression>, index: Box<Expression> },
     ListComprehension { element: Box<Expression>, variable: String, iterable: Box<Expression>, condition: Option<Box<Expression>> },
+    Slice { start: Option<Box<Expression>>, end: Option<Box<Expression>>, step: Option<Box<Expression>> },
 }
 
 #[derive(Debug, PartialEq, Clone)]

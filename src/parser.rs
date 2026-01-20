@@ -93,9 +93,38 @@ impl<'a> Parser<'a> {
                 if self.peek_token_is(&Token::Newline) { self.next_token(); }
                 Some(Statement { kind: StatementKind::Continue, span: start })
             }
+            Token::Assert => self.parse_assert_statement(),
             Token::Newline => None, // Skip empty lines
             _ => self.parse_expression_statement(),
         }
+    }
+
+    fn parse_assert_statement(&mut self) -> Option<Statement> {
+        let start = self.cur_span;
+        self.next_token(); // skip assert
+        let condition = self.parse_expression(Precedence::Lowest)?;
+        
+        let mut message = None;
+        if self.peek_token_is(&Token::Comma) {
+            self.next_token(); // skip ,
+            self.next_token(); // move to message expr
+            message = self.parse_expression(Precedence::Lowest);
+        }
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        if self.peek_token_is(&Token::Newline) {
+            self.next_token();
+        }
+
+        let end = if let Some(msg) = &message { msg.span } else { condition.span };
+
+        Some(Statement {
+            span: start.join(end),
+            kind: StatementKind::Assert { condition, message },
+        })
     }
 
     fn parse_type(&mut self) -> Option<crate::ast::Type> {
@@ -784,20 +813,112 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_index_expression(&mut self, left: Expression) -> Option<Expression> {
-        let start = left.span;
-        let index = self.parse_expression(Precedence::Lowest)?;
+        let start_span = left.span;
+        
+        let mut start_index = None;
+        let mut is_slice = false;
 
-        if !self.expect_peek(Token::RBracket) {
-            return None;
+        if !self.cur_token_is(&Token::Colon) {
+            start_index = Some(Box::new(self.parse_expression(Precedence::Lowest)?));
+        } else {
+             is_slice = true;
         }
 
-        let end = self.cur_span;
+        if self.peek_token_is(&Token::Colon) || (is_slice && self.cur_token_is(&Token::Colon)) {
+            // It's a slice
+            if !is_slice {
+                 self.next_token(); // consume start index, now at :
+            }
+            
+            // Should be at Colon now.
+            if !self.cur_token_is(&Token::Colon) {
+                 // Logic error or unexpected state
+                 self.errors.push(ParserError { message: format!("Expected : in slice"), span: self.cur_span });
+                 return None;
+            }
+        } else {
+            // Normal index
+            if !self.expect_peek(Token::RBracket) {
+                return None;
+            }
+            let end_span = self.cur_span;
+            return Some(Expression {
+                kind: ExpressionKind::Index {
+                    object: Box::new(left),
+                    index: start_index.unwrap(),
+                },
+                span: start_span.join(end_span),
+            });
+        }
+        
+        return self.parse_slice_inner(left, start_index);
+    }
+
+    fn parse_slice_inner(&mut self, left: Expression, start_expr: Option<Box<Expression>>) -> Option<Expression> {
+        let start_span = left.span;
+        
+        // We are at the first Colon
+        if !self.cur_token_is(&Token::Colon) {
+             return None;
+        }
+        
+        self.next_token(); // move past Colon
+        
+        let mut end_expr = None;
+        if !self.cur_token_is(&Token::Colon) && !self.cur_token_is(&Token::RBracket) {
+            end_expr = Some(Box::new(self.parse_expression(Precedence::Lowest)?));
+             // After parse_expression, cur_token is the last token of expr. 
+             // We need to peek to decide if we continue.
+             // But Wait. parse_expression consumes tokens.
+             // If we have 1:2, parse_expression(1) stops at 1. peek is :.
+             // parse_index_expression logic:
+             // start_index parsed. peek is :. next_token() -> cur is :.
+             // parse_slice_inner called. cur is :.
+             // next_token() -> cur is 2 (or whatever).
+             // parse_expression -> parses 2. cur is 2. peek is ] or :.
+             
+             // So if we parsed end_expr, we need to advance if the next token is : or ].
+             // But parse_expression doesn't advance past the expression? 
+             // Yes it does, it consumes the expression.
+        }
+        
+        if self.peek_token_is(&Token::Colon) {
+            self.next_token(); // move to :
+        } else if self.peek_token_is(&Token::RBracket) {
+            self.next_token(); // move to ]
+        }
+        
+        let mut step_expr = None;
+        if self.cur_token_is(&Token::Colon) {
+            self.next_token(); // skip :
+            if !self.cur_token_is(&Token::RBracket) {
+                 step_expr = Some(Box::new(self.parse_expression(Precedence::Lowest)?));
+                 if self.peek_token_is(&Token::RBracket) {
+                     self.next_token();
+                 }
+            }
+        }
+        
+        if !self.cur_token_is(&Token::RBracket) {
+             self.errors.push(ParserError { message: format!("Expected ] after slice, got {:?}", self.cur_token), span: self.cur_span });
+             return None;
+        }
+        
+        let slice_expr = Expression {
+            kind: ExpressionKind::Slice {
+                 start: start_expr,
+                 end: end_expr,
+                 step: step_expr
+            },
+            span: start_span.join(self.cur_span)
+        };
+        
         Some(Expression {
             kind: ExpressionKind::Index {
                 object: Box::new(left),
-                index: Box::new(index),
+                index: Box::new(slice_expr),
             },
-            span: start.join(end),
+            span: start_span.join(self.cur_span)
         })
     }
 

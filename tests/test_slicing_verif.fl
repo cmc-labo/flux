@@ -1,0 +1,20 @@
+let l = [0, 1, 2, 3, 4, 5]
+print("Testing list slicing...")
+# print(l[0:3])
+assert l[0:3] == [0, 1, 2], "l[0:3] failed"
+assert l[1:4] == [1, 2, 3], "l[1:4] failed"
+assert l[:3] == [0, 1, 2], "l[:3] failed"
+assert l[3:] == [3, 4, 5], "l[3:] failed"
+assert l[:] == l, "l[:] failed"
+assert l[::2] == [0, 2, 4], "l[::2] failed"
+assert l[::-1] == [5, 4, 3, 2, 1, 0], "l[::-1] failed"
+assert l[1:5:2] == [1, 3], "l[1:5:2] failed"
+
+let s = "hello world"
+print("Testing string slicing...")
+assert s[0:5] == "hello", "s[0:5] failed"
+assert s[6:] == "world", "s[6:] failed"
+assert s[::-1] == "dlrow olleh", "s[::-1] failed"
+assert s[::2] == "hlowrd", "s[::2] failed"
+
+print("Slicing Passed")

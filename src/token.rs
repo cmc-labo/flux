@@ -24,6 +24,7 @@ pub enum Token {
     Break,
     Continue,
     Import,
+    Assert,
 
     // Operators
     Plus,

@@ -292,15 +292,16 @@ impl TypeChecker {
                 }
             }
             ExpressionKind::Dictionary(pairs) => {
-                if pairs.is_empty() {
-                    Ok(Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any)))
-                } else {
-                    let k_ty = self.infer_type(&pairs[0].0, env)?;
-                    let v_ty = self.infer_type(&pairs[0].1, env)?;
-                    // For now, assume all match first. Could improve to find common supertype.
-                    Ok(Type::Dictionary(Box::new(k_ty), Box::new(v_ty)))
+                let mut key_type = Type::Any;
+                let mut val_type = Type::Any;
+                if !pairs.is_empty() {
+                    let (k, v) = &pairs[0];
+                    key_type = self.infer_type(k, env)?;
+                    val_type = self.infer_type(v, env)?;
                 }
-            }
+                Ok(Type::Dictionary(Box::new(key_type), Box::new(val_type)))
+            },
+            ExpressionKind::Slice { .. } => Ok(Type::Any), // Slices are internal/index only for now
             ExpressionKind::Get { object: _, name: _ } => {
                  // Attribute access. Hard to type without more info.
                  Ok(Type::Any)

@@ -231,6 +231,18 @@ impl Interpreter {
                 }
 
                 Ok(Object::Null)
+            },
+            StatementKind::Assert { condition, message } => {
+                let cond = self.eval_expression(condition, env.clone())?;
+                if !self.is_truthy(cond) {
+                    let msg = if let Some(m_expr) = message {
+                        self.eval_expression(m_expr, env.clone())?.to_string()
+                    } else {
+                        "Assertion failed".to_string()
+                    };
+                    return Err(FluxError::new_runtime(msg, span));
+                }
+                Ok(Object::Null)
             }
         }
     }
@@ -313,6 +325,51 @@ impl Interpreter {
                         }
                         Ok(l[i as usize].clone())
                     },
+                    (Object::List(l), Object::Slice { start, stop, step }) => {
+                        let len = l.len() as i64;
+                        let abs_start = match start {
+                            Some(v) => if v < 0 { v + len } else { v },
+                            None => if step > 0 { 0 } else { len - 1 }
+                        };
+                        let abs_stop = match stop {
+                            Some(v) => if v < 0 { v + len } else { v },
+                            None => if step > 0 { len } else { -1 } 
+                        };
+
+                        let mut result_list = Vec::new();
+                        let mut curr = abs_start;
+                        
+                        if step > 0 {
+                            if curr < 0 { curr = 0; }
+                            if curr > len { curr = len; }
+                            let mut stop_bound = abs_stop;
+                            if stop_bound < 0 { stop_bound = 0; }
+                            if stop_bound > len { stop_bound = len; }
+                            
+                            while curr < stop_bound {
+                                if curr < len {
+                                    result_list.push(l[curr as usize].clone());
+                                }
+                                curr += step;
+                            }
+                        } else {
+                            if curr >= len { curr = len - 1; }
+                            // curr logic for negative step:
+                            // we loop while curr > abs_stop.
+                            // abs_stop can be -1.
+                            
+                            let stop_bound = abs_stop;
+                            
+                            while curr > stop_bound {
+                                if curr >= 0 && curr < len {
+                                    result_list.push(l[curr as usize].clone());
+                                }
+                                curr += step;
+                            }
+                        }
+                        
+                        Ok(Object::List(result_list))
+                    },
                     (Object::String(s), Object::Integer(mut i)) => {
                         if i < 0 { i += s.len() as i64; }
                         if i < 0 || i >= s.len() as i64 {
@@ -320,6 +377,49 @@ impl Interpreter {
                         }
                         let ch = s.chars().nth(i as usize).unwrap();
                         Ok(Object::String(ch.to_string()))
+                    },
+                    (Object::String(s), Object::Slice { start, stop, step }) => {
+                        let chars: Vec<char> = s.chars().collect();
+                        let len = chars.len() as i64;
+                        
+                        let abs_start = match start {
+                            Some(v) => if v < 0 { v + len } else { v },
+                            None => if step > 0 { 0 } else { len - 1 }
+                        };
+                        let abs_stop = match stop {
+                            Some(v) => if v < 0 { v + len } else { v },
+                            None => if step > 0 { len } else { -1 } 
+                        };
+
+                        let mut result_chars = Vec::new();
+                        let mut curr = abs_start;
+                        
+                        if step > 0 {
+                            if curr < 0 { curr = 0; }
+                            if curr > len { curr = len; }
+                            let mut stop_bound = abs_stop;
+                            if stop_bound < 0 { stop_bound = 0; }
+                            if stop_bound > len { stop_bound = len; }
+                            
+                            while curr < stop_bound {
+                                if curr < len {
+                                    result_chars.push(chars[curr as usize]);
+                                }
+                                curr += step;
+                            }
+                        } else {
+                            if curr >= len { curr = len - 1; }
+                            
+                            let stop_bound = abs_stop;
+                            
+                            while curr > stop_bound {
+                                if curr >= 0 && curr < len {
+                                    result_chars.push(chars[curr as usize]);
+                                }
+                                curr += step;
+                            }
+                        }
+                        Ok(Object::String(result_chars.into_iter().collect()))
                     },
                     (Object::Tensor(t), Object::Integer(mut i)) => {
                         if t.inner.ndim() == 0 {
@@ -380,6 +480,34 @@ impl Interpreter {
                     map.insert(key, val);
                 }
                 Ok(Object::Dictionary(map))
+            },
+            ExpressionKind::Slice { start, end, step } => {
+                let s = if let Some(expr) = start {
+                     match self.eval_expression(*expr, env.clone())? {
+                         Object::Integer(i) => Some(i),
+                         _ => return Err(FluxError::new_runtime("Slice start must be integer".to_string(), span)),
+                     }
+                } else { None };
+                
+                let e = if let Some(expr) = end {
+                     match self.eval_expression(*expr, env.clone())? {
+                         Object::Integer(i) => Some(i),
+                         _ => return Err(FluxError::new_runtime("Slice end must be integer".to_string(), span)),
+                     }
+                } else { None };
+                
+                let st = if let Some(expr) = step {
+                     match self.eval_expression(*expr, env.clone())? {
+                         Object::Integer(i) => i,
+                         _ => return Err(FluxError::new_runtime("Slice step must be integer".to_string(), span)),
+                     }
+                } else { 1 };
+                
+                if st == 0 {
+                    return Err(FluxError::new_runtime("Slice step cannot be zero".to_string(), span));
+                }
+
+                Ok(Object::Slice { start: s, stop: e, step: st })
             }
         }
     }
@@ -574,6 +702,8 @@ impl Interpreter {
                     res.extend(l2);
                     Ok(Object::List(res))
                 },
+                InfixOperator::Equal => Ok(Object::Boolean(l1 == l2)),
+                InfixOperator::NotEqual => Ok(Object::Boolean(l1 != l2)),
                 _ => Err(format!("Unsupported operator for lists: {:?}", operator)),
             },
             (Object::List(l), Object::Integer(i)) => match operator {

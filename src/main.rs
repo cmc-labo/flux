@@ -163,6 +163,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::Continue => Ok(Object::String("continue".to_string())),
             Object::Dictionary(_) => Ok(Object::String("dict".to_string())),
             Object::Module { .. } => Ok(Object::String("module".to_string())),
+            Object::Slice { .. } => Ok(Object::String("slice".to_string())),
         }
     });
     env.borrow_mut().set("type".to_string(), type_fn);

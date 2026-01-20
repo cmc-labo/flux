@@ -1,0 +1,5 @@
+print("Testing assert...")
+assert true
+assert 1 == 1, "Math is broken"
+assert "a" != "b"
+print("Assert Passed")

@@ -24,6 +24,7 @@ pub enum Object {
     Break,
     Continue,
     Module { name: String, env: Rc<RefCell<Environment>> },
+    Slice { start: Option<i64>, stop: Option<i64>, step: i64 },
 }
 
 impl Clone for Object {
@@ -48,6 +49,7 @@ impl Clone for Object {
             Object::Break => Object::Break,
             Object::Continue => Object::Continue,
             Object::Module { name, env } => Object::Module { name: name.clone(), env: env.clone() },
+            Object::Slice { start, stop, step } => Object::Slice { start: *start, stop: *stop, step: *step },
         }
     }
 }
@@ -63,6 +65,7 @@ impl PartialEq for Object {
             (Object::Tensor(l), Object::Tensor(r)) => l == r,
             (Object::List(l), Object::List(r)) => l == r,
             (Object::Dictionary(l), Object::Dictionary(r)) => l == r,
+            (Object::Slice { start: s1, stop: e1, step: st1 }, Object::Slice { start: s2, stop: e2, step: st2 }) => s1 == s2 && e1 == e2 && st1 == st2,
             // For others, return false for now
             _ => false,
         }
@@ -131,6 +134,7 @@ impl fmt::Display for Object {
             Object::Break => write!(f, "break"),
             Object::Continue => write!(f, "continue"),
             Object::Module { name, .. } => write!(f, "module({})", name),
+            Object::Slice { start, stop, step } => write!(f, "slice({:?}, {:?}, {})", start, stop, step),
         }
     }
 }
