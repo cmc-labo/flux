@@ -4,7 +4,6 @@ use std::fmt;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::hash::{Hash, Hasher}; // Import Hasher trait
 use pyo3::prelude::*;
 use crate::environment::Environment;
 use crate::tensor::Tensor;
