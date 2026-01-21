@@ -95,7 +95,7 @@ impl Interpreter {
             StatementKind::For { variable, iterable, body } => {
                 let iter_obj = self.eval_expression(iterable, env.clone())?;
                 let elements = match iter_obj {
-                    Object::List(l) => l,
+                    Object::List(l) => l.borrow().clone(),
                     Object::Tensor(_t) => {
                         return Err(FluxError::new_runtime(format!("Tensor iteration not yet implemented"), span));
                     },
@@ -115,30 +115,26 @@ impl Interpreter {
                 Ok(Object::Null)
             },
             StatementKind::IndexAssign { object, index, value } => {
-                let obj_expr = object.clone();
+                let obj_expr_clone = object.clone(); // Clone for potential write-back
                 let obj = self.eval_expression(object, env.clone())?;
                 let idx = self.eval_expression(index, env.clone())?;
                 let val = self.eval_expression(value, env.clone())?;
 
                 match obj {
-                    Object::List(mut l) => {
+                    Object::List(l) => {
+                        let mut list_borrow = l.borrow_mut();
                         let mut i = match idx {
                             Object::Integer(i) => i,
                             _ => return Err(FluxError::new_runtime(format!("Index must be integer, got {}", idx), span)),
                         };
-                        if i < 0 { i += l.len() as i64; }
-                        if i < 0 || i >= l.len() as i64 {
+                        if i < 0 { i += list_borrow.len() as i64; }
+                        if i < 0 || i >= list_borrow.len() as i64 {
                             return Err(FluxError::new_runtime(format!("Index out of bounds: {}", i), span));
                         }
-                        l[i as usize] = val;
-                        
-                        if let ExpressionKind::Identifier(name) = obj_expr.kind {
-                            env.borrow_mut().set(name, Object::List(l));
-                        } else {
-                            return Err(FluxError::new_runtime(format!("Nested index assignment not yet supported"), span));
-                        }
+                        list_borrow[i as usize] = val;
                     },
-                    Object::Tensor(mut t) => {
+                    Object::Tensor(t) => {
+                          let mut t_inner = t.clone();
                           let mut i = match idx {
                               Object::Integer(i) => i,
                               _ => return Err(FluxError::new_runtime(format!("Index must be integer, got {}", idx), span)),
@@ -149,28 +145,24 @@ impl Interpreter {
                               _ => return Err(FluxError::new_runtime(format!("Tensor value must be numeric, got {}", val), span)),
                           };
                           
-                          if t.inner.ndim() != 1 {
+                          if t_inner.inner.ndim() != 1 {
                               return Err(FluxError::new_runtime(format!("Tensor index assignment currently only supported for 1D tensors"), span));
                           }
-                          if i < 0 { i += t.inner.len() as i64; }
-                          if i < 0 || i >= t.inner.len() as i64 {
+                          if i < 0 { i += t_inner.inner.len() as i64; }
+                          if i < 0 || i >= t_inner.inner.len() as i64 {
                               return Err(FluxError::new_runtime(format!("Index out of bounds for tensor: {}", i), span));
                           }
-                          t.inner[i as usize] = val_f;
+                          t_inner.inner[i as usize] = val_f;
 
-                         if let ExpressionKind::Identifier(name) = obj_expr.kind {
-                            env.borrow_mut().set(name, Object::Tensor(t));
+                          // Write back for Tensor
+                         if let ExpressionKind::Identifier(name) = obj_expr_clone.kind {
+                            env.borrow_mut().set(name, Object::Tensor(t_inner));
                          } else {
                             return Err(FluxError::new_runtime(format!("Nested tensor index assignment not yet supported"), span));
                          }
                     }
-                    Object::Dictionary(mut d) => {
-                        d.insert(idx, val);
-                        if let ExpressionKind::Identifier(name) = obj_expr.kind {
-                            env.borrow_mut().set(name, Object::Dictionary(d));
-                        } else {
-                            return Err(FluxError::new_runtime(format!("Nested dictionary index assignment not yet supported"), span));
-                        }
+                    Object::Dictionary(d) => {
+                        d.borrow_mut().insert(idx, val);
                     }
                     _ => return Err(FluxError::new_runtime(format!("Cannot assign to index of {}", obj), span)),
                 }
@@ -311,7 +303,7 @@ impl Interpreter {
                 for el in elements {
                     objs.push(self.eval_expression(el, env.clone())?);
                 }
-                Ok(Object::List(objs))
+                Ok(Object::List(Rc::new(RefCell::new(objs))))
             },
             ExpressionKind::Index { object, index } => {
                 let obj = self.eval_expression(*object, env.clone())?;
@@ -319,14 +311,16 @@ impl Interpreter {
                 
                 match (obj, idx) {
                     (Object::List(l), Object::Integer(mut i)) => {
-                        if i < 0 { i += l.len() as i64; }
-                        if i < 0 || i >= l.len() as i64 {
+                        let list_borrow = l.borrow();
+                        if i < 0 { i += list_borrow.len() as i64; }
+                        if i < 0 || i >= list_borrow.len() as i64 {
                             return Err(FluxError::new_runtime(format!("Index out of bounds: {}", i), span));
                         }
-                        Ok(l[i as usize].clone())
+                        Ok(list_borrow[i as usize].clone())
                     },
                     (Object::List(l), Object::Slice { start, stop, step }) => {
-                        let len = l.len() as i64;
+                        let list_borrow = l.borrow();
+                        let len = list_borrow.len() as i64;
                         let abs_start = match start {
                             Some(v) => if v < 0 { v + len } else { v },
                             None => if step > 0 { 0 } else { len - 1 }
@@ -348,7 +342,7 @@ impl Interpreter {
                             
                             while curr < stop_bound {
                                 if curr < len {
-                                    result_list.push(l[curr as usize].clone());
+                                    result_list.push(list_borrow[curr as usize].clone());
                                 }
                                 curr += step;
                             }
@@ -362,13 +356,13 @@ impl Interpreter {
                             
                             while curr > stop_bound {
                                 if curr >= 0 && curr < len {
-                                    result_list.push(l[curr as usize].clone());
+                                    result_list.push(list_borrow[curr as usize].clone());
                                 }
                                 curr += step;
                             }
                         }
                         
-                        Ok(Object::List(result_list))
+                        Ok(Object::List(Rc::new(RefCell::new(result_list))))
                     },
                     (Object::String(s), Object::Integer(mut i)) => {
                         if i < 0 { i += s.len() as i64; }
@@ -439,7 +433,8 @@ impl Interpreter {
                         }
                     },
                     (Object::Dictionary(d), k) => {
-                        match d.get(&k) {
+                        let dict = d.borrow();
+                        match dict.get(&k) {
                             Some(v) => Ok(v.clone()),
                             None => Err(FluxError::new_runtime(format!("Key not found: {}", k), span)),
                         }
@@ -450,7 +445,7 @@ impl Interpreter {
             ExpressionKind::ListComprehension { element, variable, iterable, condition } => {
                 let iter_obj = self.eval_expression(*iterable, env.clone())?;
                 let elements = match iter_obj {
-                    Object::List(l) => l,
+                    Object::List(l) => l.borrow().clone(),
                     _ => return Err(FluxError::new_runtime(format!("Cannot iterate over {} in list comprehension", iter_obj), span)),
                 };
 
@@ -470,7 +465,7 @@ impl Interpreter {
                         result_list.push(val);
                     }
                 }
-                 Ok(Object::List(result_list))
+                 Ok(Object::List(Rc::new(RefCell::new(result_list))))
             },
             ExpressionKind::Dictionary(pairs) => {
                 let mut map = std::collections::HashMap::new();
@@ -479,7 +474,7 @@ impl Interpreter {
                     let val = self.eval_expression(val_expr, env.clone())?;
                     map.insert(key, val);
                 }
-                Ok(Object::Dictionary(map))
+                Ok(Object::Dictionary(Rc::new(RefCell::new(map))))
             },
             ExpressionKind::Slice { start, end, step } => {
                 let s = if let Some(expr) = start {
@@ -698,36 +693,38 @@ impl Interpreter {
             },
             (Object::List(l1), Object::List(l2)) => match operator {
                 InfixOperator::Plus => {
-                    let mut res = l1.clone();
-                    res.extend(l2);
-                    Ok(Object::List(res))
+                    let mut res = l1.borrow().clone();
+                    res.extend(l2.borrow().clone());
+                    Ok(Object::List(Rc::new(RefCell::new(res))))
                 },
-                InfixOperator::Equal => Ok(Object::Boolean(l1 == l2)),
-                InfixOperator::NotEqual => Ok(Object::Boolean(l1 != l2)),
+                InfixOperator::Equal => Ok(Object::Boolean(*l1.borrow() == *l2.borrow())),
+                InfixOperator::NotEqual => Ok(Object::Boolean(*l1.borrow() != *l2.borrow())),
                 _ => Err(format!("Unsupported operator for lists: {:?}", operator)),
             },
             (Object::List(l), Object::Integer(i)) => match operator {
                 InfixOperator::Multiply => {
                     if i < 0 { return Err(format!("Negative list multiplication count: {}", i)); }
                     let mut res = Vec::new();
+                    let list_borrow = l.borrow();
                     for _ in 0..i {
-                        res.extend(l.clone());
+                        res.extend(list_borrow.clone());
                     }
-                    Ok(Object::List(res))
+                    Ok(Object::List(Rc::new(RefCell::new(res))))
                 },
                 _ => Err(format!("Unsupported operator for list and integer: {:?}", operator)),
             },
             (l, Object::List(r)) => match operator {
-                InfixOperator::In => Ok(Object::Boolean(r.contains(&l))),
-                InfixOperator::NotIn => Ok(Object::Boolean(!r.contains(&l))),
+                InfixOperator::In => Ok(Object::Boolean(r.borrow().contains(&l))),
+                InfixOperator::NotIn => Ok(Object::Boolean(!r.borrow().contains(&l))),
                 InfixOperator::Multiply => {
                     if let Object::Integer(i) = l {
                         if i < 0 { return Err(format!("Negative list multiplication count: {}", i)); }
                         let mut res = Vec::new();
+                        let list_borrow = r.borrow();
                         for _ in 0..i {
-                            res.extend(r.clone());
+                            res.extend(list_borrow.clone());
                         }
-                        return Ok(Object::List(res));
+                        return Ok(Object::List(Rc::new(RefCell::new(res))));
                     }
                     Err(format!("Unsupported operator for {} and list: {:?}", l, operator))
                 }
@@ -785,16 +782,16 @@ impl Interpreter {
             Object::Null => Ok(py.None().into_bound(py)),
             Object::List(l) => {
                 let py_list = pyo3::types::PyList::empty(py);
-                for item in l {
-                    py_list.append(self.flux_to_py(py, item, span)?)
+                for item in l.borrow().iter() {
+                    py_list.append(self.flux_to_py(py, item.clone(), span)?)
                         .map_err(|e| FluxError::new_runtime(format!("Failed to append to Python list: {}", e), span))?;
                 }
                 Ok(py_list.into_any())
             },
             Object::Dictionary(d) => {
                 let py_dict = pyo3::types::PyDict::new(py);
-                for (k, v) in d {
-                    py_dict.set_item(self.flux_to_py(py, k, span)?, self.flux_to_py(py, v, span)?)
+                for (k, v) in d.borrow().iter() {
+                    py_dict.set_item(self.flux_to_py(py, k.clone(), span)?, self.flux_to_py(py, v.clone(), span)?)
                         .map_err(|e| FluxError::new_runtime(format!("Failed to set item in Python dict: {}", e), span))?;
                 }
                 Ok(py_dict.into_any())
@@ -839,14 +836,14 @@ impl Interpreter {
             for item in py_list.iter() {
                 flux_list.push(self.py_to_flux(py, item, span)?);
             }
-            Ok(Object::List(flux_list))
+            Ok(Object::List(Rc::new(RefCell::new(flux_list))))
         } else if obj.is_instance_of::<pyo3::types::PyDict>() {
             let py_dict = obj.cast::<pyo3::types::PyDict>().unwrap();
             let mut flux_dict = std::collections::HashMap::new();
             for (k, v) in py_dict.iter() {
                 flux_dict.insert(self.py_to_flux(py, k, span)?, self.py_to_flux(py, v, span)?);
             }
-            Ok(Object::Dictionary(flux_dict))
+            Ok(Object::Dictionary(Rc::new(RefCell::new(flux_dict))))
         } else {
             // Check if it's a numpy array
             let np_res = pyo3::types::PyModule::import(py, "numpy");

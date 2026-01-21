@@ -1,0 +1,32 @@
+# Test Reference Semantics
+# Lists and dicts should now be reference types
+
+# Test 1: List reference semantics
+let l1 = [1, 2, 3]
+let l2 = l1
+l2[0] = 99
+assert l1[0] == 99, "List should be reference type"
+print("✓ Test 1 passed: Lists are reference types")
+
+# Test 2: Dict reference semantics  
+let d1 = {"a": 1, "b": 2}
+let d2 = d1
+d2["a"] = 99
+assert d1["a"] == 99, "Dict should be reference type"
+print("✓ Test 2 passed: Dicts are reference types")
+
+# Test 3: List operations still work
+let l3 = [1, 2, 3]
+let l4 = l3 + [4, 5]
+assert l3 == [1, 2, 3], "Original list unchanged after +"
+assert l4 == [1, 2, 3, 4, 5], "New list has correct values"
+print("✓ Test 3 passed: List concatenation works")
+
+# Test 4: Slicing creates new list
+let l5 = [1, 2, 3, 4, 5]
+let l6 = l5[1:4]
+l6[0] = 99
+assert l5[1] == 2, "Slicing should create new list"
+print("✓ Test 4 passed: Slicing creates new list")
+
+print("All reference type tests passed!")

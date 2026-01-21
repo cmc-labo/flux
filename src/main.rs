@@ -111,7 +111,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                 current += step;
             }
         }
-        Ok(Object::List(elements))
+        Ok(Object::List(Rc::new(RefCell::new(elements))))
     });
     env.borrow_mut().set("range".to_string(), range_fn);
     
@@ -120,7 +120,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             return Err("len() takes exactly 1 argument".to_string());
         }
         match &args[0] {
-            Object::List(l) => Ok(Object::Integer(l.len() as i64)),
+            Object::List(l) => Ok(Object::Integer(l.borrow().len() as i64)),
             Object::String(s) => Ok(Object::Integer(s.len() as i64)),
             Object::Tensor(t) => {
                 let shape = t.inner.shape();
@@ -137,7 +137,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                     Ok(Object::Integer(len as i64))
                 })
             },
-            Object::Dictionary(d) => Ok(Object::Integer(d.len() as i64)),
+            Object::Dictionary(d) => Ok(Object::Integer(d.borrow().len() as i64)),
             _ => Err(format!("len() not supported for {}", args[0])),
         }
     });
@@ -171,7 +171,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     let zeros_fn = Object::NativeFn(|args| {
         if args.len() != 1 { return Err("zeros() takes exactly 1 argument (shape)".to_string()); }
         let shape = match &args[0] {
-            Object::List(l) => l.iter().map(|item| match item {
+            Object::List(l) => l.borrow().iter().map(|item| match item {
                 Object::Integer(i) => *i as usize,
                 _ => 0
             }).collect::<Vec<usize>>(),
@@ -184,7 +184,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     let ones_fn = Object::NativeFn(|args| {
         if args.len() != 1 { return Err("ones() takes exactly 1 argument (shape)".to_string()); }
         let shape = match &args[0] {
-            Object::List(l) => l.iter().map(|item| match item {
+            Object::List(l) => l.borrow().iter().map(|item| match item {
                 Object::Integer(i) => *i as usize,
                 _ => 0
             }).collect::<Vec<usize>>(),
@@ -197,7 +197,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     let rand_fn = Object::NativeFn(|args| {
         if args.len() != 1 { return Err("rand() takes exactly 1 argument (shape)".to_string()); }
         let shape = match &args[0] {
-            Object::List(l) => l.iter().map(|item| match item {
+            Object::List(l) => l.borrow().iter().map(|item| match item {
                 Object::Integer(i) => *i as usize,
                 _ => 0
             }).collect::<Vec<usize>>(),
@@ -214,7 +214,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             _ => return Err("reshape() first argument must be a tensor".to_string()),
         };
         let shape = match &args[1] {
-            Object::List(l) => l.iter().map(|item| match item {
+            Object::List(l) => l.borrow().iter().map(|item| match item {
                 Object::Integer(i) => *i as usize,
                 _ => 0
             }).collect::<Vec<usize>>(),
@@ -265,7 +265,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                 let mut total_float = 0.0;
                 let mut has_float = false;
 
-                for item in l {
+                for item in l.borrow().iter() {
                     match item {
                         Object::Integer(i) => {
                             if has_float {
@@ -303,16 +303,17 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         match &args[0] {
             Object::Tensor(t) => Ok(t.mean().map(Object::Float).unwrap_or(Object::Null)),
             Object::List(l) => {
-                if l.is_empty() { return Ok(Object::Null); }
+                let list_borrow = l.borrow();
+                if list_borrow.is_empty() { return Ok(Object::Null); }
                 let mut total = 0.0;
-                for item in l {
+                for item in list_borrow.iter() {
                     match item {
                         Object::Integer(i) => total += *i as f64,
                         Object::Float(f) => total += f,
                         _ => return Err(format!("mean() encountered non-numeric element: {}", item)),
                     }
                 }
-                Ok(Object::Float(total / l.len() as f64))
+                Ok(Object::Float(total / list_borrow.len() as f64))
             },
             _ => Err(format!("mean() argument must be a list or tensor, got {}", args[0])),
         }
@@ -325,7 +326,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
         let elements = if args.len() == 1 {
             match &args[0] {
-                Object::List(l) => l.clone(),
+                Object::List(l) => l.borrow().clone(),
                 _ => args.clone(),
             }
         } else {
@@ -368,7 +369,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
         let elements = if args.len() == 1 {
             match &args[0] {
-                Object::List(l) => l.clone(),
+                Object::List(l) => l.borrow().clone(),
                 _ => args.clone(),
             }
         } else {
@@ -412,7 +413,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
         match &args[0] {
             Object::List(l) => {
-                for item in l {
+                for item in l.borrow().iter() {
                     if !item.is_truthy() {
                         return Ok(Object::Boolean(false));
                     }
@@ -430,7 +431,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
         match &args[0] {
             Object::List(l) => {
-                for item in l {
+                for item in l.borrow().iter() {
                     if item.is_truthy() {
                         return Ok(Object::Boolean(true));
                     }
@@ -448,9 +449,9 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
         match &args[0] {
             Object::List(l) => {
-                let mut rev_l = l.clone();
+                let mut rev_l = l.borrow().clone();
                 rev_l.reverse();
-                Ok(Object::List(rev_l))
+                Ok(Object::List(Rc::new(RefCell::new(rev_l))))
             },
             Object::String(s) => {
                 let rev_s: String = s.chars().rev().collect();
@@ -467,7 +468,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
         match &args[0] {
             Object::List(l) => {
-                let mut sorted_l = l.clone();
+                let mut sorted_l = l.borrow().clone();
                 let mut err = None;
                 sorted_l.sort_by(|a, b| {
                     match (a, b) {
@@ -485,7 +486,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                 if let Some(e) = err {
                     return Err(e);
                 }
-                Ok(Object::List(sorted_l))
+                Ok(Object::List(Rc::new(RefCell::new(sorted_l))))
             },
             _ => Err(format!("sorted() argument must be a list, got {}", args[0])),
         }
@@ -611,7 +612,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         } else {
             s.split(sep).map(|item| Object::String(item.to_string())).collect()
         };
-        Ok(Object::List(items))
+        Ok(Object::List(Rc::new(RefCell::new(items))))
     });
     env.borrow_mut().set("split".to_string(), split_fn);
 
@@ -627,7 +628,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::String(s) => s,
             _ => return Err(format!("join() second argument must be a string, got {}", args[1])),
         };
-        let result = list.iter().map(|obj| obj.to_string()).collect::<Vec<String>>().join(sep);
+        let result = list.borrow().iter().map(|obj| obj.to_string()).collect::<Vec<String>>().join(sep);
         Ok(Object::String(result))
     });
     env.borrow_mut().set("join".to_string(), join_fn);
@@ -824,8 +825,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
         match &args[0] {
             Object::Dictionary(d) => {
-                let keys: Vec<Object> = d.keys().cloned().collect();
-                Ok(Object::List(keys))
+                let keys: Vec<Object> = d.borrow().keys().cloned().collect();
+                Ok(Object::List(Rc::new(RefCell::new(keys))))
             },
             _ => Err(format!("keys() argument must be a dictionary, got {}", args[0])),
         }
@@ -838,8 +839,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
         match &args[0] {
             Object::Dictionary(d) => {
-                let values: Vec<Object> = d.values().cloned().collect();
-                Ok(Object::List(values))
+                let values: Vec<Object> = d.borrow().values().cloned().collect();
+                Ok(Object::List(Rc::new(RefCell::new(values))))
             },
             _ => Err(format!("values() argument must be a dictionary, got {}", args[0])),
         }
@@ -858,10 +859,10 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::List(val) => val,
             _ => return Err(format!("zip() second argument must be a list, got {}", args[1])),
         };
-        let zipped: Vec<Object> = l1.iter().zip(l2.iter())
-            .map(|(a, b)| Object::List(vec![a.clone(), b.clone()]))
+        let zipped: Vec<Object> = l1.borrow().iter().zip(l2.borrow().iter())
+            .map(|(a, b)| Object::List(Rc::new(RefCell::new(vec![a.clone(), b.clone()]))))
             .collect();
-        Ok(Object::List(zipped))
+        Ok(Object::List(Rc::new(RefCell::new(zipped))))
     });
     env.borrow_mut().set("zip".to_string(), zip_fn);
 
@@ -873,10 +874,10 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::List(val) => val,
             _ => return Err(format!("enumerate() argument must be a list, got {}", args[0])),
         };
-        let enumerated: Vec<Object> = l.iter().enumerate()
-            .map(|(i, el)| Object::List(vec![Object::Integer(i as i64), el.clone()]))
+        let enumerated: Vec<Object> = l.borrow().iter().enumerate()
+            .map(|(i, el)| Object::List(Rc::new(RefCell::new(vec![Object::Integer(i as i64), el.clone()]))))
             .collect();
-        Ok(Object::List(enumerated))
+        Ok(Object::List(Rc::new(RefCell::new(enumerated))))
     });
     env.borrow_mut().set("enumerate".to_string(), enumerate_fn);
 
@@ -948,8 +949,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         match &args[0] {
             Object::List(list) => {
                 let target = &args[1];
-                let c = list.iter().filter(|&item| item == target).count();
-                Ok(Object::Integer(c as i64))
+                let count = list.borrow().iter().filter(|x| *x == target).count();
+                Ok(Object::Integer(count as i64))
             },
             Object::String(s) => {
                 let sub = match &args[1] {
@@ -1027,7 +1028,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         match &args[0] {
             Object::String(s) => {
                 let items = s.chars().map(|c| Object::String(c.to_string())).collect();
-                Ok(Object::List(items))
+                Ok(Object::List(Rc::new(RefCell::new(items))))
             },
             Object::List(l) => Ok(Object::List(l.clone())),
             _ => Err(format!("list() conversion not supported for {}", args[0])),
@@ -1044,9 +1045,9 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             _ => return Err(format!("append() first argument must be a list, got {}", args[0])),
         };
         let item = args[1].clone();
-        let mut new_list = list.clone();
+        let mut new_list = list.borrow().clone();
         new_list.push(item);
-        Ok(Object::List(new_list))
+        Ok(Object::List(Rc::new(RefCell::new(new_list))))
     });
     env.borrow_mut().set("append".to_string(), append_fn);
 
@@ -1062,9 +1063,9 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::List(val) => val,
             _ => return Err(format!("extend() second argument must be a list, got {}", args[1])),
         };
-        let mut new_list = list1.clone();
-        new_list.extend(list2.clone());
-        Ok(Object::List(new_list))
+        let mut new_list = list1.borrow().clone();
+        new_list.extend(list2.borrow().clone());
+        Ok(Object::List(Rc::new(RefCell::new(new_list))))
     });
     env.borrow_mut().set("extend".to_string(), extend_fn);
 
@@ -1081,12 +1082,13 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             _ => return Err(format!("insert() second argument must be an integer, got {}", args[1])),
         };
         let item = args[2].clone();
-        if index > list.len() {
-            return Err(format!("insert() index {} out of range for list of length {}", index, list.len()));
+        let list_borrow = list.borrow();
+        if index > list_borrow.len() {
+            return Err(format!("insert() index {} out of range for list of length {}", index, list_borrow.len()));
         }
-        let mut new_list = list.clone();
+        let mut new_list = list_borrow.clone();
         new_list.insert(index, item);
-        Ok(Object::List(new_list))
+        Ok(Object::List(Rc::new(RefCell::new(new_list))))
     });
     env.borrow_mut().set("insert".to_string(), insert_fn);
 
@@ -1154,9 +1156,9 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::List(val) => val,
             _ => return Err(format!("pop_at() first argument must be a list, got {}", args[0])),
         };
-        let mut new_list = list.clone();
+        let mut new_list = list.borrow().clone();
         if new_list.is_empty() {
-            return Ok(Object::List(new_list));
+            return Ok(Object::List(Rc::new(RefCell::new(new_list))));
         }
         let index = if args.len() == 2 {
             match &args[1] {
@@ -1178,7 +1180,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         } else {
             return Err(format!("pop_at() index {} out of range", index));
         }
-        Ok(Object::List(new_list))
+        Ok(Object::List(Rc::new(RefCell::new(new_list))))
     });
     env.borrow_mut().set("pop_at".to_string(), pop_at_fn);
 
@@ -1191,11 +1193,11 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             _ => return Err(format!("remove() first argument must be a list, got {}", args[0])),
         };
         let target = &args[1];
-        let mut new_list = list.clone();
+        let mut new_list = list.borrow().clone();
         if let Some(pos) = new_list.iter().position(|x| x == target) {
             new_list.remove(pos);
         }
-        Ok(Object::List(new_list))
+        Ok(Object::List(Rc::new(RefCell::new(new_list))))
     });
     env.borrow_mut().set("remove".to_string(), remove_val_fn);
 
@@ -1208,7 +1210,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             _ => return Err(format!("index() first argument must be a list, got {}", args[0])),
         };
         let target = &args[1];
-        let pos = list.iter().position(|x| x == target);
+        let pos = list.borrow().iter().position(|x| x == target);
         match pos {
             Some(p) => Ok(Object::Integer(p as i64)),
             None => Ok(Object::Integer(-1)),
@@ -1383,12 +1385,13 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::Integer(idx) => *idx as usize,
             _ => return Err(format!("swap() third argument must be an integer, got {}", args[2])),
         };
-        if i >= list.len() || j >= list.len() {
-            return Err(format!("swap() index out of range: list length {}, indices {}, {}", list.len(), i, j));
+        let list_borrow = list.borrow();
+        if i >= list_borrow.len() || j >= list_borrow.len() {
+            return Err(format!("swap() index out of range: list length {}, indices {}, {}", list_borrow.len(), i, j));
         }
-        let mut new_list = list.clone();
+        let mut new_list = list_borrow.clone();
         new_list.swap(i, j);
-        Ok(Object::List(new_list))
+        Ok(Object::List(Rc::new(RefCell::new(new_list))))
     });
     env.borrow_mut().set("swap".to_string(), swap_fn);
 
@@ -1505,15 +1508,15 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             _ => return Err(format!("flat() argument must be a list, got {}", args[0])),
         };
         let mut flattened = Vec::new();
-        for item in list {
+        for item in list.borrow().iter() {
             match item {
                 Object::List(sub_list) => {
-                    flattened.extend(sub_list.clone());
+                    flattened.extend(sub_list.borrow().clone());
                 },
                 _ => flattened.push(item.clone()),
             }
         }
-        Ok(Object::List(flattened))
+        Ok(Object::List(Rc::new(RefCell::new(flattened))))
     });
     env.borrow_mut().set("flat".to_string(), flat_fn);
 
@@ -1529,8 +1532,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
         match &args[0] {
             Object::Dictionary(d) => {
-                let keys: Vec<Object> = d.keys().cloned().collect();
-                Ok(Object::List(keys))
+                let keys: Vec<Object> = d.borrow().keys().cloned().collect();
+                Ok(Object::List(Rc::new(RefCell::new(keys))))
             },
             _ => Err(format!("keys() argument must be a dictionary, got {}", args[0])),
         }
@@ -1543,8 +1546,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
         match &args[0] {
             Object::Dictionary(d) => {
-                let values: Vec<Object> = d.values().cloned().collect();
-                Ok(Object::List(values))
+                let values: Vec<Object> = d.borrow().values().cloned().collect();
+                Ok(Object::List(Rc::new(RefCell::new(values))))
             },
             _ => Err(format!("values() argument must be a dictionary, got {}", args[0])),
         }
@@ -1557,10 +1560,10 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
         match &args[0] {
             Object::Dictionary(d) => {
-                let items: Vec<Object> = d.iter()
-                    .map(|(k, v)| Object::List(vec![k.clone(), v.clone()]))
+                let items: Vec<Object> = d.borrow().iter()
+                    .map(|(k, v)| Object::List(Rc::new(RefCell::new(vec![k.clone(), v.clone()]))))
                     .collect();
-                Ok(Object::List(items))
+                Ok(Object::List(Rc::new(RefCell::new(items))))
             },
             _ => Err(format!("items() argument must be a dictionary, got {}", args[0])),
         }
@@ -1578,7 +1581,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         let key = &args[1];
         let default = if args.len() == 3 { args[2].clone() } else { Object::Null };
         
-        match dict.get(key) {
+        match dict.borrow().get(key) {
             Some(val) => Ok(val.clone()),
             None => Ok(default),
         }
@@ -1614,12 +1617,12 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         match &args[0] {
             Object::List(l) => {
                 let mut unique_list = Vec::new();
-                for item in l {
+                for item in l.borrow().iter() {
                     if !unique_list.contains(item) {
                        unique_list.push(item.clone());
                     }
                 }
-                Ok(Object::List(unique_list))
+                Ok(Object::List(Rc::new(RefCell::new(unique_list))))
             },
              _ => Err(format!("unique() argument must be a list, got {}", args[0])),
         }
