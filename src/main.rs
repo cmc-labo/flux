@@ -1045,9 +1045,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             _ => return Err(format!("append() first argument must be a list, got {}", args[0])),
         };
         let item = args[1].clone();
-        let mut new_list = list.borrow().clone();
-        new_list.push(item);
-        Ok(Object::List(Rc::new(RefCell::new(new_list))))
+        list.borrow_mut().push(item);
+        Ok(args[0].clone())  // Return the list itself
     });
     env.borrow_mut().set("append".to_string(), append_fn);
 
@@ -1063,9 +1062,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::List(val) => val,
             _ => return Err(format!("extend() second argument must be a list, got {}", args[1])),
         };
-        let mut new_list = list1.borrow().clone();
-        new_list.extend(list2.borrow().clone());
-        Ok(Object::List(Rc::new(RefCell::new(new_list))))
+        list1.borrow_mut().extend(list2.borrow().clone());
+        Ok(args[0].clone())  // Return the list itself
     });
     env.borrow_mut().set("extend".to_string(), extend_fn);
 

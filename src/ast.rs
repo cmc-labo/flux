@@ -67,6 +67,7 @@ pub enum ExpressionKind {
     Prefix { operator: PrefixOperator, right: Box<Expression> },
     Infix { left: Box<Expression>, operator: InfixOperator, right: Box<Expression> },
     Call { function: Box<Expression>, arguments: Vec<Expression> },
+    MethodCall { object: Box<Expression>, method: String, arguments: Vec<Expression> },
     Get { object: Box<Expression>, name: String }, // obj.name
     List(Vec<Expression>),
     Dictionary(Vec<(Expression, Expression)>),

@@ -1,0 +1,42 @@
+# Test Method Call Syntax
+
+# Test 1: List methods
+let l = [1, 2, 3]
+let l2 = l.append(4)  # append returns the list
+print("List after append:", l)
+assert l == [1, 2, 3, 4], "append should modify list in-place"
+
+# Test 2: String methods
+let s = "hello"
+let upper_s = s.upper()
+print("Uppercase:", upper_s)
+assert upper_s == "HELLO", "upper should return uppercase string"
+
+let lower_s = upper_s.lower()
+print("Lowercase:", lower_s)
+assert lower_s == "hello", "lower should return lowercase string"
+
+# Test 3: Dict methods
+let d = {"a": 1, "b": 2}
+let k = d.keys()
+print("Keys:", k)
+assert len(k) == 2, "keys should return all keys"
+
+let v = d.values()
+print("Values:", v)
+assert len(v) == 2, "values should return all values"
+
+# Test 4: String split
+let text = "one,two,three"
+let parts = text.split(",")
+print("Split:", parts)
+assert len(parts) == 3, "split should create 3 parts"
+assert parts[0] == "one", "first part should be 'one'"
+
+# Test 5: List extend
+let l3 = [1, 2]
+l3.extend([3, 4])
+print("Extended list:", l3)
+assert l3 == [1, 2, 3, 4], "extend should add elements"
+
+print("All method tests passed!")

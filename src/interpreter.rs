@@ -279,6 +279,24 @@ impl Interpreter {
                     .collect::<Result<Vec<Object>, FluxError>>()?;
                 self.apply_function(func, args, span)
             },
+            ExpressionKind::MethodCall { object, method, arguments } => {
+                // Transform method call to function call: obj.method(args) -> method(obj, args)
+                let obj = self.eval_expression(*object, env.clone())?;
+                
+                // Look up the method as a function
+                let func = match env.borrow().get(&method) {
+                    Some(f) => f,
+                    None => return Err(FluxError::new_runtime(format!("Method '{}' not found", method), span)),
+                };
+                
+                // Prepend object to arguments
+                let mut args = vec![obj];
+                for arg in arguments {
+                    args.push(self.eval_expression(arg, env.clone())?);
+                }
+                
+                self.apply_function(func, args, span)
+            },
             ExpressionKind::Get { object, name } => {
                 let obj = self.eval_expression(*object, env)?;
                 match obj {

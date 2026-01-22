@@ -322,7 +322,14 @@ impl TypeChecker {
                 
                 let res_ty = self.infer_type(element, &sub_env)?;
                 Ok(Type::List(Box::new(res_ty)))
-            }
+            },
+            ExpressionKind::MethodCall { object: _, method, arguments: _ } => {
+                // Look up method as function
+                match env.get(method) {
+                    Some(Type::Function(_, ret)) => Ok(*ret),
+                    _ => Ok(Type::Any),
+                }
+            },
         }
     }
 

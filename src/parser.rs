@@ -1021,11 +1021,29 @@ impl<'a> Parser<'a> {
                 self.next_token();
                 match &self.cur_token {
                     Token::Identifier(name) => {
+                        let method_name = name.clone();
                         let end = self.cur_span;
-                        Some(Expression {
-                            kind: ExpressionKind::Get { object: Box::new(object), name: name.clone() },
-                            span: start.join(end),
-                        })
+                        
+                        // Check if this is a method call (obj.method(...))
+                        if self.peek_token_is(&Token::LParen) {
+                            self.next_token(); // move to (
+                            let arguments = self.parse_call_arguments()?;
+                            let end_span = self.cur_span;
+                            Some(Expression {
+                                kind: ExpressionKind::MethodCall { 
+                                    object: Box::new(object), 
+                                    method: method_name, 
+                                    arguments 
+                                },
+                                span: start.join(end_span),
+                            })
+                        } else {
+                            // Regular property access
+                            Some(Expression {
+                                kind: ExpressionKind::Get { object: Box::new(object), name: method_name },
+                                span: start.join(end),
+                            })
+                        }
                     },
                     _ => None,
                 }
