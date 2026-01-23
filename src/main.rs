@@ -1080,13 +1080,12 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             _ => return Err(format!("insert() second argument must be an integer, got {}", args[1])),
         };
         let item = args[2].clone();
-        let list_borrow = list.borrow();
-        if index > list_borrow.len() {
-            return Err(format!("insert() index {} out of range for list of length {}", index, list_borrow.len()));
+        let list_len = list.borrow().len();
+        if index > list_len {
+            return Err(format!("insert() index {} out of range for list of length {}", index, list_len));
         }
-        let mut new_list = list_borrow.clone();
-        new_list.insert(index, item);
-        Ok(Object::List(Rc::new(RefCell::new(new_list))))
+        list.borrow_mut().insert(index, item);
+        Ok(args[0].clone())  // Return the list itself
     });
     env.borrow_mut().set("insert".to_string(), insert_fn);
 
@@ -1146,41 +1145,58 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("degrees".to_string(), degrees_fn);
 
-    let pop_at_fn = Object::NativeFn(|args| {
-        if args.len() < 1 || args.len() > 2 {
-            return Err("pop_at() takes 1 or 2 arguments (list, [index])".to_string());
+    let pop_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 3 {
+            return Err("pop() takes 1 to 3 arguments".to_string());
         }
-        let list = match &args[0] {
-            Object::List(val) => val,
-            _ => return Err(format!("pop_at() first argument must be a list, got {}", args[0])),
-        };
-        let mut new_list = list.borrow().clone();
-        if new_list.is_empty() {
-            return Ok(Object::List(Rc::new(RefCell::new(new_list))));
-        }
-        let index = if args.len() == 2 {
-            match &args[1] {
-                Object::Integer(i) => {
-                    if *i < 0 {
-                        let idx = (new_list.len() as i64 + *i) as usize;
-                        if idx < new_list.len() { idx } else { return Err(format!("pop_at() index {} out of range", i)); }
-                    } else {
-                        *i as usize
+        match &args[0] {
+            Object::List(list) => {
+                if args.len() > 2 {
+                    return Err("pop() for list takes 1 or 2 arguments (list, [index])".to_string());
+                }
+                let list_len = list.borrow().len();
+                if list_len == 0 {
+                    return Err("pop() from empty list".to_string());
+                }
+                let index = if args.len() == 2 {
+                    match &args[1] {
+                        Object::Integer(i) => {
+                            let mut idx = *i;
+                            if idx < 0 {
+                                idx += list_len as i64;
+                            }
+                            if idx < 0 || idx >= list_len as i64 {
+                                return Err(format!("pop() index {} out of range", i));
+                            }
+                            idx as usize
+                        },
+                        _ => return Err(format!("pop() second argument must be an integer for list, got {}", args[1])),
                     }
-                },
-                _ => return Err(format!("pop_at() second argument must be an integer, got {}", args[1])),
-            }
-        } else {
-            new_list.len() - 1
-        };
-        if index < new_list.len() {
-            new_list.remove(index);
-        } else {
-            return Err(format!("pop_at() index {} out of range", index));
+                } else {
+                    list_len - 1
+                };
+                let item = list.borrow_mut().remove(index);
+                Ok(item)
+            },
+            Object::Dictionary(dict) => {
+                if args.len() < 2 || args.len() > 3 {
+                    return Err("pop() for dictionary takes 2 or 3 arguments (dict, key, [default])".to_string());
+                }
+                let key = &args[1];
+                let mut d = dict.borrow_mut();
+                if let Some(val) = d.remove(key) {
+                    Ok(val)
+                } else if args.len() == 3 {
+                    Ok(args[2].clone())
+                } else {
+                    Err(format!("pop(): key '{}' not found in dictionary", key))
+                }
+            },
+            _ => Err(format!("pop() first argument must be a list or dictionary, got {}", args[0])),
         }
-        Ok(Object::List(Rc::new(RefCell::new(new_list))))
     });
-    env.borrow_mut().set("pop_at".to_string(), pop_at_fn);
+    env.borrow_mut().set("pop".to_string(), pop_fn.clone());
+    env.borrow_mut().set("pop_at".to_string(), pop_fn);
 
     let remove_val_fn = Object::NativeFn(|args| {
         if args.len() != 2 {
@@ -1191,11 +1207,11 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             _ => return Err(format!("remove() first argument must be a list, got {}", args[0])),
         };
         let target = &args[1];
-        let mut new_list = list.borrow().clone();
-        if let Some(pos) = new_list.iter().position(|x| x == target) {
-            new_list.remove(pos);
+        let pos = list.borrow().iter().position(|x| x == target);
+        if let Some(idx) = pos {
+            list.borrow_mut().remove(idx);
         }
-        Ok(Object::List(Rc::new(RefCell::new(new_list))))
+        Ok(args[0].clone())  // Return the list itself
     });
     env.borrow_mut().set("remove".to_string(), remove_val_fn);
 
@@ -1607,6 +1623,79 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
     });
     env.borrow_mut().set("rstrip".to_string(), rstrip_fn);
+    
+    // Combined strip function
+    let strip_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("strip() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => Ok(Object::String(s.trim().to_string())),
+            _ => Err(format!("strip() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("strip".to_string(), strip_fn);
+    
+    // clear function for lists and dicts
+    let clear_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("clear() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::List(l) => {
+                l.borrow_mut().clear();
+                Ok(Object::Null)
+            },
+            Object::Dictionary(d) => {
+                d.borrow_mut().clear();
+                Ok(Object::Null)
+            },
+            _ => Err(format!("clear() argument must be a list or dictionary, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("clear".to_string(), clear_fn);
+    
+    // replace function for strings
+    let replace_fn = Object::NativeFn(|args| {
+        if args.len() != 3 {
+            return Err("replace() takes exactly 3 arguments (string, old, new)".to_string());
+        }
+        match (&args[0], &args[1], &args[2]) {
+            (Object::String(s), Object::String(old), Object::String(new)) => {
+                Ok(Object::String(s.replace(old, new)))
+            },
+            _ => Err("replace() arguments must be strings".to_string()),
+        }
+    });
+    env.borrow_mut().set("replace".to_string(), replace_fn);
+    
+    // startswith function for strings
+    let startswith_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("startswith() takes exactly 2 arguments (string, prefix)".to_string());
+        }
+        match (&args[0], &args[1]) {
+            (Object::String(s), Object::String(prefix)) => {
+                Ok(Object::Boolean(s.starts_with(prefix)))
+            },
+            _ => Err("startswith() arguments must be strings".to_string()),
+        }
+    });
+    env.borrow_mut().set("startswith".to_string(), startswith_fn);
+    
+    // endswith function for strings
+    let endswith_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("endswith() takes exactly 2 arguments (string, suffix)".to_string());
+        }
+        match (&args[0], &args[1]) {
+            (Object::String(s), Object::String(suffix)) => {
+                Ok(Object::Boolean(s.ends_with(suffix)))
+            },
+            _ => Err("endswith() arguments must be strings".to_string()),
+        }
+    });
+    env.borrow_mut().set("endswith".to_string(), endswith_fn);
     
     let unique_fn = Object::NativeFn(|args| {
         if args.len() != 1 {

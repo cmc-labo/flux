@@ -748,6 +748,16 @@ impl Interpreter {
                 }
                 _ => Err(format!("Unsupported operator for list: {:?}", operator)),
             },
+            (Object::Boolean(l), Object::Boolean(r)) => match operator {
+                InfixOperator::Equal => Ok(Object::Boolean(l == r)),
+                InfixOperator::NotEqual => Ok(Object::Boolean(l != r)),
+                _ => Err(format!("Unsupported operator for booleans: {:?}", operator)),
+            },
+            (Object::Null, Object::Null) => match operator {
+                InfixOperator::Equal => Ok(Object::Boolean(true)),
+                InfixOperator::NotEqual => Ok(Object::Boolean(false)),
+                _ => Err(format!("Unsupported operator for null: {:?}", operator)),
+            },
             // Handle mixed types?
             (l, r) => Err(format!("Type mismatch: {} {:?} {}", l, operator, r)),
         }

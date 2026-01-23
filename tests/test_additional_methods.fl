@@ -1,0 +1,50 @@
+# Test Additional Convenient Methods
+
+print("Testing list methods...")
+let l = [1, 2, 3]
+l.append(4)
+assert l == [1, 2, 3, 4], "list.append failed"
+
+l.extend([5, 6])
+assert l == [1, 2, 3, 4, 5, 6], "list.extend failed"
+
+l.insert(0, 0)
+assert l == [0, 1, 2, 3, 4, 5, 6], "list.insert failed"
+
+l.remove(3)
+assert l == [0, 1, 2, 4, 5, 6], "list.remove failed"
+
+let popped = l.pop()
+assert popped == 6, "list.pop() failed"
+assert l == [0, 1, 2, 4, 5], "list.pop() mutation failed"
+
+let popped_0 = l.pop(0)
+assert popped_0 == 0, "list.pop(0) failed"
+assert l == [1, 2, 4, 5], "list.pop(0) mutation failed"
+
+l.clear()
+assert len(l) == 0, "list.clear failed"
+print("✓ List methods passed")
+
+print("Testing string methods...")
+let s = "  hello world  "
+assert s.strip() == "hello world", "str.strip failed"
+assert s.replace("hello", "hi").strip() == "hi world", "str.replace failed"
+assert "flux".startswith("fl") == True, "str.startswith failed"
+assert "flux".endswith("ux") == True, "str.endswith failed"
+print("✓ String methods passed")
+
+print("Testing dict methods...")
+let d = {"a": 1, "b": 2}
+let val_a = d.pop("a")
+assert val_a == 1, "dict.pop failed"
+assert len(d) == 1, "dict.pop mutation failed"
+
+let val_c = d.pop("c", 0)
+assert val_c == 0, "dict.pop with default failed"
+
+d.clear()
+assert len(d) == 0, "dict.clear failed"
+print("✓ Dict methods passed")
+
+print("All tests passed!")
