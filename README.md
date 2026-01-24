@@ -1,8 +1,5 @@
 # Flux Language
 
-> [!NOTE]
-> This project is unrelated to the Flux image model (Black Forest Labs) or the InfluxData query language.
-
 Flux is a high-performance, AI-native programming language designed to bridge the gap between Python's developer productivity and Rust's runtime efficiency. 
 
 > **Performance Goal**: Minimize Python interpreter overhead in AI orchestration by providing a lean, Rust-powered execution environment for Tensor workloads.
@@ -129,3 +126,7 @@ cargo build --release
 
 ## License
 MIT
+
+---
+
+**Note**: This project is unrelated to the Flux image model (Black Forest Labs) or the InfluxData query language.
