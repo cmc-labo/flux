@@ -57,6 +57,7 @@ impl TypeChecker {
         env.set("print".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Null)));
         env.set("type".to_string(), Type::Function(vec![Type::Any], Box::new(Type::String)));
         env.set("range".to_string(), Type::Function(vec![Type::Int], Box::new(Type::List(Box::new(Type::Int)))));
+        env.set("tensor".to_string(), Type::Function(vec![Type::Int], Box::new(Type::Tensor)));
         env.set("zeros".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
         env.set("ones".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
         env.set("rand".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));

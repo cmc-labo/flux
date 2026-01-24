@@ -1016,42 +1016,55 @@ impl<'a> Parser<'a> {
 
     fn parse_get_expression(&mut self, object: Expression) -> Option<Expression> {
         let start = object.span;
-        match &self.peek_token {
-            Token::Identifier(_) => {
-                self.next_token();
-                match &self.cur_token {
-                    Token::Identifier(name) => {
-                        let method_name = name.clone();
-                        let end = self.cur_span;
-                        
-                        // Check if this is a method call (obj.method(...))
-                        if self.peek_token_is(&Token::LParen) {
-                            self.next_token(); // move to (
-                            let arguments = self.parse_call_arguments()?;
-                            let end_span = self.cur_span;
-                            Some(Expression {
-                                kind: ExpressionKind::MethodCall { 
-                                    object: Box::new(object), 
-                                    method: method_name, 
-                                    arguments 
-                                },
-                                span: start.join(end_span),
-                            })
-                        } else {
-                            // Regular property access
-                            Some(Expression {
-                                kind: ExpressionKind::Get { object: Box::new(object), name: method_name },
-                                span: start.join(end),
-                            })
-                        }
-                    },
-                    _ => None,
-                }
-            },
+        
+        let method_name = match &self.peek_token {
+            Token::Identifier(name) => name.clone(),
+            Token::Print => "print".to_string(),
+            Token::Def => "def".to_string(),
+            Token::Return => "return".to_string(),
+            Token::If => "if".to_string(),
+            Token::Else => "else".to_string(),
+            Token::Elif => "elif".to_string(),
+            Token::While => "while".to_string(),
+            Token::Let => "let".to_string(),
+            Token::And => "and".to_string(),
+            Token::Or => "or".to_string(),
+            Token::For => "for".to_string(),
+            Token::In => "in".to_string(),
+            Token::NotIn => "not in".to_string(),
+            Token::Not => "not".to_string(),
+            Token::Break => "break".to_string(),
+            Token::Continue => "continue".to_string(),
+            Token::Import => "import".to_string(),
+            Token::Assert => "assert".to_string(),
             _ => {
-                self.errors.push(ParserError { message: format!("Expected Identifier after '.'"), span: self.peek_span });
-                None
+                self.errors.push(ParserError { message: format!("Expected Identifier or Keyword after '.'"), span: self.peek_span });
+                return None;
             }
+        };
+
+        self.next_token();
+        let end = self.cur_span;
+        
+        // Check if this is a method call (obj.method(...))
+        if self.peek_token_is(&Token::LParen) {
+            self.next_token(); // move to (
+            let arguments = self.parse_call_arguments()?;
+            let end_span = self.cur_span;
+            Some(Expression {
+                kind: ExpressionKind::MethodCall { 
+                    object: Box::new(object), 
+                    method: method_name, 
+                    arguments 
+                },
+                span: start.join(end_span),
+            })
+        } else {
+            // Regular property access
+            Some(Expression {
+                kind: ExpressionKind::Get { object: Box::new(object), name: method_name },
+                span: start.join(end),
+            })
         }
     }
 

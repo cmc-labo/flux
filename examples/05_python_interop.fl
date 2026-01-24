@@ -13,5 +13,5 @@ let val = 16.0
 let root = py_math.sqrt(val)
 print("Square root of", val, "is", root)
 
-# You can even use Python's print
-np.print("Numpy print works too!")
+# You can even use Python's print (or Flux's built-in print)
+print("Numpy print works too!")

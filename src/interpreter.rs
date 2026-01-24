@@ -280,22 +280,56 @@ impl Interpreter {
                 self.apply_function(func, args, span)
             },
             ExpressionKind::MethodCall { object, method, arguments } => {
-                // Transform method call to function call: obj.method(args) -> method(obj, args)
                 let obj = self.eval_expression(*object, env.clone())?;
                 
-                // Look up the method as a function
-                let func = match env.borrow().get(&method) {
-                    Some(f) => f,
-                    None => return Err(FluxError::new_runtime(format!("Method '{}' not found", method), span)),
-                };
-                
-                // Prepend object to arguments
-                let mut args = vec![obj];
-                for arg in arguments {
-                    args.push(self.eval_expression(arg, env.clone())?);
+                // If it's a PyObject, we have to decide between Flux-style call (method(obj, args))
+                // and Python-style call (obj.method(args)).
+                if let Object::PyObject(ref py_obj) = obj {
+                    // Try Flux-style first if method exists in env
+                    if let Some(func) = env.borrow().get(&method) {
+                        let mut args = vec![obj.clone()];
+                        for arg_expr in arguments.clone() {
+                            args.push(self.eval_expression(arg_expr, env.clone())?);
+                        }
+                        let res = self.apply_function(func, args, span);
+                        if res.is_ok() {
+                            return res;
+                        }
+                        // If it failed (e.g. signature mismatch), fall back to Python-style logic below
+                    }
+                    
+                    // Python-style call (obj.method(args))
+                    return pyo3::Python::attach(|py| {
+                        let attr = py_obj.bind(py).getattr(method.as_str())
+                            .map_err(|e| FluxError::new_runtime(format!("Method '{}' found in Flux but failed call AND Python getattr also failed: {}", method, e), span))?;
+                        
+                        let mut py_args = Vec::new();
+                        for arg_expr in arguments {
+                            let arg_val = self.eval_expression(arg_expr, env.clone())?;
+                            py_args.push(self.flux_to_py(py, arg_val, span)?);
+                        }
+                        
+                        let py_args_tuple = pyo3::types::PyTuple::new(py, py_args)
+                            .map_err(|e| FluxError::new_runtime(format!("Failed to create Python tuple for method call: {}", e), span))?;
+                        
+                        let res = attr.call1(py_args_tuple)
+                            .map_err(|e| FluxError::new_runtime(format!("Python method call error: {}", e), span))?;
+                        
+                        self.py_to_flux(py, res, span)
+                    });
                 }
-                
-                self.apply_function(func, args, span)
+
+                // Normal Flux object
+                match env.borrow().get(&method) {
+                    Some(func) => {
+                        let mut args = vec![obj];
+                        for arg in arguments {
+                            args.push(self.eval_expression(arg, env.clone())?);
+                        }
+                        self.apply_function(func, args, span)
+                    }
+                    None => Err(FluxError::new_runtime(format!("Method '{}' not found", method), span))
+                }
             },
             ExpressionKind::Get { object, name } => {
                 let obj = self.eval_expression(*object, env)?;
