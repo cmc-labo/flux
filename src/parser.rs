@@ -12,6 +12,7 @@ pub struct ParserError {
 #[derive(PartialEq, PartialOrd)]
 enum Precedence {
     Lowest,
+    Ternary,     // a if condition else b
     LogicalOr,   // or
     LogicalAnd,  // and
     Equals,      // ==
@@ -704,11 +705,15 @@ impl<'a> Parser<'a> {
                     left_expr = self.parse_get_expression(left_expr)?;
                 }
                 Token::LBracket => {
-                    self.next_token(); // cur_token = [
-                    self.next_token(); // cur_token = start of index
-                    left_expr = self.parse_index_expression(left_expr)?;
-                }
-                _ => break,
+                self.next_token(); // cur_token = [
+                self.next_token(); // cur_token = start of index
+                left_expr = self.parse_index_expression(left_expr)?
+            }
+            Token::If => {
+                self.next_token();
+                left_expr = self.parse_ternary_expression(left_expr)?
+            }
+            _ => break,
             }
         }
 
@@ -943,39 +948,43 @@ impl<'a> Parser<'a> {
 
     fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
         let start = left.span;
-        let operator = match self.cur_token {
-            Token::Plus => InfixOperator::Plus,
-            Token::Minus => InfixOperator::Minus,
-            Token::Star => InfixOperator::Multiply,
-            Token::Slash => InfixOperator::Divide,
-            Token::Percent => InfixOperator::Modulo,
-            Token::Equal => InfixOperator::Equal,
-            Token::NotEqual => InfixOperator::NotEqual,
-            Token::LessThan => InfixOperator::LessThan,
-            Token::GreaterThan => InfixOperator::GreaterThan,
-            Token::LessThanOrEqual => InfixOperator::LessThanOrEqual,
-            Token::GreaterThanOrEqual => InfixOperator::GreaterThanOrEqual,
-            Token::At => InfixOperator::MatrixMultiply,
-            Token::DoubleStar => InfixOperator::Power,
-            Token::In => InfixOperator::In,
-            Token::NotIn => InfixOperator::NotIn,
-            Token::And => InfixOperator::And,
-            Token::Or => InfixOperator::Or,
-            Token::Ampersand => InfixOperator::BitwiseAnd,
-            Token::Pipe => InfixOperator::BitwiseOr,
-            Token::Caret => InfixOperator::BitwiseXor,
-            Token::ShiftLeft => InfixOperator::ShiftLeft,
-            Token::ShiftRight => InfixOperator::ShiftRight,
-            _ => return None,
-        };
-
+        let operator = self.cur_token.to_infix_operator()?;
         let precedence = self.cur_precedence();
         self.next_token();
         let right = self.parse_expression(precedence)?;
         let end = right.span;
-
         Some(Expression {
-            kind: ExpressionKind::Infix { left: Box::new(left), operator, right: Box::new(right) },
+            kind: ExpressionKind::Infix {
+                left: Box::new(left),
+                operator,
+                right: Box::new(right),
+            },
+            span: start.join(end),
+        })
+    }
+
+    fn parse_ternary_expression(&mut self, consequence: Expression) -> Option<Expression> {
+        let start = consequence.span;
+        self.next_token(); // move past if
+        
+        // condition
+        let condition = self.parse_expression(Precedence::Ternary)?;
+        
+        if !self.expect_peek(Token::Else) {
+            return None;
+        }
+        self.next_token(); // move past else
+        
+        // alternative
+        let alternative = self.parse_expression(Precedence::Ternary)?;
+        
+        let end = alternative.span;
+        Some(Expression {
+            kind: ExpressionKind::Ternary {
+                condition: Box::new(condition),
+                consequence: Box::new(consequence),
+                alternative: Box::new(alternative),
+            },
             span: start.join(end),
         })
     }
@@ -1070,6 +1079,7 @@ impl<'a> Parser<'a> {
 
     fn peek_precedence(&self) -> Precedence {
         match self.peek_token {
+            Token::If => Precedence::Ternary,
             Token::Or => Precedence::LogicalOr,
             Token::And => Precedence::LogicalAnd,
             Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual | Token::In | Token::NotIn => Precedence::Equals,
@@ -1088,6 +1098,7 @@ impl<'a> Parser<'a> {
 
     fn cur_precedence(&self) -> Precedence {
         match self.cur_token {
+            Token::If => Precedence::Ternary,
             Token::Or => Precedence::LogicalOr,
             Token::And => Precedence::LogicalAnd,
             Token::Equal | Token::NotEqual | Token::LessThan | Token::GreaterThan | Token::LessThanOrEqual | Token::GreaterThanOrEqual => Precedence::Equals,

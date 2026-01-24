@@ -272,6 +272,14 @@ impl Interpreter {
                 let right_val = self.eval_expression(*right, env)?;
                 self.eval_infix_expression(operator, left_val, right_val).map_err(|e| FluxError::new_runtime(e, span))
             },
+            ExpressionKind::Ternary { condition, consequence, alternative } => {
+                let cond_val = self.eval_expression(*condition, env.clone())?;
+                if self.is_truthy(cond_val) {
+                    self.eval_expression(*consequence, env)
+                } else {
+                    self.eval_expression(*alternative, env)
+                }
+            },
             ExpressionKind::Call { function, arguments } => {
                 let func = self.eval_expression(*function, env.clone())?;
                 let args = arguments.into_iter()

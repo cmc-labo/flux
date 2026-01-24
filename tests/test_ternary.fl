@@ -1,0 +1,32 @@
+# Test Ternary Operator
+
+print("Testing basic ternary operator...")
+let x = 10
+let res = "large" if x > 5 else "small"
+assert res == "large", "Basic ternary (true) failed"
+
+let res2 = "large" if x < 5 else "small"
+assert res2 == "small", "Basic ternary (false) failed"
+
+print("Testing nested ternary operator...")
+let age = 20
+let category = "adult" if age >= 18 else ("teen" if age >= 13 else "child")
+assert category == "adult", "Nested ternary failed"
+
+let age2 = 15
+let category2 = "adult" if age2 >= 18 else ("teen" if age2 >= 13 else "child")
+assert category2 == "teen", "Nested ternary failed"
+
+print("Testing short-circuiting...")
+# The branch not taken should not be evaluated if it could cause an error
+let l = [1, 2, 3]
+let val = l[5] if len(l) > 10 else "default"
+assert val == "default", "Short-circuiting failed"
+
+print("Testing complex expressions...")
+let a = 1
+let b = 2
+let result = (a + b) if (a < b) else (a - b)
+assert result == 3, "Complex expression in ternary failed"
+
+print("All ternary operator tests passed!")

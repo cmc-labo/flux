@@ -331,6 +331,18 @@ impl TypeChecker {
                     _ => Ok(Type::Any),
                 }
             },
+            ExpressionKind::Ternary { condition, consequence, alternative } => {
+                let _ = self.infer_type(condition, env)?;
+                let t1 = self.infer_type(consequence, env)?;
+                let t2 = self.infer_type(alternative, env)?;
+                if t1 == t2 {
+                    Ok(t1)
+                } else if (t1 == Type::Int && t2 == Type::Float) || (t1 == Type::Float && t2 == Type::Int) {
+                    Ok(Type::Float)
+                } else {
+                    Ok(Type::Any)
+                }
+            },
         }
     }
 
