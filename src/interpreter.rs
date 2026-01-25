@@ -800,6 +800,11 @@ impl Interpreter {
                 InfixOperator::NotEqual => Ok(Object::Boolean(false)),
                 _ => Err(format!("Unsupported operator for null: {:?}", operator)),
             },
+            (Object::Dictionary(d1), Object::Dictionary(d2)) => match operator {
+                InfixOperator::Equal => Ok(Object::Boolean(*d1.borrow() == *d2.borrow())),
+                InfixOperator::NotEqual => Ok(Object::Boolean(*d1.borrow() != *d2.borrow())),
+                _ => Err(format!("Unsupported operator for dictionaries: {:?}", operator)),
+            },
             // Handle mixed types?
             (l, r) => Err(format!("Type mismatch: {} {:?} {}", l, operator, r)),
         }

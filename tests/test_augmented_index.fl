@@ -1,0 +1,21 @@
+# Test Augmented Assignment for Indices
+
+print("Testing list augmented assign...")
+let l = [1, 2, 3]
+l[0] += 10
+print("List after l[0] += 10:", l)
+assert l == [11, 2, 3], "List augmented assign failed"
+
+print("Testing dict augmented assign...")
+let d = {"a": 100}
+d["a"] -= 50
+print("Dict after d['a'] -= 50:", d)
+assert d == {"a": 50}, "Dict augmented assign failed"
+
+print("Testing nested augmented assign...")
+let nested = [[10]]
+nested[0][0] *= 2
+print("Nested after nested[0][0] *= 2:", nested)
+assert nested == [[20]], "Nested augmented assign failed"
+
+print("Augmented assignment for indices tests passed!")

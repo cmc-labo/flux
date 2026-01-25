@@ -1,0 +1,21 @@
+# Test Nested Index Assignment
+
+print("Testing nested list assignment...")
+let l = [[1, 2], [3, 4]]
+l[0][1] = 99
+print("List after nested assign:", l)
+assert l == [[1, 99], [3, 4]], "Nested list assignment failed"
+
+print("Testing nested dict assignment...")
+let d = {"a": {"b": 1}}
+d["a"]["b"] = 2
+print("Dict after nested assign:", d)
+assert d == {"a": {"b": 2}}, "Nested dict assignment failed"
+
+print("Testing mixed nested assignment...")
+let complex = [{"x": [10, 20]}]
+complex[0]["x"][1] = 30
+print("Complex after nested assign:", complex)
+assert complex[0]["x"][1] == 30, "Mixed nested assignment failed"
+
+print("Nested index assignment tests passed!")

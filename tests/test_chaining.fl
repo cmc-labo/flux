@@ -1,0 +1,14 @@
+# Test Method Chaining
+
+let s = "  hello  "
+let res = s.strip().upper()
+print("Chained result:", res)
+assert res == "HELLO", "Method chaining failed"
+
+let l = [3, 1, 2]
+# sorted returns a new list, then reverse it (actually reverse is in-place and returns the list)
+let res2 = sorted(l).reverse()
+print("Sorted and reversed:", res2)
+assert res2 == [3, 2, 1], "Chained list methods failed"
+
+print("Method chaining tests passed!")

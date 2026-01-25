@@ -1,0 +1,18 @@
+# Test List Repetition with Reference Types
+
+print("Testing list repetition...")
+let sub = [0]
+let l = [sub] * 3
+print("List before modification:", l)
+# Modifying one element should affect others if they share the same reference
+l[0][0] = 99
+print("List after modification:", l)
+
+if l[1][0] == 99:
+    print("Repetition shares references (Python style)")
+else:
+    print("Repetition clones elements (different from Python)")
+
+assert l[0][0] == 99, "First element should be 99"
+# Decide which behavior we want. Python style is often confusing but 'standard'.
+# If we want to change it, we should clone in the repetition logic.
