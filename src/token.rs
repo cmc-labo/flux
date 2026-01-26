@@ -4,6 +4,7 @@ pub enum Token {
     Integer(i64),
     Float(f64),
     String(String),
+    FString(String),
     Identifier(String),
 
     // Keywords
@@ -25,6 +26,7 @@ pub enum Token {
     Continue,
     Import,
     Assert,
+    Lambda,
 
     // Operators
     Plus,

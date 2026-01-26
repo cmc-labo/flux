@@ -1,9 +1,9 @@
-use crate::ast::{Statement, StatementKind, Expression, ExpressionKind, Block, PrefixOperator, InfixOperator};
+use crate::ast::{Statement, StatementKind, Expression, ExpressionKind, Block, PrefixOperator, InfixOperator, FStringPart};
 use crate::span::Span;
 use crate::object::Object;
 use crate::environment::Environment;
 use crate::error::FluxError;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::cell::RefCell;
 use pyo3::prelude::*;
@@ -536,6 +536,13 @@ impl Interpreter {
                 }
                 Ok(Object::Dictionary(Rc::new(RefCell::new(map))))
             },
+            ExpressionKind::Set(elements) => {
+                let mut set = HashSet::new();
+                for el in elements {
+                    set.insert(self.eval_expression(el, env.clone())?);
+                }
+                Ok(Object::Set(Rc::new(RefCell::new(set))))
+            },
             ExpressionKind::Slice { start, end, step } => {
                 let s = if let Some(expr) = start {
                      match self.eval_expression(*expr, env.clone())? {
@@ -563,6 +570,34 @@ impl Interpreter {
                 }
 
                 Ok(Object::Slice { start: s, stop: e, step: st })
+            }
+            ExpressionKind::Lambda { params, body } => {
+                let body_span = body.span; // Store span before move
+                let function_body = Block {
+                    statements: vec![Statement {
+                        kind: StatementKind::Return(Some(*body)),
+                        span: body_span,
+                    }],
+                    span: body_span,
+                };
+                Ok(Object::Function { 
+                    params, 
+                    body: function_body, 
+                    env: env.clone() 
+                })
+            }
+            ExpressionKind::FString(parts) => {
+                let mut result = String::new();
+                for part in parts {
+                    match part {
+                        FStringPart::Literal(s) => result.push_str(&s),
+                        FStringPart::Expression(expr) => {
+                            let val = self.eval_expression(*expr.clone(), env.clone())?;
+                            result.push_str(&val.to_string());
+                        }
+                    }
+                }
+                Ok(Object::String(result))
             }
         }
     }
@@ -789,6 +824,36 @@ impl Interpreter {
                     Err(format!("Unsupported operator for {} and list: {:?}", l, operator))
                 }
                 _ => Err(format!("Unsupported operator for list: {:?}", operator)),
+            },
+            (Object::Set(s1), Object::Set(s2)) => {
+                let set1 = s1.borrow();
+                let set2 = s2.borrow();
+                match operator {
+                    InfixOperator::BitwiseOr => {
+                        let res: HashSet<Object> = set1.union(&set2).cloned().collect();
+                        Ok(Object::Set(Rc::new(RefCell::new(res))))
+                    }
+                    InfixOperator::BitwiseAnd => {
+                        let res: HashSet<Object> = set1.intersection(&set2).cloned().collect();
+                        Ok(Object::Set(Rc::new(RefCell::new(res))))
+                    }
+                    InfixOperator::Minus => {
+                        let res: HashSet<Object> = set1.difference(&set2).cloned().collect();
+                        Ok(Object::Set(Rc::new(RefCell::new(res))))
+                    }
+                    InfixOperator::BitwiseXor => {
+                        let res: HashSet<Object> = set1.symmetric_difference(&set2).cloned().collect();
+                        Ok(Object::Set(Rc::new(RefCell::new(res))))
+                    }
+                    InfixOperator::Equal => Ok(Object::Boolean(*set1 == *set2)),
+                    InfixOperator::NotEqual => Ok(Object::Boolean(*set1 != *set2)),
+                    _ => Err(format!("Unsupported operator for sets: {:?}", operator)),
+                }
+            },
+            (l, Object::Set(r)) => match operator {
+                InfixOperator::In => Ok(Object::Boolean(r.borrow().contains(&l))),
+                InfixOperator::NotIn => Ok(Object::Boolean(!r.borrow().contains(&l))),
+                _ => Err(format!("Unsupported operator for set: {:?}", operator)),
             },
             (Object::Boolean(l), Object::Boolean(r)) => match operator {
                 InfixOperator::Equal => Ok(Object::Boolean(l == r)),

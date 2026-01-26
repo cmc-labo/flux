@@ -115,7 +115,9 @@ cargo build --release
 
 | Feature | Status | Technology |
 | :--- | :--- | :--- |
-| **Basic Control Flow** | Full | If, While, For-In |
+| **Basic Control Flow** | Full | If, While, For-In, Lambda |
+| **Data Structures** | Robust | List, Dict, Set |
+| **Strings** | Robust | F-Strings, Slicing |
 | **Static Type Hints** | Initial | `TypeChecker` pass |
 | **Tensor Ops** | CPU | `ndarray` backend |
 | **Python Interop** | Robust | `PyO3` |

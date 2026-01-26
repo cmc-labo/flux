@@ -36,9 +36,19 @@ impl<'a> Lexer<'a> {
         let start = self.pos;
         if let Some(&ch) = self.chars.peek() {
             match ch {
-                'a'..='z' | 'A'..='Z' | '_' => self.read_identifier(),
+                'a'..='z' | 'A'..='Z' | '_' => {
+                    if ch == 'f' || ch == 'F' {
+                        let mut lookahead = self.chars.clone();
+                        lookahead.next();
+                        if let Some(&'"') = lookahead.peek() {
+                            self.next_char(); // consume 'f' or 'F'
+                            return self.read_fstring();
+                        }
+                    }
+                    self.read_identifier()
+                },
                 '0'..='9' => self.read_number(),
-                '"' => self.read_string(),
+                '\'' | '"' => self.read_string(),
                 '=' => {
                     self.next_char();
                     if let Some(&'=') = self.chars.peek() {
@@ -315,6 +325,7 @@ impl<'a> Lexer<'a> {
             "continue" => Token::Continue,
             "import" => Token::Import,
             "assert" => Token::Assert,
+            "lambda" => Token::Lambda,
             _ => Token::Identifier(literal),
         };
         (token, span)
@@ -349,10 +360,10 @@ impl<'a> Lexer<'a> {
 
     fn read_string(&mut self) -> (Token, Span) {
         let start = self.pos;
-        self.next_char(); // skip "
+        let quote = self.next_char().unwrap_or('"'); // skip quote
         let mut literal = String::new();
         while let Some(ch) = self.next_char() {
-            if ch == '"' {
+            if ch == quote {
                 break;
             }
             if ch == '\\' {
@@ -362,6 +373,7 @@ impl<'a> Lexer<'a> {
                         't' => literal.push('\t'),
                         '\\' => literal.push('\\'),
                         '"' => literal.push('"'),
+                        '\'' => literal.push('\''),
                         _ => {
                             literal.push('\\');
                             literal.push(next_ch);
@@ -376,6 +388,39 @@ impl<'a> Lexer<'a> {
         }
         let span = Span::new(start, self.pos - start);
         (Token::String(literal), span)
+    }
+
+    fn read_fstring(&mut self) -> (Token, Span) {
+        let start = self.pos - 1; // count 'f'
+        self.next_char(); // skip "
+        let mut literal = String::new();
+        while let Some(ch) = self.next_char() {
+            if ch == '"' {
+                break;
+            }
+            if ch == '\\' {
+                if let Some(next_ch) = self.next_char() {
+                    match next_ch {
+                        'n' => literal.push('\n'),
+                        't' => literal.push('\t'),
+                        '\\' => literal.push('\\'),
+                        '"' => literal.push('"'),
+                        '{' => literal.push('{'),
+                        '}' => literal.push('}'),
+                        _ => {
+                            literal.push('\\');
+                            literal.push(next_ch);
+                        }
+                    }
+                } else {
+                    literal.push('\\');
+                }
+            } else {
+                literal.push(ch);
+            }
+        }
+        let span = Span::new(start, self.pos - start);
+        (Token::FString(literal), span)
     }
 }
 

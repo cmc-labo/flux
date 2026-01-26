@@ -1,7 +1,7 @@
 use crate::ast::Block;
 
 use std::fmt;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::cell::RefCell;
 use pyo3::prelude::*;
@@ -20,6 +20,7 @@ pub enum Object {
     NativeFn(fn(Vec<Object>) -> Result<Object, String>),
     List(Rc<RefCell<Vec<Object>>>),
     Dictionary(Rc<RefCell<HashMap<Object, Object>>>),
+    Set(Rc<RefCell<HashSet<Object>>>),
     Slice { start: Option<i64>, stop: Option<i64>, step: i64 },
     Tensor(Tensor),
     PyObject(Py<PyAny>),
@@ -45,6 +46,7 @@ impl Clone for Object {
             Object::NativeFn(f) => Object::NativeFn(*f),
             Object::List(l) => Object::List(l.clone()),
             Object::Dictionary(d) => Object::Dictionary(d.clone()),
+            Object::Set(s) => Object::Set(s.clone()),
             Object::Slice { start, stop, step } => Object::Slice { 
                 start: *start, 
                 stop: *stop, 
@@ -90,6 +92,7 @@ impl PartialEq for Object {
                 }
                 true
             },
+            (Object::Set(l), Object::Set(r)) => *l.borrow() == *r.borrow(),
             (Object::Slice { start: s1, stop: e1, step: st1 }, Object::Slice { start: s2, stop: e2, step: st2 }) => s1 == s2 && e1 == e2 && st1 == st2,
             // For others, return false for now
             _ => false,
@@ -150,6 +153,15 @@ impl fmt::Display for Object {
                 let elements: Vec<String> = dict.iter().map(|(k, v)| format!("{}: {}", k, v)).collect();
                 write!(f, "{{{}}}", elements.join(", "))
             },
+            Object::Set(s) => {
+                let set = s.borrow();
+                let elements: Vec<String> = set.iter().map(|e| e.to_string()).collect();
+                if elements.is_empty() {
+                    write!(f, "set()")
+                } else {
+                    write!(f, "{{{}}}", elements.join(", "))
+                }
+            },
             Object::Break => write!(f, "break"),
             Object::Continue => write!(f, "continue"),
             Object::Module { name, .. } => write!(f, "module({})", name),
@@ -167,6 +179,7 @@ impl Object {
             Object::String(s) => !s.is_empty(),
             Object::List(l) => !l.borrow().is_empty(),
             Object::Dictionary(d) => !d.borrow().is_empty(),
+            Object::Set(s) => !s.borrow().is_empty(),
             _ => true,
         }
     }

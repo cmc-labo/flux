@@ -150,6 +150,17 @@ impl<'a> Parser<'a> {
                             crate::ast::Type::List(Box::new(crate::ast::Type::Any))
                         }
                     },
+                    "set" => {
+                        if self.peek_token_is(&Token::LBracket) {
+                            self.next_token(); // consume set
+                            self.next_token(); // consume [
+                            let inner = self.parse_type()?;
+                            if !self.expect_peek(Token::RBracket) { return None; }
+                            crate::ast::Type::Set(Box::new(inner))
+                        } else {
+                            crate::ast::Type::Set(Box::new(crate::ast::Type::Any))
+                        }
+                    },
                     "dict" => {
                         if self.peek_token_is(&Token::LBracket) {
                             self.next_token(); // consume dict
@@ -682,7 +693,9 @@ impl<'a> Parser<'a> {
                 expr
             },
             Token::LBracket => self.parse_list_literal(),
-            Token::LBrace => self.parse_dictionary_literal(),
+            Token::LBrace => self.parse_brace_literal(),
+            Token::Lambda => self.parse_lambda_expression(),
+            Token::FString(_) => self.parse_fstring(),
             _ => {
                 let msg = format!("Expected expression, got {:?}", self.cur_token);
                 self.errors.push(ParserError { message: msg, span: self.cur_span });
@@ -783,38 +796,170 @@ impl<'a> Parser<'a> {
         Some(Expression { kind: ExpressionKind::List(elements), span: start.join(end) })
     }
 
-    fn parse_dictionary_literal(&mut self) -> Option<Expression> {
+    fn parse_brace_literal(&mut self) -> Option<Expression> {
         let start = self.cur_span;
-        let mut pairs = Vec::new();
-
-        if self.peek_token_is(&Token::RBrace) {
-            self.next_token(); // move to }
-            return Some(Expression { kind: ExpressionKind::Dictionary(pairs), span: start.join(self.cur_span) });
-        }
-
         self.next_token(); // skip {
         
-        loop {
-            let key = self.parse_expression(Precedence::Lowest)?;
-            if !self.expect_peek(Token::Colon) {
-                return None;
-            }
-            self.next_token(); // skip :
-            let value = self.parse_expression(Precedence::Lowest)?;
-            pairs.push((key, value));
-            
-            if self.peek_token_is(&Token::RBrace) {
-                self.next_token();
-                break;
-            }
-            if !self.expect_peek(Token::Comma) {
-                return None;
-            }
-            self.next_token(); // skip ,
+        if self.cur_token_is(&Token::RBrace) {
+            return Some(Expression { kind: ExpressionKind::Dictionary(vec![]), span: start.join(self.cur_span) });
         }
         
-        let end = self.cur_span;
-        Some(Expression { kind: ExpressionKind::Dictionary(pairs), span: start.join(end) })
+        // Parse first expression to decide if it's a set or dict
+        let first_expr = self.parse_expression(Precedence::Lowest)?;
+        
+        if self.peek_token_is(&Token::Colon) {
+            // Dictionary
+            self.next_token(); // move to first_expr
+            self.next_token(); // move to :
+            let first_val = self.parse_expression(Precedence::Lowest)?;
+            let mut pairs = vec![(first_expr, first_val)];
+            
+            while self.peek_token_is(&Token::Comma) {
+                self.next_token(); // skip ,
+                self.next_token(); // move to next key
+                let key = self.parse_expression(Precedence::Lowest)?;
+                if !self.expect_peek(Token::Colon) { return None; }
+                self.next_token(); // skip :
+                let val = self.parse_expression(Precedence::Lowest)?;
+                pairs.push((key, val));
+            }
+            
+            if !self.expect_peek(Token::RBrace) { return None; }
+            let end = self.cur_span;
+            Some(Expression { kind: ExpressionKind::Dictionary(pairs), span: start.join(end) })
+        } else {
+            // Set
+            let mut elements = vec![first_expr];
+            
+            while self.peek_token_is(&Token::Comma) {
+                self.next_token(); // skip ,
+                self.next_token(); // move to next element
+                elements.push(self.parse_expression(Precedence::Lowest)?);
+            }
+            
+            if !self.expect_peek(Token::RBrace) { return None; }
+            let end = self.cur_span;
+            Some(Expression { kind: ExpressionKind::Set(elements), span: start.join(end) })
+        }
+    }
+    
+    fn parse_lambda_expression(&mut self) -> Option<Expression> {
+        let start = self.cur_span;
+        self.next_token(); // skip lambda
+        
+        let mut params = Vec::new();
+        if !self.cur_token_is(&Token::Colon) {
+            if let Token::Identifier(name) = &self.cur_token {
+                params.push(name.clone());
+            } else {
+                self.errors.push(ParserError { message: format!("Expected Identifier for lambda param, got {:?}", self.cur_token), span: self.cur_span });
+                return None;
+            }
+            
+            while self.peek_token_is(&Token::Comma) {
+                self.next_token(); // comma
+                if !self.expect_peek(Token::Identifier("".to_string())) {
+                    return None;
+                }
+                if let Token::Identifier(name) = &self.cur_token {
+                    params.push(name.clone());
+                }
+            }
+        }
+        
+        if !self.expect_peek(Token::Colon) {
+            return None;
+        }
+        
+        self.next_token(); // skip :
+        let body = self.parse_expression(Precedence::Lowest)?;
+        
+        Some(Expression { 
+            span: start.join(body.span),
+            kind: ExpressionKind::Lambda { params, body: Box::new(body) }
+        })
+    }
+
+    fn parse_fstring(&mut self) -> Option<Expression> {
+        let content = if let Token::FString(s) = &self.cur_token {
+            s.clone()
+        } else {
+            return None;
+        };
+        let start_span = self.cur_span;
+        
+        let mut parts = Vec::new();
+        let mut current_literal = String::new();
+        let chars_vec: Vec<char> = content.chars().collect();
+        let mut i = 0;
+        
+        while i < chars_vec.len() {
+            let ch = chars_vec[i];
+            if ch == '{' {
+                // If double {{, it's an escaped {
+                if i + 1 < chars_vec.len() && chars_vec[i+1] == '{' {
+                    current_literal.push('{');
+                    i += 2;
+                    continue;
+                }
+                
+                // Finish current literal
+                if !current_literal.is_empty() {
+                    parts.push(crate::ast::FStringPart::Literal(current_literal.clone()));
+                    current_literal.clear();
+                }
+                
+                // Extract expression content
+                let mut expr_text = String::new();
+                let mut brace_level = 1;
+                i += 1;
+                while i < chars_vec.len() && brace_level > 0 {
+                    let inner_ch = chars_vec[i];
+                    if inner_ch == '{' { brace_level += 1; }
+                    else if inner_ch == '}' { brace_level -= 1; }
+                    
+                    if brace_level > 0 {
+                        expr_text.push(inner_ch);
+                    }
+                    i += 1;
+                }
+                
+                if brace_level > 0 {
+                    self.errors.push(ParserError { message: "Unclosed { in f-string".to_string(), span: start_span });
+                    return None;
+                }
+                
+                // Parse expression text
+                let lexer = Lexer::new(&expr_text);
+                let mut parser = Parser::new(lexer);
+                if let Some(expr) = parser.parse_expression(Precedence::Lowest) {
+                    parts.push(crate::ast::FStringPart::Expression(Box::new(expr)));
+                } else {
+                    self.errors.push(ParserError { message: format!("Failed to parse expression in f-string: {}", expr_text), span: start_span });
+                    return None;
+                }
+            } else if ch == '}' {
+                if i + 1 < chars_vec.len() && chars_vec[i+1] == '}' {
+                    current_literal.push('}');
+                    i += 2;
+                } else {
+                    self.errors.push(ParserError { message: "Single } found in f-string".to_string(), span: start_span });
+                    return None;
+                }
+            } else {
+                current_literal.push(ch);
+                i += 1;
+            }
+        }
+        
+        if !current_literal.is_empty() {
+            parts.push(crate::ast::FStringPart::Literal(current_literal));
+        }
+
+        Some(Expression { 
+            span: start_span,
+            kind: ExpressionKind::FString(parts)
+        })
     }
 
     fn parse_index_expression(&mut self, left: Expression) -> Option<Expression> {

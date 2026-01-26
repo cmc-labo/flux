@@ -1,0 +1,24 @@
+# tests/test_fstring.fl
+
+print("--- Testing F-Strings ---")
+
+let name = "Flux"
+let version = 0.2
+print(f"Welcome to {name} v{version}!")
+
+let x = 10
+let y = 20
+print(f"{x} + {y} = {x + y}")
+
+let s = {1, 2, 3}
+print(f"Set content: {s}")
+
+# Escaping braces
+print(f"Escaped braces: {{ {x} }}")
+
+# Complex expressions in f-string
+print(f"Square of 5 is {(lambda n: n*n)(5)}")
+
+# Conditional in f-string
+let val = 15
+print(f"Value is {val}, which is {'high' if val > 10 else 'low'}")

@@ -15,6 +15,7 @@ pub enum Type {
     Null,
     List(Box<Type>),
     Dictionary(Box<Type>, Box<Type>),
+    Set(Box<Type>),
     Tensor,
     Any,
     Function(Vec<Type>, Box<Type>),
@@ -59,6 +60,12 @@ pub struct Expression {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum FStringPart {
+    Literal(String),
+    Expression(Box<Expression>),
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum ExpressionKind {
     Identifier(String),
     Integer(i64),
@@ -71,10 +78,13 @@ pub enum ExpressionKind {
     Get { object: Box<Expression>, name: String }, // obj.name
     List(Vec<Expression>),
     Dictionary(Vec<(Expression, Expression)>),
+    Set(Vec<Expression>),
     Index { object: Box<Expression>, index: Box<Expression> },
     ListComprehension { element: Box<Expression>, variable: String, iterable: Box<Expression>, condition: Option<Box<Expression>> },
     Slice { start: Option<Box<Expression>>, end: Option<Box<Expression>>, step: Option<Box<Expression>> },
     Ternary { condition: Box<Expression>, consequence: Box<Expression>, alternative: Box<Expression> },
+    Lambda { params: Vec<String>, body: Box<Expression> },
+    FString(Vec<FStringPart>),
 }
 
 #[derive(Debug, PartialEq, Clone)]

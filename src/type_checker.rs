@@ -258,7 +258,15 @@ impl TypeChecker {
                     InfixOperator::Power => Ok(Type::Float),
                     InfixOperator::MatrixMultiply => Ok(Type::Tensor),
                     InfixOperator::BitwiseAnd | InfixOperator::BitwiseOr | InfixOperator::BitwiseXor |
-                    InfixOperator::ShiftLeft | InfixOperator::ShiftRight => Ok(Type::Int),
+                    InfixOperator::ShiftLeft | InfixOperator::ShiftRight => {
+                        if l_ty == Type::Set(Box::new(Type::Any)) || r_ty == Type::Set(Box::new(Type::Any)) {
+                            // If any is set, result is set
+                            // Better check if both are sets or set-compatible
+                            Ok(l_ty) 
+                        } else {
+                            Ok(Type::Int)
+                        }
+                    },
                 }
             }
             ExpressionKind::Prefix { operator, right } => {
@@ -302,6 +310,21 @@ impl TypeChecker {
                 }
                 Ok(Type::Dictionary(Box::new(key_type), Box::new(val_type)))
             },
+            ExpressionKind::Set(elements) => {
+                if elements.is_empty() {
+                    Ok(Type::Set(Box::new(Type::Any)))
+                } else {
+                    let mut common_ty = self.infer_type(&elements[0], env)?;
+                    for el in &elements[1..] {
+                        let el_ty = self.infer_type(el, env)?;
+                        if el_ty != common_ty {
+                            common_ty = Type::Any;
+                            break;
+                        }
+                    }
+                    Ok(Type::Set(Box::new(common_ty)))
+                }
+            },
             ExpressionKind::Slice { .. } => Ok(Type::Any), // Slices are internal/index only for now
             ExpressionKind::Get { object: _, name: _ } => {
                  // Attribute access. Hard to type without more info.
@@ -330,6 +353,22 @@ impl TypeChecker {
                     Some(Type::Function(_, ret)) => Ok(*ret),
                     _ => Ok(Type::Any),
                 }
+            },
+            ExpressionKind::Lambda { params, body } => {
+                let mut sub_env = TypeEnv::extend(env.clone());
+                for p in params {
+                    sub_env.set(p.clone(), Type::Any);
+                }
+                let ret_ty = self.infer_type(body, &sub_env)?;
+                Ok(Type::Function(vec![Type::Any; params.len()], Box::new(ret_ty)))
+            },
+            ExpressionKind::FString(parts) => {
+                for part in parts {
+                    if let crate::ast::FStringPart::Expression(expr) = part {
+                        self.infer_type(expr, env)?;
+                    }
+                }
+                Ok(Type::String)
             },
             ExpressionKind::Ternary { condition, consequence, alternative } => {
                 let _ = self.infer_type(condition, env)?;
@@ -364,6 +403,10 @@ impl TypeChecker {
         // Handle Dictionary compatibility
         if let (Type::Dictionary(e_k, e_v), Type::Dictionary(a_k, a_v)) = (expected, actual) {
             return self.is_compatible(e_k, a_k) && self.is_compatible(e_v, a_v);
+        }
+        // Handle Set compatibility
+        if let (Type::Set(e_inner), Type::Set(a_inner)) = (expected, actual) {
+            return self.is_compatible(e_inner, a_inner);
         }
         false
     }

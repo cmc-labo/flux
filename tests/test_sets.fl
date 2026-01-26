@@ -1,0 +1,38 @@
+# tests/test_sets.fl
+
+print("--- Testing Set Literals ---")
+let s1 = {1, 2, 3, 3, 2, 1}
+print("s1 =", s1) # Expected {1, 2, 3} (order may vary)
+
+let s2 = {3, 4, 5}
+print("s2 =", s2)
+
+print("\n--- Testing Set Operations ---")
+# Union
+print("s1 | s2 =", s1 | s2)
+
+# Intersection
+print("s1 & s2 =", s1 & s2)
+
+# Difference
+print("s1 - s2 =", s1 - s2)
+
+# Symmetric Difference
+print("s1 ^ s2 =", s1 ^ s2)
+
+print("\n--- Testing Set Truthiness ---")
+if {}:
+    print("{} is truthy")
+else:
+    print("{} is falsy")
+
+if {1}:
+    print("{1} is truthy")
+
+print("\n--- Testing Membership ---")
+# Note: 'in' operator for sets
+if 2 in s1:
+    print("2 is in s1")
+
+if 10 not in s1:
+    print("10 is not in s1")
