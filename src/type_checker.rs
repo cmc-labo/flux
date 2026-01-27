@@ -57,22 +57,94 @@ impl TypeChecker {
         env.set("print".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Null)));
         env.set("type".to_string(), Type::Function(vec![Type::Any], Box::new(Type::String)));
         env.set("range".to_string(), Type::Function(vec![Type::Int], Box::new(Type::List(Box::new(Type::Int)))));
-        env.set("tensor".to_string(), Type::Function(vec![Type::Int], Box::new(Type::Tensor)));
-        env.set("zeros".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
-        env.set("ones".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
-        env.set("rand".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
-        env.set("sum".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("input".to_string(), Type::Function(vec![Type::Any], Box::new(Type::String)));
+        env.set("exit".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Null)));
+        env.set("time".to_string(), Type::Function(vec![], Box::new(Type::Float)));
+        env.set("copy".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+
+        // Math
+        env.set("abs".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("floor".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Int)));
+        env.set("ceil".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Int)));
+        env.set("round".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("sqrt".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("pow".to_string(), Type::Function(vec![Type::Any, Type::Any], Box::new(Type::Float)));
+        env.set("exp".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("log".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("sin".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("cos".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("tan".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("radians".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("degrees".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("factorial".to_string(), Type::Function(vec![Type::Int], Box::new(Type::Int)));
+        env.set("gcd".to_string(), Type::Function(vec![Type::Int, Type::Int], Box::new(Type::Int)));
+        env.set("clamp".to_string(), Type::Function(vec![Type::Any, Type::Any, Type::Any], Box::new(Type::Any)));
+        env.set("isqrt".to_string(), Type::Function(vec![Type::Int], Box::new(Type::Int)));
+        env.set("hypot".to_string(), Type::Function(vec![Type::Any, Type::Any], Box::new(Type::Float)));
+
+        // String
+        env.set("upper".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("lower".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("strip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("lstrip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("rstrip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("capitalize".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("title".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("startswith".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::Bool)));
+        env.set("endswith".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::Bool)));
+        env.set("isdigit".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("isalpha".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("isalnum".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("islower".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("isupper".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("isspace".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("split".to_string(), Type::Function(vec![Type::String], Box::new(Type::List(Box::new(Type::String)))));
+        env.set("join".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::String], Box::new(Type::String)));
+        env.set("replace".to_string(), Type::Function(vec![Type::String, Type::String, Type::String], Box::new(Type::String)));
+        env.set("find".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::Int)));
+        env.set("zfill".to_string(), Type::Function(vec![Type::String, Type::Int], Box::new(Type::String)));
+        env.set("center".to_string(), Type::Function(vec![Type::String, Type::Int], Box::new(Type::String)));
+        env.set("chr".to_string(), Type::Function(vec![Type::Int], Box::new(Type::String)));
+        env.set("ord".to_string(), Type::Function(vec![Type::String], Box::new(Type::Int)));
+        env.set("hex".to_string(), Type::Function(vec![Type::Int], Box::new(Type::String)));
+        env.set("oct".to_string(), Type::Function(vec![Type::Int], Box::new(Type::String)));
+        env.set("bin".to_string(), Type::Function(vec![Type::Int], Box::new(Type::String)));
+
+        // List
+        env.set("append".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::Any], Box::new(Type::Any)));
+        env.set("extend".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::List(Box::new(Type::Any))], Box::new(Type::Any)));
+        env.set("pop".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("remove".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::Any], Box::new(Type::Any)));
+        env.set("insert".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::Int, Type::Any], Box::new(Type::Any)));
+        env.set("index".to_string(), Type::Function(vec![Type::Any, Type::Any], Box::new(Type::Int)));
+        env.set("count".to_string(), Type::Function(vec![Type::Any, Type::Any], Box::new(Type::Int)));
+        env.set("unique".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("sorted".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("reverse".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("swap".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::Int, Type::Int], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("flat".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("sum".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
         env.set("mean".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("all".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::Bool)));
+        env.set("any".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::Bool)));
+        env.set("zip".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("enumerate".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+
+        // Dict
         env.set("keys".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
         env.set("values".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
         env.set("items".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::List(Box::new(Type::Any)))))));
         env.set("get".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any)), Type::Any, Type::Any], Box::new(Type::Any)));
-        env.set("lstrip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
-        env.set("rstrip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
-        env.set("unique".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("clear".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Null)));
+
+        // Tensor
+        env.set("tensor".to_string(), Type::Function(vec![Type::Int], Box::new(Type::Tensor)));
+        env.set("zeros".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
+        env.set("ones".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
+        env.set("rand".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
         env.set("dot".to_string(), Type::Function(vec![Type::Tensor, Type::Tensor], Box::new(Type::Tensor)));
-        env.set("input".to_string(), Type::Function(vec![Type::Any], Box::new(Type::String)));
-        env.set("sorted".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("reshape".to_string(), Type::Function(vec![Type::Tensor, Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
+        env.set("transpose".to_string(), Type::Function(vec![Type::Tensor], Box::new(Type::Tensor)));
         env
     }
 

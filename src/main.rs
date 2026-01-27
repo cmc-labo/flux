@@ -970,19 +970,6 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("count".to_string(), count_fn);
 
-    let input_fn = Object::NativeFn(|args| {
-        let msg = if args.len() == 1 {
-            args[0].to_string()
-        } else {
-            "".to_string()
-        };
-        print!("{}", msg);
-        io::stdout().flush().unwrap();
-        let mut response = String::new();
-        io::stdin().read_line(&mut response).unwrap();
-        Ok(Object::String(response.trim_end().to_string()))
-    });
-    env.borrow_mut().set("input".to_string(), input_fn);
 
     let exit_fn = Object::NativeFn(|args| {
         let code = if args.len() == 1 {
@@ -1536,187 +1523,47 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("flat".to_string(), flat_fn);
 
-    // Constants
-    env.borrow_mut().set("pi".to_string(), Object::Float(std::f64::consts::PI));
-    env.borrow_mut().set("e".to_string(), Object::Float(std::f64::consts::E));
-    env.borrow_mut().set("PI".to_string(), Object::Float(std::f64::consts::PI));
-    env.borrow_mut().set("E".to_string(), Object::Float(std::f64::consts::E));
+    let copy_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("copy() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::List(l) => Ok(Object::List(Rc::new(RefCell::new(l.borrow().clone())))),
+            Object::Dictionary(d) => Ok(Object::Dictionary(Rc::new(RefCell::new(d.borrow().clone())))),
+            Object::Set(s) => Ok(Object::Set(Rc::new(RefCell::new(s.borrow().clone())))),
+            _ => Ok(args[0].clone()), // Immutables return themselves
+        }
+    });
+    env.borrow_mut().set("copy".to_string(), copy_fn);
 
-    let keys_fn = Object::NativeFn(|args| {
-        if args.len() != 1 {
-            return Err("keys() takes exactly 1 argument".to_string());
-        }
+    let isalnum_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isalnum() takes exactly 1 argument".to_string()); }
         match &args[0] {
-            Object::Dictionary(d) => {
-                let keys: Vec<Object> = d.borrow().keys().cloned().collect();
-                Ok(Object::List(Rc::new(RefCell::new(keys))))
-            },
-            _ => Err(format!("keys() argument must be a dictionary, got {}", args[0])),
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_alphanumeric()))),
+            _ => Err(format!("isalnum() arg must be string, got {}", args[0])),
         }
     });
-    env.borrow_mut().set("keys".to_string(), keys_fn);
+    env.borrow_mut().set("isalnum".to_string(), isalnum_fn);
 
-    let values_fn = Object::NativeFn(|args| {
-        if args.len() != 1 {
-            return Err("values() takes exactly 1 argument".to_string());
-        }
+    let islower_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("islower() takes exactly 1 argument".to_string()); }
         match &args[0] {
-            Object::Dictionary(d) => {
-                let values: Vec<Object> = d.borrow().values().cloned().collect();
-                Ok(Object::List(Rc::new(RefCell::new(values))))
-            },
-            _ => Err(format!("values() argument must be a dictionary, got {}", args[0])),
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| !c.is_uppercase()) && s.chars().any(|c| c.is_lowercase()))),
+            _ => Err(format!("islower() arg must be string, got {}", args[0])),
         }
     });
-    env.borrow_mut().set("values".to_string(), values_fn);
+    env.borrow_mut().set("islower".to_string(), islower_fn);
 
-    let items_fn = Object::NativeFn(|args| {
-        if args.len() != 1 {
-            return Err("items() takes exactly 1 argument".to_string());
-        }
+    let isupper_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isupper() takes exactly 1 argument".to_string()); }
         match &args[0] {
-            Object::Dictionary(d) => {
-                let items: Vec<Object> = d.borrow().iter()
-                    .map(|(k, v)| Object::List(Rc::new(RefCell::new(vec![k.clone(), v.clone()]))))
-                    .collect();
-                Ok(Object::List(Rc::new(RefCell::new(items))))
-            },
-            _ => Err(format!("items() argument must be a dictionary, got {}", args[0])),
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| !c.is_lowercase()) && s.chars().any(|c| c.is_uppercase()))),
+            _ => Err(format!("isupper() arg must be string, got {}", args[0])),
         }
     });
-    env.borrow_mut().set("items".to_string(), items_fn);
+    env.borrow_mut().set("isupper".to_string(), isupper_fn);
 
-    let get_fn = Object::NativeFn(|args| {
-        if args.len() < 2 || args.len() > 3 {
-             return Err("get() takes 2 or 3 arguments (dict, key, [default])".to_string());
-        }
-        let dict = match &args[0] {
-            Object::Dictionary(d) => d,
-            _ => return Err(format!("get() first argument must be a dictionary, got {}", args[0])),
-        };
-        let key = &args[1];
-        let default = if args.len() == 3 { args[2].clone() } else { Object::Null };
-        
-        match dict.borrow().get(key) {
-            Some(val) => Ok(val.clone()),
-            None => Ok(default),
-        }
-    });
-    env.borrow_mut().set("get".to_string(), get_fn);
-
-    let lstrip_fn = Object::NativeFn(|args| {
-        if args.len() != 1 {
-            return Err("lstrip() takes exactly 1 argument".to_string());
-        }
-        match &args[0] {
-            Object::String(s) => Ok(Object::String(s.trim_start().to_string())),
-            _ => Err(format!("lstrip() argument must be a string, got {}", args[0])),
-        }
-    });
-    env.borrow_mut().set("lstrip".to_string(), lstrip_fn);
-
-    let rstrip_fn = Object::NativeFn(|args| {
-        if args.len() != 1 {
-            return Err("rstrip() takes exactly 1 argument".to_string());
-        }
-        match &args[0] {
-            Object::String(s) => Ok(Object::String(s.trim_end().to_string())),
-            _ => Err(format!("rstrip() argument must be a string, got {}", args[0])),
-        }
-    });
-    env.borrow_mut().set("rstrip".to_string(), rstrip_fn);
-    
-    // Combined strip function
-    let strip_fn = Object::NativeFn(|args| {
-        if args.len() != 1 {
-            return Err("strip() takes exactly 1 argument".to_string());
-        }
-        match &args[0] {
-            Object::String(s) => Ok(Object::String(s.trim().to_string())),
-            _ => Err(format!("strip() argument must be a string, got {}", args[0])),
-        }
-    });
-    env.borrow_mut().set("strip".to_string(), strip_fn);
-    
-    // clear function for lists and dicts
-    let clear_fn = Object::NativeFn(|args| {
-        if args.len() != 1 {
-            return Err("clear() takes exactly 1 argument".to_string());
-        }
-        match &args[0] {
-            Object::List(l) => {
-                l.borrow_mut().clear();
-                Ok(Object::Null)
-            },
-            Object::Dictionary(d) => {
-                d.borrow_mut().clear();
-                Ok(Object::Null)
-            },
-            _ => Err(format!("clear() argument must be a list or dictionary, got {}", args[0])),
-        }
-    });
-    env.borrow_mut().set("clear".to_string(), clear_fn);
-    
-    // replace function for strings
-    let replace_fn = Object::NativeFn(|args| {
-        if args.len() != 3 {
-            return Err("replace() takes exactly 3 arguments (string, old, new)".to_string());
-        }
-        match (&args[0], &args[1], &args[2]) {
-            (Object::String(s), Object::String(old), Object::String(new)) => {
-                Ok(Object::String(s.replace(old, new)))
-            },
-            _ => Err("replace() arguments must be strings".to_string()),
-        }
-    });
-    env.borrow_mut().set("replace".to_string(), replace_fn);
-    
-    // startswith function for strings
-    let startswith_fn = Object::NativeFn(|args| {
-        if args.len() != 2 {
-            return Err("startswith() takes exactly 2 arguments (string, prefix)".to_string());
-        }
-        match (&args[0], &args[1]) {
-            (Object::String(s), Object::String(prefix)) => {
-                Ok(Object::Boolean(s.starts_with(prefix)))
-            },
-            _ => Err("startswith() arguments must be strings".to_string()),
-        }
-    });
-    env.borrow_mut().set("startswith".to_string(), startswith_fn);
-    
-    // endswith function for strings
-    let endswith_fn = Object::NativeFn(|args| {
-        if args.len() != 2 {
-            return Err("endswith() takes exactly 2 arguments (string, suffix)".to_string());
-        }
-        match (&args[0], &args[1]) {
-            (Object::String(s), Object::String(suffix)) => {
-                Ok(Object::Boolean(s.ends_with(suffix)))
-            },
-            _ => Err("endswith() arguments must be strings".to_string()),
-        }
-    });
-    env.borrow_mut().set("endswith".to_string(), endswith_fn);
-    
-    let unique_fn = Object::NativeFn(|args| {
-        if args.len() != 1 {
-            return Err("unique() takes exactly 1 argument".to_string());
-        }
-        match &args[0] {
-            Object::List(l) => {
-                let mut unique_list = Vec::new();
-                for item in l.borrow().iter() {
-                    if !unique_list.contains(item) {
-                       unique_list.push(item.clone());
-                    }
-                }
-                Ok(Object::List(Rc::new(RefCell::new(unique_list))))
-            },
-             _ => Err(format!("unique() argument must be a list, got {}", args[0])),
-        }
-    });
-    env.borrow_mut().set("unique".to_string(), unique_fn);
+    // Registry continues below...
 
     // Constants
     env.borrow_mut().set("true".to_string(), Object::Boolean(true));

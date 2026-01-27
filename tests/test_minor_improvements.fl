@@ -1,0 +1,45 @@
+# tests/test_minor_improvements.fl
+
+print("--- Testing String Case & Type ---")
+let s = "Flux123"
+print(f"'{s}' isalnum?", isalnum(s))
+print(f"'{s}' islower?", islower(s))
+print(f"'{s}' isupper?", isupper(s))
+
+let s_low = "flux"
+print(f"'{s_low}' islower?", s_low.islower()) # Test method call style
+print(f"'{s_low}' isupper?", s_low.isupper())
+
+let s_up = "FLUX"
+print(f"'{s_up}' isupper?", s_up.isupper())
+
+print("\n--- Testing Object Copying ---")
+let l1 = [1, 2, 3]
+let l2 = copy(l1)
+append(l2, 4)
+print("l1 =", l1) # Expected [1, 2, 3]
+print("l2 =", l2) # Expected [1, 2, 3, 4]
+
+let d1 = {"a": 1, "b": 2}
+let d2 = d1.copy() # Test method style
+d2["c"] = 3
+print("d1 =", d1)
+print("d2 =", d2)
+
+print("\n--- Testing Deduplicated Built-ins ---")
+print("Keys of d1:", d1.keys())
+print("Values of d1:", d1.values())
+
+print("\n--- Testing Math Functions ---")
+print("abs(-10) =", abs(-10))
+print("round(3.14159, 2) =", round(3.14159, 2))
+print("round(3.14159) =", round(3.14159))
+print("isqrt(16) =", isqrt(16))
+print("gcd(12, 18) =", gcd(12, 18))
+
+print("\n--- Testing List pop ---")
+let list_to_pop = [10, 20, 30]
+let popped = list_to_pop.pop()
+print("Popped:", popped, "Rest:", list_to_pop)
+let popped0 = list_to_pop.pop(0)
+print("Popped at 0:", popped0, "Rest:", list_to_pop)
