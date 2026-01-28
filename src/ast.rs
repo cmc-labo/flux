@@ -81,6 +81,8 @@ pub enum ExpressionKind {
     Set(Vec<Expression>),
     Index { object: Box<Expression>, index: Box<Expression> },
     ListComprehension { element: Box<Expression>, variable: String, iterable: Box<Expression>, condition: Option<Box<Expression>> },
+    SetComprehension { element: Box<Expression>, variable: String, iterable: Box<Expression>, condition: Option<Box<Expression>> },
+    DictComprehension { key: Box<Expression>, value: Box<Expression>, variable: String, iterable: Box<Expression>, condition: Option<Box<Expression>> },
     Slice { start: Option<Box<Expression>>, end: Option<Box<Expression>>, step: Option<Box<Expression>> },
     Ternary { condition: Box<Expression>, consequence: Box<Expression>, alternative: Box<Expression> },
     Lambda { params: Vec<String>, body: Box<Expression> },

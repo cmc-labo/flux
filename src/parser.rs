@@ -758,7 +758,7 @@ impl<'a> Parser<'a> {
                 return None;
             }
             self.next_token(); // skip in
-            let iterable = self.parse_expression(Precedence::Lowest)?;
+            let iterable = self.parse_expression(Precedence::Ternary)?;
             
             let mut condition = None;
             if self.peek_token_is(&Token::If) {
@@ -804,42 +804,108 @@ impl<'a> Parser<'a> {
             return Some(Expression { kind: ExpressionKind::Dictionary(vec![]), span: start.join(self.cur_span) });
         }
         
-        // Parse first expression to decide if it's a set or dict
+        // Parse first expression
         let first_expr = self.parse_expression(Precedence::Lowest)?;
         
         if self.peek_token_is(&Token::Colon) {
-            // Dictionary
+            // Dictionary or Dict Comprehension
             self.next_token(); // move to first_expr
             self.next_token(); // move to :
             let first_val = self.parse_expression(Precedence::Lowest)?;
-            let mut pairs = vec![(first_expr, first_val)];
             
-            while self.peek_token_is(&Token::Comma) {
-                self.next_token(); // skip ,
-                self.next_token(); // move to next key
-                let key = self.parse_expression(Precedence::Lowest)?;
-                if !self.expect_peek(Token::Colon) { return None; }
-                self.next_token(); // skip :
-                let val = self.parse_expression(Precedence::Lowest)?;
-                pairs.push((key, val));
+            if self.peek_token_is(&Token::For) {
+                // {k: v for x in y}
+                self.next_token(); // move to for
+                if !self.expect_peek(Token::Identifier("".to_string())) { return None; }
+                let variable = match &self.cur_token {
+                    Token::Identifier(n) => n.clone(),
+                    _ => return None,
+                };
+                if !self.expect_peek(Token::In) { return None; }
+                self.next_token(); // skip in
+                let iterable = self.parse_expression(Precedence::Ternary)?;
+                
+                let mut condition = None;
+                if self.peek_token_is(&Token::If) {
+                    self.next_token(); // skip to if
+                    self.next_token(); // skip if
+                    condition = Some(Box::new(self.parse_expression(Precedence::Lowest)?));
+                }
+                
+                if !self.expect_peek(Token::RBrace) { return None; }
+                let end = self.cur_span;
+                return Some(Expression { 
+                    kind: ExpressionKind::DictComprehension { 
+                        key: Box::new(first_expr), 
+                        value: Box::new(first_val), 
+                        variable, 
+                        iterable: Box::new(iterable), 
+                        condition 
+                    }, 
+                    span: start.join(end) 
+                });
+            } else {
+                // Dictionary literal
+                let mut pairs = vec![(first_expr, first_val)];
+                while self.peek_token_is(&Token::Comma) {
+                    self.next_token(); // skip ,
+                    self.next_token(); // move to next key
+                    let key = self.parse_expression(Precedence::Lowest)?;
+                    if !self.expect_peek(Token::Colon) { return None; }
+                    self.next_token(); // skip :
+                    let val = self.parse_expression(Precedence::Lowest)?;
+                    pairs.push((key, val));
+                }
+                
+                if !self.expect_peek(Token::RBrace) { return None; }
+                let end = self.cur_span;
+                Some(Expression { kind: ExpressionKind::Dictionary(pairs), span: start.join(end) })
             }
-            
-            if !self.expect_peek(Token::RBrace) { return None; }
-            let end = self.cur_span;
-            Some(Expression { kind: ExpressionKind::Dictionary(pairs), span: start.join(end) })
         } else {
-            // Set
-            let mut elements = vec![first_expr];
-            
-            while self.peek_token_is(&Token::Comma) {
-                self.next_token(); // skip ,
-                self.next_token(); // move to next element
-                elements.push(self.parse_expression(Precedence::Lowest)?);
+            // Set or Set Comprehension
+            if self.peek_token_is(&Token::For) {
+                // {x for x in y}
+                self.next_token(); // move to for
+                if !self.expect_peek(Token::Identifier("".to_string())) { return None; }
+                let variable = match &self.cur_token {
+                    Token::Identifier(n) => n.clone(),
+                    _ => return None,
+                };
+                if !self.expect_peek(Token::In) { return None; }
+                self.next_token(); // skip in
+                let iterable = self.parse_expression(Precedence::Ternary)?;
+                
+                let mut condition = None;
+                if self.peek_token_is(&Token::If) {
+                    self.next_token(); // skip to if
+                    self.next_token(); // skip if
+                    condition = Some(Box::new(self.parse_expression(Precedence::Lowest)?));
+                }
+                
+                if !self.expect_peek(Token::RBrace) { return None; }
+                let end = self.cur_span;
+                return Some(Expression { 
+                    kind: ExpressionKind::SetComprehension { 
+                        element: Box::new(first_expr), 
+                        variable, 
+                        iterable: Box::new(iterable), 
+                        condition 
+                    }, 
+                    span: start.join(end) 
+                });
+            } else {
+                // Set literal
+                let mut elements = vec![first_expr];
+                while self.peek_token_is(&Token::Comma) {
+                    self.next_token(); // skip ,
+                    self.next_token(); // move to next element
+                    elements.push(self.parse_expression(Precedence::Lowest)?);
+                }
+                
+                if !self.expect_peek(Token::RBrace) { return None; }
+                let end = self.cur_span;
+                Some(Expression { kind: ExpressionKind::Set(elements), span: start.join(end) })
             }
-            
-            if !self.expect_peek(Token::RBrace) { return None; }
-            let end = self.cur_span;
-            Some(Expression { kind: ExpressionKind::Set(elements), span: start.join(end) })
         }
     }
     

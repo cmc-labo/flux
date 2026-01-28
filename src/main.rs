@@ -1536,6 +1536,45 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("copy".to_string(), copy_fn);
 
+    let set_add_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("add() takes exactly 2 arguments (set, item)".to_string()); }
+        let set = match &args[0] {
+            Object::Set(s) => s,
+            _ => return Err(format!("add() first argument must be a set, got {}", args[0])),
+        };
+        set.borrow_mut().insert(args[1].clone());
+        Ok(args[0].clone())
+    });
+    env.borrow_mut().set("add".to_string(), set_add_fn);
+
+    let set_discard_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("discard() takes exactly 2 arguments (set, item)".to_string()); }
+        let set = match &args[0] {
+            Object::Set(s) => s,
+            _ => return Err(format!("discard() first argument must be a set, got {}", args[0])),
+        };
+        set.borrow_mut().remove(&args[1]);
+        Ok(args[0].clone())
+    });
+    env.borrow_mut().set("discard".to_string(), set_discard_fn);
+
+    let dict_update_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("update() takes exactly 2 arguments (dict, other)".to_string()); }
+        let dict = match &args[0] {
+            Object::Dictionary(d) => d,
+            _ => return Err(format!("update() first argument must be a dictionary, got {}", args[0])),
+        };
+        let other = match &args[1] {
+            Object::Dictionary(d) => d,
+            _ => return Err(format!("update() second argument must be a dictionary, got {}", args[1])),
+        };
+        for (k, v) in other.borrow().iter() {
+            dict.borrow_mut().insert(k.clone(), v.clone());
+        }
+        Ok(args[0].clone())
+    });
+    env.borrow_mut().set("update".to_string(), dict_update_fn);
+
     let isalnum_fn = Object::NativeFn(|args| {
         if args.len() != 1 { return Err("isalnum() takes exactly 1 argument".to_string()); }
         match &args[0] {

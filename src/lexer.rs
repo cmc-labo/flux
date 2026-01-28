@@ -40,9 +40,12 @@ impl<'a> Lexer<'a> {
                     if ch == 'f' || ch == 'F' {
                         let mut lookahead = self.chars.clone();
                         lookahead.next();
-                        if let Some(&'"') = lookahead.peek() {
-                            self.next_char(); // consume 'f' or 'F'
-                            return self.read_fstring();
+                        match lookahead.peek() {
+                            Some(&'"') | Some(&'\'') => {
+                                self.next_char(); // skip f
+                                return self.read_fstring();
+                            }
+                            _ => {}
                         }
                     }
                     self.read_identifier()
@@ -361,66 +364,152 @@ impl<'a> Lexer<'a> {
     fn read_string(&mut self) -> (Token, Span) {
         let start = self.pos;
         let quote = self.next_char().unwrap_or('"'); // skip quote
-        let mut literal = String::new();
-        while let Some(ch) = self.next_char() {
-            if ch == quote {
-                break;
-            }
-            if ch == '\\' {
-                if let Some(next_ch) = self.next_char() {
-                    match next_ch {
-                        'n' => literal.push('\n'),
-                        't' => literal.push('\t'),
-                        '\\' => literal.push('\\'),
-                        '"' => literal.push('"'),
-                        '\'' => literal.push('\''),
-                        _ => {
-                            literal.push('\\');
-                            literal.push(next_ch);
+        
+        // Check for triple quotes
+        let is_triple = {
+            let mut lookahead = self.chars.clone();
+            lookahead.next() == Some(quote) && lookahead.next() == Some(quote)
+        };
+        
+        if is_triple {
+            self.next_char(); // second quote
+            self.next_char(); // third quote
+            let mut literal = String::new();
+            while let Some(ch) = self.next_char() {
+                if ch == quote {
+                    let mut lookahead = self.chars.clone();
+                    if lookahead.next() == Some(quote) && lookahead.next() == Some(quote) {
+                        self.next_char();
+                        self.next_char();
+                        break;
+                    }
+                }
+                if ch == '\\' {
+                    if let Some(next_ch) = self.next_char() {
+                        match next_ch {
+                            'n' => literal.push('\n'),
+                            't' => literal.push('\t'),
+                            '\\' => literal.push('\\'),
+                            _ if next_ch == quote => literal.push(quote),
+                            _ => {
+                                literal.push('\\');
+                                literal.push(next_ch);
+                            }
                         }
+                    } else {
+                        literal.push('\\');
                     }
                 } else {
-                    literal.push('\\');
+                    literal.push(ch);
                 }
-            } else {
-                literal.push(ch);
             }
+            let span = Span::new(start, self.pos - start);
+            (Token::String(literal), span)
+        } else {
+            let mut literal = String::new();
+            while let Some(ch) = self.next_char() {
+                if ch == quote {
+                    break;
+                }
+                if ch == '\\' {
+                    if let Some(next_ch) = self.next_char() {
+                        match next_ch {
+                            'n' => literal.push('\n'),
+                            't' => literal.push('\t'),
+                            '\\' => literal.push('\\'),
+                            _ if next_ch == quote => literal.push(quote),
+                            _ => {
+                                literal.push('\\');
+                                literal.push(next_ch);
+                            }
+                        }
+                    } else {
+                        literal.push('\\');
+                    }
+                } else {
+                    literal.push(ch);
+                }
+            }
+            let span = Span::new(start, self.pos - start);
+            (Token::String(literal), span)
         }
-        let span = Span::new(start, self.pos - start);
-        (Token::String(literal), span)
     }
 
     fn read_fstring(&mut self) -> (Token, Span) {
         let start = self.pos - 1; // count 'f'
-        self.next_char(); // skip "
-        let mut literal = String::new();
-        while let Some(ch) = self.next_char() {
-            if ch == '"' {
-                break;
-            }
-            if ch == '\\' {
-                if let Some(next_ch) = self.next_char() {
-                    match next_ch {
-                        'n' => literal.push('\n'),
-                        't' => literal.push('\t'),
-                        '\\' => literal.push('\\'),
-                        '"' => literal.push('"'),
-                        '{' => literal.push('{'),
-                        '}' => literal.push('}'),
-                        _ => {
-                            literal.push('\\');
-                            literal.push(next_ch);
+        let quote = self.next_char().unwrap_or('"'); // skip opening quote
+        
+        let is_triple = {
+            let mut lookahead = self.chars.clone();
+            lookahead.next() == Some(quote) && lookahead.next() == Some(quote)
+        };
+        
+        if is_triple {
+            self.next_char(); // second quote
+            self.next_char(); // third quote
+            let mut literal = String::new();
+            while let Some(ch) = self.next_char() {
+                if ch == quote {
+                    let mut lookahead = self.chars.clone();
+                    if lookahead.next() == Some(quote) && lookahead.next() == Some(quote) {
+                        self.next_char();
+                        self.next_char();
+                        break;
+                    }
+                }
+                if ch == '\\' {
+                    if let Some(next_ch) = self.next_char() {
+                        match next_ch {
+                            'n' => literal.push('\n'),
+                            't' => literal.push('\t'),
+                            '\\' => literal.push('\\'),
+                            '{' => literal.push('{'),
+                            '}' => literal.push('}'),
+                            _ if next_ch == quote => literal.push(quote),
+                            _ => {
+                                literal.push('\\');
+                                literal.push(next_ch);
+                            }
                         }
+                    } else {
+                        literal.push('\\');
                     }
                 } else {
-                    literal.push('\\');
+                    literal.push(ch);
                 }
-            } else {
-                literal.push(ch);
             }
+            let span = Span::new(start, self.pos - start);
+            (Token::FString(literal), span)
+        } else {
+            let mut literal = String::new();
+            while let Some(ch) = self.next_char() {
+                if ch == quote {
+                    break;
+                }
+                if ch == '\\' {
+                    if let Some(next_ch) = self.next_char() {
+                        match next_ch {
+                            'n' => literal.push('\n'),
+                            't' => literal.push('\t'),
+                            '\\' => literal.push('\\'),
+                            '{' => literal.push('{'),
+                            '}' => literal.push('}'),
+                            _ if next_ch == quote => literal.push(quote),
+                            _ => {
+                                literal.push('\\');
+                                literal.push(next_ch);
+                            }
+                        }
+                    } else {
+                        literal.push('\\');
+                    }
+                } else {
+                    literal.push(ch);
+                }
+            }
+            let span = Span::new(start, self.pos - start);
+            (Token::FString(literal), span)
         }
-        let span = Span::new(start, self.pos - start);
-        (Token::FString(literal), span)
     }
 }
 

@@ -511,21 +511,75 @@ impl Interpreter {
 
                 let mut result_list = Vec::new();
                 for el in elements {
-                    env.borrow_mut().set(variable.clone(), el);
+                    let sub_env = Rc::new(RefCell::new(Environment::new_enclosed(env.clone())));
+                    sub_env.borrow_mut().set(variable.clone(), el);
                     
                     let should_include = if let Some(cond) = &condition {
-                        let res = self.eval_expression((**cond).clone(), env.clone())?;
+                        let res = self.eval_expression((**cond).clone(), sub_env.clone())?;
                         self.is_truthy(res)
                     } else {
                         true
                     };
 
                     if should_include {
-                        let val = self.eval_expression((*element).clone(), env.clone())?;
+                        let val = self.eval_expression((*element).clone(), sub_env)?;
                         result_list.push(val);
                     }
                 }
                  Ok(Object::List(Rc::new(RefCell::new(result_list))))
+            },
+            ExpressionKind::SetComprehension { element, variable, iterable, condition } => {
+                let iter_obj = self.eval_expression(*iterable, env.clone())?;
+                let elements = match iter_obj {
+                    Object::List(l) => l.borrow().clone(),
+                    _ => return Err(FluxError::new_runtime(format!("Cannot iterate over {} in set comprehension", iter_obj), span)),
+                };
+
+                let mut result_set = HashSet::new();
+                for el in elements {
+                    let sub_env = Rc::new(RefCell::new(Environment::new_enclosed(env.clone())));
+                    sub_env.borrow_mut().set(variable.clone(), el);
+                    
+                    let should_include = if let Some(cond) = &condition {
+                        let res = self.eval_expression((**cond).clone(), sub_env.clone())?;
+                        self.is_truthy(res)
+                    } else {
+                        true
+                    };
+
+                    if should_include {
+                        let val = self.eval_expression((*element).clone(), sub_env)?;
+                        result_set.insert(val);
+                    }
+                }
+                 Ok(Object::Set(Rc::new(RefCell::new(result_set))))
+            },
+            ExpressionKind::DictComprehension { key, value, variable, iterable, condition } => {
+                let iter_obj = self.eval_expression(*iterable, env.clone())?;
+                let elements = match iter_obj {
+                    Object::List(l) => l.borrow().clone(),
+                    _ => return Err(FluxError::new_runtime(format!("Cannot iterate over {} in dict comprehension", iter_obj), span)),
+                };
+
+                let mut result_dict = HashMap::new();
+                for el in elements {
+                    let sub_env = Rc::new(RefCell::new(Environment::new_enclosed(env.clone())));
+                    sub_env.borrow_mut().set(variable.clone(), el);
+                    
+                    let should_include = if let Some(cond) = &condition {
+                        let res = self.eval_expression((**cond).clone(), sub_env.clone())?;
+                        self.is_truthy(res)
+                    } else {
+                        true
+                    };
+
+                    if should_include {
+                        let k = self.eval_expression((*key).clone(), sub_env.clone())?;
+                        let v = self.eval_expression((*value).clone(), sub_env)?;
+                        result_dict.insert(k, v);
+                    }
+                }
+                 Ok(Object::Dictionary(Rc::new(RefCell::new(result_dict))))
             },
             ExpressionKind::Dictionary(pairs) => {
                 let mut map = std::collections::HashMap::new();

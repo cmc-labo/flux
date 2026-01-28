@@ -62,6 +62,14 @@ The static type checker runs before execution, catching errors early.
 
 ---
 
+## Advanced Features
+- **Comprehensions**: Native support for list, set, and dictionary comprehensions.
+- **Triple-Quote Strings**: Multi-line literals using `"""` or `'''`.
+- **Set Support**: Native set literals and operations (`|`, `&`, etc.).
+- **Utility Functions**: Enhanced standard library with `copy()`, `isalnum()`, `islower()`, `isupper()`, `split()`, `round()`, etc.
+
+---
+
 ## Python Interoperability
 Leverage the massive Python ecosystem directly from Flux.
 

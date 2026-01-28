@@ -98,6 +98,7 @@ impl TypeChecker {
         env.set("islower".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
         env.set("isupper".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
         env.set("isspace".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("str".to_string(), Type::Function(vec![Type::Any], Box::new(Type::String)));
         env.set("split".to_string(), Type::Function(vec![Type::String], Box::new(Type::List(Box::new(Type::String)))));
         env.set("join".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::String], Box::new(Type::String)));
         env.set("replace".to_string(), Type::Function(vec![Type::String, Type::String, Type::String], Box::new(Type::String)));
@@ -130,11 +131,16 @@ impl TypeChecker {
         env.set("zip".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
         env.set("enumerate".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
 
+        // Set
+        env.set("add".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Any], Box::new(Type::Any)));
+        env.set("discard".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Any], Box::new(Type::Any)));
+
         // Dict
         env.set("keys".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
         env.set("values".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
         env.set("items".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::List(Box::new(Type::Any)))))));
         env.set("get".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any)), Type::Any, Type::Any], Box::new(Type::Any)));
+        env.set("update".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any)), Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::Any)));
         env.set("clear".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Null)));
 
         // Tensor
@@ -418,6 +424,41 @@ impl TypeChecker {
                 
                 let res_ty = self.infer_type(element, &sub_env)?;
                 Ok(Type::List(Box::new(res_ty)))
+            },
+            ExpressionKind::SetComprehension { element, variable, iterable, condition } => {
+                let iter_ty = self.infer_type(iterable, env)?;
+                let elem_ty = match iter_ty {
+                    Type::List(inner) => *inner,
+                    Type::Tensor => Type::Float,
+                    _ => Type::Any,
+                };
+                let mut sub_env = TypeEnv::extend(env.clone());
+                sub_env.set(variable.clone(), elem_ty);
+                
+                if let Some(cond) = condition {
+                    self.infer_type(cond, &sub_env)?;
+                }
+                
+                let res_ty = self.infer_type(element, &sub_env)?;
+                Ok(Type::Set(Box::new(res_ty)))
+            },
+            ExpressionKind::DictComprehension { key, value, variable, iterable, condition } => {
+                let iter_ty = self.infer_type(iterable, env)?;
+                let elem_ty = match iter_ty {
+                    Type::List(inner) => *inner,
+                    Type::Tensor => Type::Float,
+                    _ => Type::Any,
+                };
+                let mut sub_env = TypeEnv::extend(env.clone());
+                sub_env.set(variable.clone(), elem_ty);
+                
+                if let Some(cond) = condition {
+                    self.infer_type(cond, &sub_env)?;
+                }
+                
+                let k_ty = self.infer_type(key, &sub_env)?;
+                let v_ty = self.infer_type(value, &sub_env)?;
+                Ok(Type::Dictionary(Box::new(k_ty), Box::new(v_ty)))
             },
             ExpressionKind::MethodCall { object: _, method, arguments: _ } => {
                 // Look up method as function
