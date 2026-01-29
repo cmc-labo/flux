@@ -1,0 +1,40 @@
+# tests/test_tensor_iter.fl
+
+print("--- Testing Tensor Iteration (for loop) ---")
+let t1 = ones([3])
+print("t1:", t1)
+for x in t1:
+    print("x:", x)
+
+let t2 = ones([2, 2])
+print("\nt2:\n", t2)
+print("Iterating over t2 (flattened):")
+for x in t2:
+    print("x:", x)
+
+print("\n--- Testing Tensor Comprehensions ---")
+let l_from_t = [x * 2 for x in t1]
+print("l_from_t:", l_from_t)
+
+let s_from_t = {x for x in t2}
+print("s_from_t:", s_from_t)
+
+print("\n--- Testing Multi-dimensional Indexing (Getter) ---")
+# Create a 2x2 matrix manually if matrix() exists
+# Actually let's use zeros and assign
+let m = zeros([2, 2])
+# We need to support assigning via list too
+m[[0, 0]] = 1.0
+m[[0, 1]] = 2.0
+m[[1, 0]] = 3.0
+m[[1, 1]] = 4.0
+print("m:\n", m)
+
+print("m[[0, 0]] =", m[[0, 0]])
+print("m[[1, 1]] =", m[[1, 1]])
+
+print("\n--- Testing Partial Indexing ---")
+let row0 = m[[0]] # Should be first row [1, 2]
+print("row0:", row0)
+let row1 = m[1]   # Should also work if it's 1-dim index
+print("row1:", row1)

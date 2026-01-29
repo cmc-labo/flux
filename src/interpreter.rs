@@ -96,8 +96,8 @@ impl Interpreter {
                 let iter_obj = self.eval_expression(iterable, env.clone())?;
                 let elements = match iter_obj {
                     Object::List(l) => l.borrow().clone(),
-                    Object::Tensor(_t) => {
-                        return Err(FluxError::new_runtime(format!("Tensor iteration not yet implemented"), span));
+                    Object::Tensor(t) => {
+                        t.inner.iter().map(|&v| Object::Float(v)).collect::<Vec<_>>()
                     },
                     _ => return Err(FluxError::new_runtime(format!("Cannot iterate over {}", iter_obj), span)),
                 };
@@ -134,32 +134,48 @@ impl Interpreter {
                         list_borrow[i as usize] = val;
                     },
                     Object::Tensor(t) => {
-                          let mut t_inner = t.clone();
-                          let mut i = match idx {
-                              Object::Integer(i) => i,
-                              _ => return Err(FluxError::new_runtime(format!("Index must be integer, got {}", idx), span)),
-                          };
-                          let val_f = match val {
-                              Object::Float(f) => f,
-                              Object::Integer(i) => i as f64,
-                              _ => return Err(FluxError::new_runtime(format!("Tensor value must be numeric, got {}", val), span)),
-                          };
-                          
-                          if t_inner.inner.ndim() != 1 {
-                              return Err(FluxError::new_runtime(format!("Tensor index assignment currently only supported for 1D tensors"), span));
-                          }
-                          if i < 0 { i += t_inner.inner.len() as i64; }
-                          if i < 0 || i >= t_inner.inner.len() as i64 {
-                              return Err(FluxError::new_runtime(format!("Index out of bounds for tensor: {}", i), span));
-                          }
-                          t_inner.inner[i as usize] = val_f;
+                        let mut t_inner = t.clone();
+                        let val_f = match val {
+                            Object::Float(f) => f,
+                            Object::Integer(i) => i as f64,
+                            _ => return Err(FluxError::new_runtime(format!("Tensor value must be numeric, got {}", val), span)),
+                        };
 
-                          // Write back for Tensor
-                         if let ExpressionKind::Identifier(name) = obj_expr_clone.kind {
+                        match idx {
+                            Object::Integer(mut i) => {
+                                if t_inner.inner.ndim() != 1 {
+                                    return Err(FluxError::new_runtime(format!("Simple integer indexing for assignment currently only supported for 1D tensors"), span));
+                                }
+                                if i < 0 { i += t_inner.inner.len() as i64; }
+                                if i < 0 || i >= t_inner.inner.len() as i64 {
+                                    return Err(FluxError::new_runtime(format!("Index out of bounds for tensor: {}", i), span));
+                                }
+                                t_inner.inner[i as usize] = val_f;
+                            },
+                            Object::List(indices) => {
+                                let mut dims = Vec::new();
+                                for idx_obj in indices.borrow().iter() {
+                                    match idx_obj {
+                                        Object::Integer(i) => dims.push(*i as usize),
+                                        _ => return Err(FluxError::new_runtime(format!("Tensor indices must be integers"), span)),
+                                    }
+                                }
+                                if dims.len() != t_inner.inner.ndim() {
+                                    return Err(FluxError::new_runtime(format!("Tensor index assignment requires full indexing (expected {} dims, got {})", t_inner.inner.ndim(), dims.len()), span));
+                                }
+                                let el = t_inner.inner.get_mut(ndarray::IxDyn(&dims))
+                                    .ok_or_else(|| FluxError::new_runtime(format!("Index out of bounds for tensor assignment: {:?}", dims), span))?;
+                                *el = val_f;
+                            },
+                            _ => return Err(FluxError::new_runtime(format!("Tensor index must be integer or list of integers, got {}", idx), span)),
+                        }
+
+                        // Write back for Tensor
+                        if let ExpressionKind::Identifier(name) = obj_expr_clone.kind {
                             env.borrow_mut().set(name, Object::Tensor(t_inner));
-                         } else {
+                        } else {
                             return Err(FluxError::new_runtime(format!("Nested tensor index assignment not yet supported"), span));
-                         }
+                        }
                     }
                     Object::Dictionary(d) => {
                         d.borrow_mut().insert(idx, val);
@@ -492,6 +508,29 @@ impl Interpreter {
                             Ok(Object::Tensor(crate::tensor::Tensor { inner: sub.to_owned() }))
                         }
                     },
+                    (Object::Tensor(t), Object::List(indices)) => {
+                        let mut dims = Vec::new();
+                        for idx_obj in indices.borrow().iter() {
+                            match idx_obj {
+                                Object::Integer(i) => dims.push(*i as usize),
+                                _ => return Err(FluxError::new_runtime(format!("Tensor indices must be integers"), span)),
+                            }
+                        }
+                        if dims.len() == t.inner.ndim() {
+                            let val = t.inner.get(ndarray::IxDyn(&dims))
+                                .ok_or_else(|| FluxError::new_runtime(format!("Index out of bounds: {:?}", dims), span))?;
+                            Ok(Object::Float(*val))
+                        } else if dims.len() < t.inner.ndim() {
+                            // Basic partial indexing (prefix of dimensions)
+                            let mut current = t.inner.view();
+                            for &dim in &dims {
+                                current.index_axis_inplace(ndarray::Axis(0), dim);
+                            }
+                            Ok(Object::Tensor(crate::tensor::Tensor { inner: current.to_owned() }))
+                        } else {
+                            Err(FluxError::new_runtime(format!("Too many indices for tensor of rank {}", t.inner.ndim()), span))
+                        }
+                    },
                     (Object::Dictionary(d), k) => {
                         let dict = d.borrow();
                         match dict.get(&k) {
@@ -506,6 +545,7 @@ impl Interpreter {
                 let iter_obj = self.eval_expression(*iterable, env.clone())?;
                 let elements = match iter_obj {
                     Object::List(l) => l.borrow().clone(),
+                    Object::Tensor(t) => t.inner.iter().map(|&v| Object::Float(v)).collect(),
                     _ => return Err(FluxError::new_runtime(format!("Cannot iterate over {} in list comprehension", iter_obj), span)),
                 };
 
@@ -532,6 +572,7 @@ impl Interpreter {
                 let iter_obj = self.eval_expression(*iterable, env.clone())?;
                 let elements = match iter_obj {
                     Object::List(l) => l.borrow().clone(),
+                    Object::Tensor(t) => t.inner.iter().map(|&v| Object::Float(v)).collect(),
                     _ => return Err(FluxError::new_runtime(format!("Cannot iterate over {} in set comprehension", iter_obj), span)),
                 };
 
@@ -558,6 +599,7 @@ impl Interpreter {
                 let iter_obj = self.eval_expression(*iterable, env.clone())?;
                 let elements = match iter_obj {
                     Object::List(l) => l.borrow().clone(),
+                    Object::Tensor(t) => t.inner.iter().map(|&v| Object::Float(v)).collect(),
                     _ => return Err(FluxError::new_runtime(format!("Cannot iterate over {} in dict comprehension", iter_obj), span)),
                 };
 

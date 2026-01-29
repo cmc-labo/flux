@@ -61,6 +61,12 @@ impl TypeChecker {
         env.set("exit".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Null)));
         env.set("time".to_string(), Type::Function(vec![], Box::new(Type::Float)));
         env.set("copy".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("matrix".to_string(), Type::Function(vec![Type::Int, Type::Int], Box::new(Type::Tensor)));
+        env.set("py_import".to_string(), Type::Function(vec![Type::String], Box::new(Type::Any)));
+        env.set("min".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("max".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("randint".to_string(), Type::Function(vec![Type::Int, Type::Int], Box::new(Type::Int)));
+        env.set("list".to_string(), Type::Function(vec![Type::Any], Box::new(Type::List(Box::new(Type::Any)))));
 
         // Math
         env.set("abs".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
@@ -151,6 +157,20 @@ impl TypeChecker {
         env.set("dot".to_string(), Type::Function(vec![Type::Tensor, Type::Tensor], Box::new(Type::Tensor)));
         env.set("reshape".to_string(), Type::Function(vec![Type::Tensor, Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
         env.set("transpose".to_string(), Type::Function(vec![Type::Tensor], Box::new(Type::Tensor)));
+
+        // Constants
+        env.set("true".to_string(), Type::Bool);
+        env.set("false".to_string(), Type::Bool);
+        env.set("null".to_string(), Type::Null);
+        env.set("True".to_string(), Type::Bool);
+        env.set("False".to_string(), Type::Bool);
+        env.set("None".to_string(), Type::Null);
+        
+        // Math Constants
+        env.set("PI".to_string(), Type::Float);
+        env.set("pi".to_string(), Type::Float);
+        env.set("E".to_string(), Type::Float);
+        env.set("e".to_string(), Type::Float);
         env
     }
 
@@ -265,7 +285,13 @@ impl TypeChecker {
                         }
                     }
                     Type::Tensor => {
-                        // Tensors usually support slicing/indexing but for now assume float assign
+                        match idx_ty {
+                            Type::Int | Type::List(_) | Type::Any => {}
+                            _ => return Err(FluxError::new_type(format!("Tensor index must be int or list, got {:?}", idx_ty), stmt.span)),
+                        }
+                        if !self.is_compatible(&Type::Float, &val_ty) {
+                            return Err(FluxError::new_type(format!("Cannot assign {:?} to tensor (expected float/int)", val_ty), stmt.span));
+                        }
                     }
                     _ => {}
                 }
@@ -374,7 +400,7 @@ impl TypeChecker {
                     Type::List(inner) => Ok(*inner),
                     Type::Dictionary(_, val) => Ok(*val),
                     Type::String => Ok(Type::String),
-                    Type::Tensor => Ok(Type::Float), // Tensor index returns float for now
+                    Type::Tensor => Ok(Type::Any), // Could be Float (element) or Tensor (sub-tensor)
                     _ => Ok(Type::Any),
                 }
             }

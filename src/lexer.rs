@@ -260,8 +260,13 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        if let Some(&'\n') = self.chars.peek() {
-            return self.handle_newline();
+        if let Some(&ch) = self.chars.peek() {
+            if ch == '\n' || ch == '#' {
+                if ch == '#' {
+                    self.skip_comment();
+                }
+                return self.handle_newline();
+            }
         }
         
         if self.chars.peek().is_none() {
