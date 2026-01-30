@@ -322,10 +322,34 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("mean".to_string(), mean_fn);
 
+    let std_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("std() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Tensor(t) => Ok(Object::Float(t.std())),
+            _ => Err(format!("std() argument must be a tensor, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("std".to_string(), std_fn);
+
+    let var_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("var() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Tensor(t) => Ok(Object::Float(t.var())),
+            _ => Err(format!("var() argument must be a tensor, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("var".to_string(), var_fn);
+
     let min_fn = Object::NativeFn(|args| {
         if args.len() == 0 {
             return Err("min() expects at least 1 argument".to_string());
         }
+        if args.len() == 1 {
+            if let Object::Tensor(t) = &args[0] {
+                return Ok(Object::Float(t.min()));
+            }
+        }
+
         let elements = if args.len() == 1 {
             match &args[0] {
                 Object::List(l) => l.borrow().clone(),
@@ -369,6 +393,12 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         if args.len() == 0 {
             return Err("max() expects at least 1 argument".to_string());
         }
+        if args.len() == 1 {
+            if let Object::Tensor(t) = &args[0] {
+                return Ok(Object::Float(t.max()));
+            }
+        }
+
         let elements = if args.len() == 1 {
             match &args[0] {
                 Object::List(l) => l.borrow().clone(),
@@ -848,6 +878,66 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
     });
     env.borrow_mut().set("values".to_string(), values_fn);
+
+    let items_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("items() takes exactly 1 argument (dictionary)".to_string()); }
+        match &args[0] {
+            Object::Dictionary(d) => {
+                let items: Vec<Object> = d.borrow().iter()
+                    .map(|(k, v)| Object::List(Rc::new(RefCell::new(vec![k.clone(), v.clone()]))))
+                    .collect();
+                Ok(Object::List(Rc::new(RefCell::new(items))))
+            },
+            _ => Err(format!("items() argument must be a dictionary, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("items".to_string(), items_fn);
+
+    let get_fn = Object::NativeFn(|args| {
+        if args.len() < 2 || args.len() > 3 {
+             return Err("get() takes 2 or 3 arguments (dictionary, key, [default])".to_string());
+        }
+        let dict = match &args[0] {
+            Object::Dictionary(d) => d,
+            _ => return Err(format!("get() first argument must be a dictionary, got {}", args[0])),
+        };
+        let default = if args.len() == 3 { args[2].clone() } else { Object::Null };
+        match dict.borrow().get(&args[1]) {
+            Some(v) => Ok(v.clone()),
+            None => Ok(default),
+        }
+    });
+    env.borrow_mut().set("get".to_string(), get_fn);
+
+    let clear_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("clear() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::List(l) => l.borrow_mut().clear(),
+            Object::Dictionary(d) => d.borrow_mut().clear(),
+            Object::Set(s) => s.borrow_mut().clear(),
+            _ => return Err(format!("clear() argument must be a list, dict, or set, got {}", args[0])),
+        }
+        Ok(Object::Null)
+    });
+    env.borrow_mut().set("clear".to_string(), clear_fn);
+
+    let unique_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("unique() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::List(l) => {
+                let mut seen = std::collections::HashSet::new();
+                let mut unique_list = Vec::new();
+                for item in l.borrow().iter() {
+                    if seen.insert(item.clone()) {
+                        unique_list.push(item.clone());
+                    }
+                }
+                Ok(Object::List(Rc::new(RefCell::new(unique_list))))
+            },
+            _ => Err(format!("unique() argument must be a list, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("unique".to_string(), unique_fn);
 
     let zip_fn = Object::NativeFn(|args| {
         if args.len() != 2 {

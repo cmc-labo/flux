@@ -1,0 +1,47 @@
+# tests/test_round3_final.fl
+
+print("--- Testing unique() ---")
+let l = [1, 2, 2, 3, 1, 4]
+print("l =", l)
+print("unique(l) =", unique(l))
+
+print("\n--- Testing Dictionary items(), get(), clear() ---")
+let d = {"a": 1, "b": 2}
+print("d =", d)
+print("d.items() =", items(d))
+print("d.get('a') =", get(d, "a"))
+print("d.get('c', 0) =", get(d, "c", 0))
+print("d.get('c') =", get(d, "c"))
+
+clear(d)
+print("d after clear() =", d)
+
+print("\n--- Testing List/Set clear() ---")
+let l2 = [1, 2, 3]
+clear(l2)
+print("l2 after clear() =", l2)
+
+let s = {1, 2, 3}
+clear(s)
+print("s after clear() =", s)
+
+print("\n--- Testing Tensor min, max, sum, mean, std, var ---")
+let t = tensor(4) # [0, 1, 2, 3] if tensor(n) returns range(n)
+# Actually let's use matrix/ones and assign
+let t2 = ones([4])
+t2[0] = 1.0
+t2[1] = 2.0
+t2[2] = 3.0
+t2[3] = 4.0
+
+print("t2:", t2)
+print("min(t2) =", min(t2))
+print("max(t2) =", max(t2))
+print("sum(t2) =", sum(t2))
+print("mean(t2) =", mean(t2))
+print("var(t2) =", var(t2))
+print("std(t2) =", std(t2))
+
+print("\n--- Testing min/max with multiple args ---")
+print("min(10, 5, 20) =", min(10, 5, 20))
+print("max(1 points, 5, 2 points) =", max(1, 5, 2))

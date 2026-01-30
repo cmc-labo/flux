@@ -104,6 +104,23 @@ impl Tensor {
     pub fn div_scalar(&self, scalar: f64) -> Self {
         Tensor { inner: &self.inner / scalar }
     }
+
+    pub fn min(&self) -> f64 {
+        self.inner.fold(f64::INFINITY, |a, &b| a.min(b))
+    }
+
+    pub fn max(&self) -> f64 {
+        self.inner.fold(f64::NEG_INFINITY, |a, &b| a.max(b))
+    }
+
+    pub fn var(&self) -> f64 {
+        let mean = self.inner.mean().unwrap_or(0.0);
+        self.inner.fold(0.0, |acc, &x| acc + (x - mean).powi(2)) / self.inner.len() as f64
+    }
+
+    pub fn std(&self) -> f64 {
+        self.var().sqrt()
+    }
 }
 
 impl fmt::Display for Tensor {
