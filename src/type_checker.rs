@@ -134,6 +134,7 @@ impl TypeChecker {
         env.set("mean".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("std".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("var".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("prod".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
         env.set("all".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::Bool)));
         env.set("any".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::Bool)));
         env.set("zip".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));

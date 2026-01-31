@@ -121,6 +121,34 @@ impl Tensor {
     pub fn std(&self) -> f64 {
         self.var().sqrt()
     }
+
+    pub fn abs(&self) -> Tensor {
+        Tensor { inner: self.inner.mapv(|x| x.abs()) }
+    }
+
+    pub fn sqrt(&self) -> Tensor {
+        Tensor { inner: self.inner.mapv(|x| x.sqrt()) }
+    }
+
+    pub fn exp(&self) -> Tensor {
+        Tensor { inner: self.inner.mapv(|x| x.exp()) }
+    }
+
+    pub fn log(&self) -> Tensor {
+        Tensor { inner: self.inner.mapv(|x| x.ln()) }
+    }
+
+    pub fn prod(&self) -> f64 {
+        self.inner.product()
+    }
+
+    pub fn all(&self) -> bool {
+        self.inner.iter().all(|&x| x != 0.0)
+    }
+
+    pub fn any(&self) -> bool {
+        self.inner.iter().any(|&x| x != 0.0)
+    }
 }
 
 impl fmt::Display for Tensor {

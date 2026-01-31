@@ -1,0 +1,40 @@
+# tests/test_round4_final.fl
+
+print("--- Testing Tensor math (abs, sqrt, exp, log) ---")
+let t = tensor(4)
+t[0] = -1.0
+t[1] = 4.0
+t[2] = 0.0
+t[3] = 1.0
+
+print("t =", t)
+print("abs(t) =", abs(t))
+print("sqrt(t) =", sqrt(t))
+print("exp(t) =", exp(t))
+print("log(t) =", log(t)) # Should be [-inf, 1.38, -inf, 0] or similar for 0
+
+print("\n--- Testing all() and any() for Tensors ---")
+let t_zeros = zeros([3])
+print("t_zeros =", t_zeros)
+print("all(t_zeros) =", all(t_zeros))
+print("any(t_zeros) =", any(t_zeros))
+
+let t_ones = ones([3])
+print("t_ones =", t_ones)
+print("all(t_ones) =", all(t_ones))
+print("any(t_ones) =", any(t_ones))
+
+print("\n--- Testing prod() ---")
+print("prod([1, 2, 3, 4]) =", prod([1, 2, 3, 4]))
+print("prod([1.0, 2.5, 4]) =", prod([1.0, 2.5, 4]))
+print("prod(t_ones) =", prod(t_ones))
+
+print("\n--- Testing zip() with arbitrary args ---")
+let l1 = [1, 2]
+let l2 = ["a", "b"]
+let l3 = [10.0, 20.0]
+print("zip(l1, l2, l3) =", zip(l1, l2, l3))
+
+print("\n--- Testing enumerate() with start ---")
+let names = ["Alice", "Bob"]
+print("enumerate(names, 1) =", enumerate(names, 1))

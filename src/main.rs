@@ -251,6 +251,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         match &args[0] {
             Object::Integer(i) => Ok(Object::Integer(i.abs())),
             Object::Float(f) => Ok(Object::Float(f.abs())),
+            Object::Tensor(t) => Ok(Object::Tensor(t.abs())),
             _ => Err(format!("abs() not supported for {}", args[0])),
         }
     });
@@ -452,7 +453,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                 }
                 Ok(Object::Boolean(true))
             },
-            _ => Err(format!("all() argument must be a list, got {}", args[0])),
+            Object::Tensor(t) => Ok(Object::Boolean(t.all())),
+            _ => Err(format!("all() argument must be a list or tensor, got {}", args[0])),
         }
     });
     env.borrow_mut().set("all".to_string(), all_fn);
@@ -470,10 +472,45 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                 }
                 Ok(Object::Boolean(false))
             },
-            _ => Err(format!("any() argument must be a list, got {}", args[0])),
+            Object::Tensor(t) => Ok(Object::Boolean(t.any())),
+            _ => Err(format!("any() argument must be a list or tensor, got {}", args[0])),
         }
     });
     env.borrow_mut().set("any".to_string(), any_fn);
+
+    let prod_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("prod() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::Tensor(t) => Ok(Object::Float(t.prod())),
+            Object::List(l) => {
+                let mut total_int = 1;
+                let mut total_float = 1.0;
+                let mut has_float = false;
+                for item in l.borrow().iter() {
+                    match item {
+                        Object::Integer(i) => {
+                            if has_float { total_float *= *i as f64; }
+                            else { total_int *= i; }
+                        },
+                        Object::Float(f) => {
+                            if !has_float {
+                                has_float = true;
+                                total_float = total_int as f64;
+                            }
+                            total_float *= f;
+                        },
+                        _ => return Err(format!("prod() encountered non-numeric element: {}", item)),
+                    }
+                }
+                if has_float { Ok(Object::Float(total_float)) }
+                else { Ok(Object::Integer(total_int)) }
+            },
+            _ => Err(format!("prod() argument must be a list or tensor, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("prod".to_string(), prod_fn);
 
     let reverse_fn = Object::NativeFn(|args| {
         if args.len() != 1 {
@@ -733,11 +770,12 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             return Err("sqrt() takes exactly 1 argument".to_string());
         }
         let val = match &args[0] {
-            Object::Integer(i) => *i as f64,
-            Object::Float(f) => *f,
-            _ => return Err(format!("sqrt() argument must be numeric, got {}", args[0])),
-        };
-        Ok(Object::Float(val.sqrt()))
+            Object::Integer(i) => Ok(Object::Float((*i as f64).sqrt())),
+            Object::Float(f) => Ok(Object::Float(f.sqrt())),
+            Object::Tensor(t) => Ok(Object::Tensor(t.sqrt())),
+            _ => Err(format!("sqrt() argument must be numeric or tensor, got {}", args[0])),
+        }?;
+        Ok(val)
     });
     env.borrow_mut().set("sqrt".to_string(), sqrt_fn);
 
@@ -764,11 +802,12 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             return Err("exp() takes exactly 1 argument".to_string());
         }
         let val = match &args[0] {
-            Object::Integer(i) => *i as f64,
-            Object::Float(f) => *f,
-            _ => return Err(format!("exp() argument must be numeric, got {}", args[0])),
-        };
-        Ok(Object::Float(val.exp()))
+            Object::Integer(i) => Ok(Object::Float((*i as f64).exp())),
+            Object::Float(f) => Ok(Object::Float(f.exp())),
+            Object::Tensor(t) => Ok(Object::Tensor(t.exp())),
+            _ => Err(format!("exp() argument must be numeric or tensor, got {}", args[0])),
+        }?;
+        Ok(val)
     });
     env.borrow_mut().set("exp".to_string(), exp_fn);
 
@@ -776,19 +815,23 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         if args.len() < 1 || args.len() > 2 {
             return Err("log() takes 1 or 2 arguments (x, [base])".to_string());
         }
+        if args.len() == 1 {
+            match &args[0] {
+                Object::Integer(i) => return Ok(Object::Float((*i as f64).ln())),
+                Object::Float(f) => return Ok(Object::Float(f.ln())),
+                Object::Tensor(t) => return Ok(Object::Tensor(t.log())),
+                _ => return Err(format!("log() argument must be numeric or tensor, got {}", args[0])),
+            }
+        }
         let x = match &args[0] {
             Object::Integer(i) => *i as f64,
             Object::Float(f) => *f,
             _ => return Err(format!("log() first argument must be numeric, got {}", args[0])),
         };
-        let base = if args.len() == 2 {
-            match &args[1] {
-                Object::Integer(i) => *i as f64,
-                Object::Float(f) => *f,
-                _ => return Err(format!("log() base must be numeric, got {}", args[1])),
-            }
-        } else {
-            std::f64::consts::E
+        let base = match &args[1] {
+            Object::Integer(i) => *i as f64,
+            Object::Float(f) => *f,
+            _ => return Err(format!("log() base must be numeric, got {}", args[1])),
         };
         Ok(Object::Float(x.log(base)))
     });
@@ -940,34 +983,48 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     env.borrow_mut().set("unique".to_string(), unique_fn);
 
     let zip_fn = Object::NativeFn(|args| {
-        if args.len() != 2 {
-            return Err("zip() takes exactly 2 arguments (list1, list2)".to_string());
+        if args.is_empty() {
+            return Ok(Object::List(Rc::new(RefCell::new(Vec::new()))));
         }
-        let l1 = match &args[0] {
-            Object::List(val) => val,
-            _ => return Err(format!("zip() first argument must be a list, got {}", args[0])),
-        };
-        let l2 = match &args[1] {
-            Object::List(val) => val,
-            _ => return Err(format!("zip() second argument must be a list, got {}", args[1])),
-        };
-        let zipped: Vec<Object> = l1.borrow().iter().zip(l2.borrow().iter())
-            .map(|(a, b)| Object::List(Rc::new(RefCell::new(vec![a.clone(), b.clone()]))))
-            .collect();
+        let mut lists = Vec::new();
+        for arg in args {
+            match arg {
+                Object::List(l) => lists.push(l.borrow().clone()),
+                _ => return Err(format!("zip() arguments must be lists, got {}", arg)),
+            }
+        }
+        
+        let min_len = lists.iter().map(|l| l.len()).min().unwrap_or(0);
+        let mut zipped = Vec::new();
+        for i in 0..min_len {
+            let mut row = Vec::new();
+            for list in &lists {
+                row.push(list[i].clone());
+            }
+            zipped.push(Object::List(Rc::new(RefCell::new(row))));
+        }
         Ok(Object::List(Rc::new(RefCell::new(zipped))))
     });
     env.borrow_mut().set("zip".to_string(), zip_fn);
 
     let enumerate_fn = Object::NativeFn(|args| {
-        if args.len() != 1 {
-            return Err("enumerate() takes exactly 1 argument (list)".to_string());
+        if args.len() < 1 || args.len() > 2 {
+            return Err("enumerate() takes 1 or 2 arguments (list, [start])".to_string());
         }
         let l = match &args[0] {
             Object::List(val) => val,
-            _ => return Err(format!("enumerate() argument must be a list, got {}", args[0])),
+            _ => return Err(format!("enumerate() first argument must be a list, got {}", args[0])),
+        };
+        let start = if args.len() == 2 {
+            match &args[1] {
+                Object::Integer(i) => *i,
+                _ => return Err(format!("enumerate() start must be an integer, got {}", args[1])),
+            }
+        } else {
+            0
         };
         let enumerated: Vec<Object> = l.borrow().iter().enumerate()
-            .map(|(i, el)| Object::List(Rc::new(RefCell::new(vec![Object::Integer(i as i64), el.clone()]))))
+            .map(|(i, el)| Object::List(Rc::new(RefCell::new(vec![Object::Integer(i as i64 + start), el.clone()]))))
             .collect();
         Ok(Object::List(Rc::new(RefCell::new(enumerated))))
     });
