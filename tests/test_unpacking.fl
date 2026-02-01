@@ -1,0 +1,34 @@
+# Test basic unpacking
+let a, b = [1, 2]
+assert a == 1
+assert b == 2
+
+# Test unpacking with more variables
+let x, y, z = [10, 20, 30]
+assert x == 10
+assert y == 20
+assert z == 30
+
+# Test unpacking from a function
+def get_pair():
+    return [100, 200]
+
+let p1, p2 = get_pair()
+assert p1 == 100
+assert p2 == 200
+
+# Test nested unpacking if possible (manually)
+let nested = [[1, 2], 3]
+let n1, n2 = nested
+assert n1 == [1, 2]
+assert n2 == 3
+let n11, n12 = n1
+assert n11 == 1
+assert n12 == 2
+
+# Test overwrite
+let a, b = [3, 4]
+assert a == 3
+assert b == 4
+
+print("All unpacking tests passed!")

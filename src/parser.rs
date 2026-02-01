@@ -195,13 +195,25 @@ impl<'a> Parser<'a> {
             return None;
         }
         
-        let name = match &self.cur_token {
-            Token::Identifier(n) => n.clone(),
+        let mut names = Vec::new();
+        match &self.cur_token {
+            Token::Identifier(n) => names.push(n.clone()),
             _ => return None,
         };
 
+        while self.peek_token_is(&Token::Comma) {
+            self.next_token(); // ,
+            if !self.expect_peek(Token::Identifier("".to_string())) {
+                return None;
+            }
+            match &self.cur_token {
+                Token::Identifier(n) => names.push(n.clone()),
+                _ => return None,
+            }
+        }
+
         let mut type_hint = None;
-        if self.peek_token_is(&Token::Colon) {
+        if names.len() == 1 && self.peek_token_is(&Token::Colon) {
             self.next_token(); // identifier
             self.next_token(); // :
             type_hint = self.parse_type();
@@ -225,7 +237,7 @@ impl<'a> Parser<'a> {
 
         Some(Statement {
             span: start.join(value.span),
-            kind: StatementKind::Let { name, value, type_hint },
+            kind: StatementKind::Let { names, value, type_hint },
         })
     }
 
@@ -412,7 +424,7 @@ impl<'a> Parser<'a> {
                     };
                     return Some(Statement {
                         span: start.join(value.span),
-                        kind: StatementKind::Let { name, value: final_value, type_hint: None },
+                        kind: StatementKind::Let { names: vec![name], value: final_value, type_hint: None },
                     });
                 }
                 _ => {

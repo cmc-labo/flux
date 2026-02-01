@@ -191,18 +191,41 @@ impl TypeChecker {
 
     fn check_statement(&mut self, stmt: &Statement, env: &mut TypeEnv) -> Result<(), FluxError> {
         match &stmt.kind {
-            StatementKind::Let { name, value, type_hint } => {
+            StatementKind::Let { names, value, type_hint } => {
                 let inferred = self.infer_type(value, env)?;
-                if let Some(hint) = type_hint {
-                    if !self.is_compatible(hint, &inferred) {
-                        return Err(FluxError::new_type(
-                            format!("Type mismatch for '{}': declared {:?}, but got {:?}", name, hint, inferred),
-                            stmt.span
-                        ));
+                if names.len() == 1 {
+                    let name = &names[0];
+                    if let Some(hint) = type_hint {
+                        if !self.is_compatible(hint, &inferred) {
+                            return Err(FluxError::new_type(
+                                format!("Type mismatch for '{}': declared {:?}, but got {:?}", name, hint, inferred),
+                                stmt.span
+                            ));
+                        }
+                        env.set(name.clone(), hint.clone());
+                    } else {
+                        env.set(name.clone(), inferred);
                     }
-                    env.set(name.clone(), hint.clone());
                 } else {
-                    env.set(name.clone(), inferred);
+                    // Multiple assignment (Unpacking)
+                    match inferred {
+                        Type::List(inner) => {
+                            for name in names {
+                                env.set(name.clone(), *inner.clone());
+                            }
+                        }
+                        Type::Any => {
+                            for name in names {
+                                env.set(name.clone(), Type::Any);
+                            }
+                        }
+                        _ => {
+                            return Err(FluxError::new_type(
+                                format!("Cannot unpack type {:?} into {} variables", inferred, names.len()),
+                                stmt.span
+                            ));
+                        }
+                    }
                 }
             }
             StatementKind::FunctionDef { name, params, body, return_type } => {

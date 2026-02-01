@@ -24,7 +24,7 @@ pub enum Type {
 #[derive(Debug, PartialEq, Clone)]
 pub enum StatementKind {
     Let { 
-        name: String, 
+        names: Vec<String>, 
         value: Expression,
         type_hint: Option<Type>,
     },

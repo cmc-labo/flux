@@ -23,10 +23,32 @@ impl Interpreter {
         let span = node.span;
         match node.kind {
             StatementKind::Expression(expr) => self.eval_expression(expr, env),
-            StatementKind::Let { name, value, type_hint: _ } => {
+            StatementKind::Let { names, value, type_hint: _ } => {
                 let val = self.eval_expression(value, env.clone())?;
-                env.borrow_mut().set(name, val.clone());
-                Ok(val)
+                if names.len() == 1 {
+                    env.borrow_mut().set(names[0].clone(), val.clone());
+                    Ok(val)
+                } else {
+                    match val {
+                        Object::List(l) => {
+                            let list = l.borrow();
+                            if list.len() != names.len() {
+                                return Err(FluxError::new_runtime(
+                                    format!("Unpacking error: expected {} values, got {}", names.len(), list.len()),
+                                    span
+                                ));
+                            }
+                            for (i, name) in names.iter().enumerate() {
+                                env.borrow_mut().set(name.clone(), list[i].clone());
+                            }
+                            Ok(Object::List(l.clone()))
+                        }
+                        _ => Err(FluxError::new_runtime(
+                            format!("Unpacking error: expected list, got {:?}", val),
+                            span
+                        )),
+                    }
+                }
             },
             StatementKind::Return(expr_opt) => {
                 let val = match expr_opt {
