@@ -562,6 +562,36 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("sorted".to_string(), sorted_fn);
 
+    let sort_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("sort() takes exactly 1 argument (list)".to_string());
+        }
+        match &args[0] {
+            Object::List(l) => {
+                let mut err = None;
+                l.borrow_mut().sort_by(|a, b| {
+                    match (a, b) {
+                        (Object::Integer(ai), Object::Integer(bi)) => ai.cmp(bi),
+                        (Object::Float(af), Object::Float(bf)) => af.partial_cmp(bf).unwrap_or(std::cmp::Ordering::Equal),
+                        (Object::Integer(ai), Object::Float(bf)) => (*ai as f64).partial_cmp(bf).unwrap_or(std::cmp::Ordering::Equal),
+                        (Object::Float(af), Object::Integer(bi)) => af.partial_cmp(&(*bi as f64)).unwrap_or(std::cmp::Ordering::Equal),
+                        (Object::String(as_str), Object::String(bs_str)) => as_str.cmp(bs_str),
+                        _ => {
+                            err = Some(format!("Cannot compare {} and {}", a, b));
+                            std::cmp::Ordering::Equal
+                        }
+                    }
+                });
+                if let Some(e) = err {
+                    return Err(e);
+                }
+                Ok(args[0].clone())
+            },
+            _ => Err(format!("sort() argument must be a list, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("sort".to_string(), sort_fn);
+
     let round_fn = Object::NativeFn(|args| {
         if args.len() < 1 || args.len() > 2 {
             return Err("round() takes 1 or 2 arguments".to_string());
@@ -1391,6 +1421,117 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("title".to_string(), title_fn);
 
+    let swapcase_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("swapcase() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::String(s) => {
+                let swapped: String = s.chars().map(|c| {
+                    if c.is_uppercase() { c.to_lowercase().to_string() }
+                    else { c.to_uppercase().to_string() }
+                }).collect();
+                Ok(Object::String(swapped))
+            },
+            _ => Err(format!("swapcase() arg must be string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("swapcase".to_string(), swapcase_fn);
+
+    let ljust_fn = Object::NativeFn(|args| {
+        if args.len() < 2 || args.len() > 3 { return Err("ljust() takes 2 or 3 arguments (string, width, [fillchar])".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("ljust() arg 1 must be string".to_string()) };
+        let width = match &args[1] { Object::Integer(i) => *i as usize, _ => return Err("ljust() arg 2 must be int".to_string()) };
+        let fill = if args.len() == 3 {
+             match &args[2] { Object::String(val) if val.chars().count() == 1 => val.clone(), _ => return Err("ljust() fillchar must be 1-char string".to_string()) }
+        } else { " ".to_string() };
+        if s.len() >= width { Ok(Object::String(s.clone())) }
+        else { Ok(Object::String(format!("{}{}", s, fill.repeat(width - s.len())))) }
+    });
+    env.borrow_mut().set("ljust".to_string(), ljust_fn);
+
+    let rjust_fn = Object::NativeFn(|args| {
+        if args.len() < 2 || args.len() > 3 { return Err("rjust() takes 2 or 3 arguments (string, width, [fillchar])".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("rjust() arg 1 must be string".to_string()) };
+        let width = match &args[1] { Object::Integer(i) => *i as usize, _ => return Err("rjust() arg 2 must be int".to_string()) };
+        let fill = if args.len() == 3 {
+             match &args[2] { Object::String(val) if val.chars().count() == 1 => val.clone(), _ => return Err("rjust() fillchar must be 1-char string".to_string()) }
+        } else { " ".to_string() };
+        if s.len() >= width { Ok(Object::String(s.clone())) }
+        else { Ok(Object::String(format!("{}{}", fill.repeat(width - s.len()), s))) }
+    });
+    env.borrow_mut().set("rjust".to_string(), rjust_fn);
+
+    let removesuffix_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("removesuffix() takes exactly 2 arguments (string, suffix)".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("removesuffix() arg 1 must be string".to_string()) };
+        let suffix = match &args[1] { Object::String(val) => val, _ => return Err("removesuffix() arg 2 must be string".to_string()) };
+        if s.ends_with(suffix) { Ok(Object::String(s[..s.len() - suffix.len()].to_string())) }
+        else { Ok(Object::String(s.clone())) }
+    });
+    env.borrow_mut().set("removesuffix".to_string(), removesuffix_fn);
+
+    let removeprefix_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("removeprefix() takes exactly 2 arguments (string, prefix)".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("removeprefix() arg 1 must be string".to_string()) };
+        let prefix = match &args[1] { Object::String(val) => val, _ => return Err("removeprefix() arg 2 must be string".to_string()) };
+        if s.starts_with(prefix) { Ok(Object::String(s[prefix.len()..].to_string())) }
+        else { Ok(Object::String(s.clone())) }
+    });
+    env.borrow_mut().set("removeprefix".to_string(), removeprefix_fn);
+
+    let partition_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("partition() takes exactly 2 arguments (string, sep)".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("partition() arg 1 must be string".to_string()) };
+        let sep = match &args[1] { Object::String(val) => val, _ => return Err("partition() arg 2 must be string".to_string()) };
+        if let Some(pos) = s.find(sep) {
+            let before = &s[..pos];
+            let after = &s[pos + sep.len()..];
+            Ok(Object::List(Rc::new(RefCell::new(vec![Object::String(before.to_string()), Object::String(sep.clone()), Object::String(after.to_string())]))))
+        } else {
+            Ok(Object::List(Rc::new(RefCell::new(vec![Object::String(s.clone()), Object::String("".to_string()), Object::String("".to_string())]))))
+        }
+    });
+    env.borrow_mut().set("partition".to_string(), partition_fn);
+
+    let rpartition_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("rpartition() takes exactly 2 arguments (string, sep)".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("rpartition() arg 1 must be string".to_string()) };
+        let sep = match &args[1] { Object::String(val) => val, _ => return Err("rpartition() arg 2 must be string".to_string()) };
+        if let Some(pos) = s.rfind(sep) {
+            let before = &s[..pos];
+            let after = &s[pos + sep.len()..];
+            Ok(Object::List(Rc::new(RefCell::new(vec![Object::String(before.to_string()), Object::String(sep.clone()), Object::String(after.to_string())]))))
+        } else {
+            Ok(Object::List(Rc::new(RefCell::new(vec![Object::String("".to_string()), Object::String("".to_string()), Object::String(s.clone())]))))
+        }
+    });
+    env.borrow_mut().set("rpartition".to_string(), rpartition_fn);
+
+    let splitlines_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 { return Err("splitlines() takes 1 or 2 arguments (string, [keepends])".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("splitlines() arg 1 must be string".to_string()) };
+        let keepends = if args.len() == 2 { args[1].is_truthy() } else { false };
+        let mut lines = Vec::new();
+        if keepends {
+            let mut start = 0;
+            for (i, c) in s.char_indices() {
+                if c == '\n' {
+                    lines.push(Object::String(s[start..=i].to_string()));
+                    start = i + 1;
+                } else if c == '\r' && s.as_bytes().get(i+1) == Some(&b'\n') {
+                    // Handled by \n next iteration
+                } else if c == '\r' {
+                     lines.push(Object::String(s[start..=i].to_string()));
+                     start = i + 1;
+                }
+            }
+            if start < s.len() { lines.push(Object::String(s[start..].to_string())); }
+        } else {
+            for line in s.lines() { lines.push(Object::String(line.to_string())); }
+        }
+        Ok(Object::List(Rc::new(RefCell::new(lines))))
+    });
+    env.borrow_mut().set("splitlines".to_string(), splitlines_fn);
+
     let factorial_fn = Object::NativeFn(|args| {
         if args.len() != 1 {
             return Err("factorial() takes exactly 1 argument".to_string());
@@ -1422,13 +1563,69 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::Integer(i) => i.abs(),
             _ => return Err(format!("gcd() arguments must be integers, got {}", args[1])),
         };
-        while b > 0 {
-            a %= b;
-            std::mem::swap(&mut a, &mut b);
+        while b != 0 {
+            let t = b;
+            b = a % b;
+            a = t;
         }
         Ok(Object::Integer(a))
     });
     env.borrow_mut().set("gcd".to_string(), gcd_fn);
+
+    let lcm_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("lcm() takes exactly 2 arguments".to_string()); }
+        let a = match &args[0] { Object::Integer(i) => i.abs(), _ => return Err("lcm() arg 1 must be int".to_string()) };
+        let b = match &args[1] { Object::Integer(i) => i.abs(), _ => return Err("lcm() arg 2 must be int".to_string()) };
+        if a == 0 || b == 0 { return Ok(Object::Integer(0)); }
+        // (a*b)/gcd(a,b)
+        let mut x = a;
+        let mut y = b;
+        while y != 0 { let t = y; y = x % y; x = t; }
+        let gcd = x;
+        Ok(Object::Integer((a / gcd) * b))
+    });
+    env.borrow_mut().set("lcm".to_string(), lcm_fn);
+
+    let isclose_fn = Object::NativeFn(|args| {
+        if args.len() < 2 || args.len() > 4 { return Err("isclose() takes 2 to 4 arguments (a, b, [rel_tol], [abs_tol])".to_string()); }
+        let a = match &args[0] { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => return Err("isclose() a must be numeric".to_string()) };
+        let b = match &args[1] { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => return Err("isclose() b must be numeric".to_string()) };
+        let rel_tol = if args.len() >= 3 { match &args[2] { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => 1e-09 } } else { 1e-09 };
+        let abs_tol = if args.len() == 4 { match &args[3] { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => 0.0 } } else { 0.0 };
+        
+        let diff = (a - b).abs();
+        Ok(Object::Boolean(diff <= (rel_tol * a.abs()).max(rel_tol * b.abs()).max(abs_tol)))
+    });
+    env.borrow_mut().set("isclose".to_string(), isclose_fn);
+
+    let bool_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("bool() takes exactly 1 argument".to_string()); }
+        Ok(Object::Boolean(args[0].is_truthy()))
+    });
+    env.borrow_mut().set("bool".to_string(), bool_fn);
+
+    fn flatten_recursive(obj: &Object) -> Vec<Object> {
+        match obj {
+            Object::List(l) => {
+                let mut res = Vec::new();
+                for item in l.borrow().iter() {
+                    res.extend(flatten_recursive(item));
+                }
+                res
+            },
+            _ => vec![obj.clone()],
+        }
+    }
+
+    let flatten_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("flatten() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Tensor(t) => Ok(Object::Tensor(t.flatten())),
+            Object::List(_) => Ok(Object::List(Rc::new(RefCell::new(flatten_recursive(&args[0]))))),
+            _ => Ok(args[0].clone()),
+        }
+    });
+    env.borrow_mut().set("flatten".to_string(), flatten_fn);
 
     let chr_fn = Object::NativeFn(|args| {
         if args.len() != 1 {

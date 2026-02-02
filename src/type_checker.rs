@@ -135,10 +135,23 @@ impl TypeChecker {
         env.set("std".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("var".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("prod".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("bool".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Bool)));
+        env.set("flatten".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
         env.set("all".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::Bool)));
         env.set("any".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::Bool)));
         env.set("zip".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
         env.set("enumerate".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("lcm".to_string(), Type::Function(vec![Type::Int, Type::Int], Box::new(Type::Int)));
+        env.set("isclose".to_string(), Type::Function(vec![Type::Any, Type::Any], Box::new(Type::Bool)));
+        env.set("sort".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("swapcase".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("ljust".to_string(), Type::Function(vec![Type::String, Type::Int], Box::new(Type::String)));
+        env.set("rjust".to_string(), Type::Function(vec![Type::String, Type::Int], Box::new(Type::String)));
+        env.set("removeprefix".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::String)));
+        env.set("removesuffix".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::String)));
+        env.set("partition".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::List(Box::new(Type::String)))));
+        env.set("rpartition".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::List(Box::new(Type::String)))));
+        env.set("splitlines".to_string(), Type::Function(vec![Type::String], Box::new(Type::List(Box::new(Type::String)))));
 
         // Set
         env.set("add".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Any], Box::new(Type::Any)));

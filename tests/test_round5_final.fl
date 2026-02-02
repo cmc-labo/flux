@@ -1,0 +1,43 @@
+# tests/test_round5_final.fl
+
+print("--- Testing String methods ---")
+print("'Hello World'.swapcase() =", "Hello World".swapcase())
+print("'abc'.ljust(10, '-') =", "abc".ljust(10, "-"))
+print("'abc'.rjust(10, '*') =", "abc".rjust(10, "*"))
+print("'prefix_rest'.removeprefix('prefix_') =", "prefix_rest".removeprefix("prefix_"))
+print("'rest_suffix'.removesuffix('_suffix') =", "rest_suffix".removesuffix("_suffix"))
+print("'a:b:c'.partition(':') =", "a:b:c".partition(":"))
+print("'a:b:c'.rpartition(':') =", "a:b:c".rpartition(":"))
+print("'line1\nline2\r\nline3'.splitlines() =", "line1\nline2\r\nline3".splitlines())
+
+print("\n--- Testing List sort() (in-place) ---")
+let l = [3, 1, 4, 1, 5]
+print("l before sort() =", l)
+sort(l)
+print("l after sort() =", l)
+
+print("\n--- Testing Math lcm() and isclose() ---")
+print("lcm(12, 18) =", lcm(12, 18))
+print("isclose(1.0, 1.0000000001) =", isclose(1.0, 1.0000000001))
+print("isclose(1.0, 1.1) =", isclose(1.0, 1.1))
+
+print("\n--- Testing bool() conversion ---")
+print("bool(0) =", bool(0))
+print("bool(1) =", bool(1))
+print("bool('') =", bool(""))
+print("bool('a') =", bool("a"))
+print("bool([]) =", bool([]))
+print("bool([1]) =", bool([1]))
+
+print("\n--- Testing flatten() ---")
+let nested = [[1, [2, 3]], 4, [5]]
+print("nested =", nested)
+print("flatten(nested) =", flatten(nested))
+
+let t = matrix(2, 2)
+t[[0, 0]] = 1.0
+t[[0, 1]] = 2.0
+t[[1, 0]] = 3.0
+t[[1, 1]] = 4.0
+print("t (2x2) =\n", t)
+print("flatten(t) =", flatten(t))

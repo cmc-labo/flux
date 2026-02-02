@@ -122,6 +122,10 @@ impl Tensor {
         self.var().sqrt()
     }
 
+    pub fn flatten(&self) -> Tensor {
+        Tensor { inner: self.inner.clone().into_shape_with_order(self.inner.len()).unwrap().into_dyn() }
+    }
+
     pub fn abs(&self) -> Tensor {
         Tensor { inner: self.inner.mapv(|x| x.abs()) }
     }
