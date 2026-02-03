@@ -1,0 +1,32 @@
+# tests/test_round6_final.fl
+
+print("--- Testing String methods ---")
+print("'  abc  '.lstrip() =", "'" + "  abc  ".lstrip() + "'")
+print("'  abc  '.rstrip() =", "'" + "  abc  ".rstrip() + "'")
+print("'--abc--'.lstrip('-') =", "--abc--".lstrip("-"))
+print("'--abc--'.rstrip('-') =", "--abc--".rstrip("-"))
+print("'abcabc'.rfind('abc') =", "abcabc".rfind("abc"))
+print("'abcabc'.rfind('xyz') =", "abcabc".rfind("xyz"))
+
+print("\n--- Testing Dictionary setdefault() ---")
+let d = {}
+print("d.setdefault('a', 1) =", d.setdefault("a", 1))
+print("d.setdefault('a', 2) =", d.setdefault("a", 2))
+print("d =", d)
+
+print("\n--- Testing Math functions (asin, acos, atan, atan2) ---")
+print("asin(0) =", asin(0))
+print("acos(1) =", acos(1))
+print("atan(0) =", atan(0))
+print("atan2(1, 1) =", atan2(1, 1))
+
+print("\n--- Testing Tensor ceil, floor, round ---")
+let t = matrix(2, 2)
+t[[0, 0]] = 1.2
+t[[0, 1]] = -1.2
+t[[1, 0]] = 0.5
+t[[1, 1]] = -0.5
+print("t =\n", t)
+print("ceil(t) =\n", ceil(t))
+print("floor(t) =\n", floor(t))
+print("round(t) =\n", round(t))

@@ -126,6 +126,18 @@ impl Tensor {
         Tensor { inner: self.inner.clone().into_shape_with_order(self.inner.len()).unwrap().into_dyn() }
     }
 
+    pub fn ceil(&self) -> Tensor {
+        Tensor { inner: self.inner.mapv(|x| x.ceil()) }
+    }
+
+    pub fn floor(&self) -> Tensor {
+        Tensor { inner: self.inner.mapv(|x| x.floor()) }
+    }
+
+    pub fn round(&self) -> Tensor {
+        Tensor { inner: self.inner.mapv(|x| x.round()) }
+    }
+
     pub fn abs(&self) -> Tensor {
         Tensor { inner: self.inner.mapv(|x| x.abs()) }
     }

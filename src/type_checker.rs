@@ -152,6 +152,14 @@ impl TypeChecker {
         env.set("partition".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::List(Box::new(Type::String)))));
         env.set("rpartition".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::List(Box::new(Type::String)))));
         env.set("splitlines".to_string(), Type::Function(vec![Type::String], Box::new(Type::List(Box::new(Type::String)))));
+        env.set("lstrip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("rstrip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("rfind".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::Int)));
+        env.set("setdefault".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any)), Type::Any, Type::Any], Box::new(Type::Any)));
+        env.set("asin".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("acos".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("atan".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("atan2".to_string(), Type::Function(vec![Type::Any, Type::Any], Box::new(Type::Float)));
 
         // Set
         env.set("add".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Any], Box::new(Type::Any)));

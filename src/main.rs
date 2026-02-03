@@ -596,6 +596,9 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         if args.len() < 1 || args.len() > 2 {
             return Err("round() takes 1 or 2 arguments".to_string());
         }
+        if let Object::Tensor(t) = &args[0] {
+            return Ok(Object::Tensor(t.round()));
+        }
         let num = match &args[0] {
             Object::Integer(i) => *i as f64,
             Object::Float(f) => *f,
@@ -778,7 +781,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         match &args[0] {
             Object::Integer(i) => Ok(Object::Integer(*i)),
             Object::Float(f) => Ok(Object::Integer(f.floor() as i64)),
-            _ => Err(format!("floor() not supported for {}", args[0])),
+            Object::Tensor(t) => Ok(Object::Tensor(t.floor())),
+            _ => Err(format!("floor() argument must be numeric or tensor, got {}", args[0])),
         }
     });
     env.borrow_mut().set("floor".to_string(), floor_fn);
@@ -790,10 +794,40 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         match &args[0] {
             Object::Integer(i) => Ok(Object::Integer(*i)),
             Object::Float(f) => Ok(Object::Integer(f.ceil() as i64)),
-            _ => Err(format!("ceil() not supported for {}", args[0])),
+            Object::Tensor(t) => Ok(Object::Tensor(t.ceil())),
+            _ => Err(format!("ceil() argument must be numeric or tensor, got {}", args[0])),
         }
     });
     env.borrow_mut().set("ceil".to_string(), ceil_fn);
+
+    let asin_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("asin() takes exactly 1 argument".to_string()); }
+        let val = match &args[0] { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => return Err("asin() arg must be numeric".to_string()) };
+        Ok(Object::Float(val.asin()))
+    });
+    env.borrow_mut().set("asin".to_string(), asin_fn);
+
+    let acos_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("acos() takes exactly 1 argument".to_string()); }
+        let val = match &args[0] { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => return Err("acos() arg must be numeric".to_string()) };
+        Ok(Object::Float(val.acos()))
+    });
+    env.borrow_mut().set("acos".to_string(), acos_fn);
+
+    let atan_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("atan() takes exactly 1 argument".to_string()); }
+        let val = match &args[0] { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => return Err("atan() arg must be numeric".to_string()) };
+        Ok(Object::Float(val.atan()))
+    });
+    env.borrow_mut().set("atan".to_string(), atan_fn);
+
+    let atan2_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("atan2() takes exactly 2 arguments (y, x)".to_string()); }
+        let y = match &args[0] { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => return Err("atan2() y must be numeric".to_string()) };
+        let x = match &args[1] { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => return Err("atan2() x must be numeric".to_string()) };
+        Ok(Object::Float(y.atan2(x)))
+    });
+    env.borrow_mut().set("atan2".to_string(), atan2_fn);
 
     let sqrt_fn = Object::NativeFn(|args| {
         if args.len() != 1 {
@@ -1492,6 +1526,36 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("partition".to_string(), partition_fn);
 
+    let rfind_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("rfind() takes exactly 2 arguments (string, sub)".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("rfind() arg 1 must be string".to_string()) };
+        let sub = match &args[1] { Object::String(val) => val, _ => return Err("rfind() arg 2 must be string".to_string()) };
+        Ok(Object::Integer(s.rfind(sub).map(|i| i as i64).unwrap_or(-1)))
+    });
+    env.borrow_mut().set("rfind".to_string(), rfind_fn);
+
+    let lstrip_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 { return Err("lstrip() takes 1 or 2 arguments (string, [chars])".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("lstrip() arg 1 must be string".to_string()) };
+        let chars = if args.len() == 2 {
+            match &args[1] { Object::String(val) => Some(val), _ => return Err("lstrip() arg 2 must be string".to_string()) }
+        } else { None };
+        if let Some(c) = chars { Ok(Object::String(s.trim_start_matches(|ch| c.contains(ch)).to_string())) }
+        else { Ok(Object::String(s.trim_start().to_string())) }
+    });
+    env.borrow_mut().set("lstrip".to_string(), lstrip_fn);
+
+    let rstrip_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 { return Err("rstrip() takes 1 or 2 arguments (string, [chars])".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("rstrip() arg 1 must be string".to_string()) };
+        let chars = if args.len() == 2 {
+            match &args[1] { Object::String(val) => Some(val), _ => return Err("rstrip() arg 2 must be string".to_string()) }
+        } else { None };
+        if let Some(c) = chars { Ok(Object::String(s.trim_end_matches(|ch| c.contains(ch)).to_string())) }
+        else { Ok(Object::String(s.trim_end().to_string())) }
+    });
+    env.borrow_mut().set("rstrip".to_string(), rstrip_fn);
+
     let rpartition_fn = Object::NativeFn(|args| {
         if args.len() != 2 { return Err("rpartition() takes exactly 2 arguments (string, sep)".to_string()); }
         let s = match &args[0] { Object::String(val) => val, _ => return Err("rpartition() arg 1 must be string".to_string()) };
@@ -1918,6 +1982,17 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(args[0].clone())
     });
     env.borrow_mut().set("update".to_string(), dict_update_fn);
+
+    let setdefault_fn = Object::NativeFn(|args| {
+        if args.len() != 3 { return Err("setdefault() takes exactly 3 arguments (dict, key, default)".to_string()); }
+        let dict = match &args[0] { Object::Dictionary(val) => val, _ => return Err("setdefault() arg 1 must be dictionary".to_string()) };
+        let key = args[1].clone();
+        let default = args[2].clone();
+        let mut d = dict.borrow_mut();
+        let val = d.entry(key).or_insert(default);
+        Ok(val.clone())
+    });
+    env.borrow_mut().set("setdefault".to_string(), setdefault_fn);
 
     let isalnum_fn = Object::NativeFn(|args| {
         if args.len() != 1 { return Err("isalnum() takes exactly 1 argument".to_string()); }
