@@ -160,6 +160,21 @@ impl TypeChecker {
         env.set("acos".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("atan".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("atan2".to_string(), Type::Function(vec![Type::Any, Type::Any], Box::new(Type::Float)));
+        env.set("log2".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("log10".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("isinf".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("isnan".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("transpose".to_string(), Type::Function(vec![Type::Tensor], Box::new(Type::Tensor)));
+        env.set("isnumeric".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("isdecimal".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("istitle".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("expandtabs".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("popitem".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
+        env.set("copy".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("reversed".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("callable".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Bool)));
+        env.set("comb".to_string(), Type::Function(vec![Type::Int, Type::Int], Box::new(Type::Int)));
+        env.set("perm".to_string(), Type::Function(vec![Type::Int, Type::Int], Box::new(Type::Int)));
 
         // Set
         env.set("add".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Any], Box::new(Type::Any)));

@@ -183,4 +183,29 @@ impl Object {
             _ => true,
         }
     }
+
+    pub fn deep_copy(&self) -> Object {
+        match self {
+            Object::List(l) => {
+                let items: Vec<Object> = l.borrow().iter().map(|item| item.deep_copy()).collect();
+                Object::List(Rc::new(RefCell::new(items)))
+            },
+            Object::Dictionary(d) => {
+                let mut new_d = HashMap::new();
+                for (k, v) in d.borrow().iter() {
+                    new_d.insert(k.deep_copy(), v.deep_copy());
+                }
+                Object::Dictionary(Rc::new(RefCell::new(new_d)))
+            },
+            Object::Set(s) => {
+                let mut new_set = HashSet::new();
+                for item in s.borrow().iter() {
+                    new_set.insert(item.deep_copy());
+                }
+                Object::Set(Rc::new(RefCell::new(new_set)))
+            },
+            Object::Tensor(t) => Object::Tensor(t.copy()),
+            _ => self.clone(),
+        }
+    }
 }

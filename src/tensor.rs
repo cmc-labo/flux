@@ -138,6 +138,26 @@ impl Tensor {
         Tensor { inner: self.inner.mapv(|x| x.round()) }
     }
 
+    pub fn isinf(&self) -> Tensor {
+        Tensor { inner: self.inner.mapv(|x| if x.is_infinite() { 1.0 } else { 0.0 }) }
+    }
+
+    pub fn isnan(&self) -> Tensor {
+        Tensor { inner: self.inner.mapv(|x| if x.is_nan() { 1.0 } else { 0.0 }) }
+    }
+
+    pub fn log2(&self) -> Tensor {
+        Tensor { inner: self.inner.mapv(|x| x.log2()) }
+    }
+
+    pub fn log10(&self) -> Tensor {
+        Tensor { inner: self.inner.mapv(|x| x.log10()) }
+    }
+
+    pub fn copy(&self) -> Tensor {
+        Tensor { inner: self.inner.clone() }
+    }
+
     pub fn abs(&self) -> Tensor {
         Tensor { inner: self.inner.mapv(|x| x.abs()) }
     }

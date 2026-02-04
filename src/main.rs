@@ -843,6 +843,59 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("sqrt".to_string(), sqrt_fn);
 
+    let log2_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("log2() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::Float((*i as f64).log2())),
+            Object::Float(f) => Ok(Object::Float(f.log2())),
+            Object::Tensor(t) => Ok(Object::Tensor(t.log2())),
+            _ => Err(format!("log2() argument must be numeric or tensor, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("log2".to_string(), log2_fn);
+
+    let log10_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("log10() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::Float((*i as f64).log10())),
+            Object::Float(f) => Ok(Object::Float(f.log10())),
+            Object::Tensor(t) => Ok(Object::Tensor(t.log10())),
+            _ => Err(format!("log10() argument must be numeric or tensor, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("log10".to_string(), log10_fn);
+
+    let isinf_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isinf() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Float(f) => Ok(Object::Boolean(f.is_infinite())),
+            Object::Integer(_) => Ok(Object::Boolean(false)),
+            Object::Tensor(t) => Ok(Object::Tensor(t.isinf())),
+            _ => Err(format!("isinf() argument must be numeric or tensor, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isinf".to_string(), isinf_fn);
+
+    let isnan_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isnan() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Float(f) => Ok(Object::Boolean(f.is_nan())),
+            Object::Integer(_) => Ok(Object::Boolean(false)),
+            Object::Tensor(t) => Ok(Object::Tensor(t.isnan())),
+            _ => Err(format!("isnan() argument must be numeric or tensor, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isnan".to_string(), isnan_fn);
+
+    let transpose_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("transpose() takes exactly 1 argument (tensor)".to_string()); }
+        match &args[0] {
+            Object::Tensor(t) => Ok(Object::Tensor(t.transpose())),
+            _ => Err(format!("transpose() argument must be a tensor, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("transpose".to_string(), transpose_fn);
+
     let pow_fn = Object::NativeFn(|args| {
         if args.len() != 2 {
             return Err("pow() takes exactly 2 arguments (base, exp)".to_string());
@@ -1470,6 +1523,74 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("swapcase".to_string(), swapcase_fn);
 
+    let isnumeric_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isnumeric() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_numeric()))),
+            _ => Err(format!("isnumeric() arg must be string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isnumeric".to_string(), isnumeric_fn);
+
+    let isdecimal_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isdecimal() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))),
+            _ => Err(format!("isdecimal() arg must be string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isdecimal".to_string(), isdecimal_fn);
+
+    let istitle_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("istitle() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::String(s) => {
+                if s.is_empty() { return Ok(Object::Boolean(false)); }
+                let mut titled = true;
+                let mut last_was_word = false;
+                for c in s.chars() {
+                    if c.is_alphabetic() {
+                        if !last_was_word {
+                            if !c.is_uppercase() { titled = false; break; }
+                        } else {
+                            if !c.is_lowercase() { titled = false; break; }
+                        }
+                        last_was_word = true;
+                    } else {
+                        last_was_word = false;
+                    }
+                }
+                Ok(Object::Boolean(titled))
+            },
+            _ => Err(format!("istitle() arg must be string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("istitle".to_string(), istitle_fn);
+
+    let expandtabs_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 { return Err("expandtabs() takes 1 or 2 arguments".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("expandtabs() arg 1 must be string".to_string()) };
+        let tabsize = if args.len() == 2 {
+            match &args[1] { Object::Integer(i) => *i as usize, _ => return Err("expandtabs() arg 2 must be int".to_string()) }
+        } else { 8 };
+        
+        let mut res = String::new();
+        let mut column = 0;
+        for c in s.chars() {
+            if c == '\t' {
+                let spaces = tabsize - (column % tabsize);
+                res.push_str(&" ".repeat(spaces));
+                column += spaces;
+            } else {
+                res.push(c);
+                if c == '\n' || c == '\r' { column = 0; }
+                else { column += 1; }
+            }
+        }
+        Ok(Object::String(res))
+    });
+    env.borrow_mut().set("expandtabs".to_string(), expandtabs_fn);
+
     let ljust_fn = Object::NativeFn(|args| {
         if args.len() < 2 || args.len() > 3 { return Err("ljust() takes 2 or 3 arguments (string, width, [fillchar])".to_string()); }
         let s = match &args[0] { Object::String(val) => val, _ => return Err("ljust() arg 1 must be string".to_string()) };
@@ -1690,6 +1811,37 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
     });
     env.borrow_mut().set("flatten".to_string(), flatten_fn);
+
+    let reversed_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("reversed() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::List(l) => {
+                let items: Vec<Object> = l.borrow().iter().rev().cloned().collect();
+                Ok(Object::List(Rc::new(RefCell::new(items))))
+            },
+            Object::String(s) => {
+                let reversed: String = s.chars().rev().collect();
+                Ok(Object::String(reversed))
+            },
+            _ => Err(format!("reversed() not supported for {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("reversed".to_string(), reversed_fn);
+
+    let callable_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("callable() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::NativeFn(_) | Object::Function { .. } => Ok(Object::Boolean(true)),
+            _ => Ok(Object::Boolean(false)),
+        }
+    });
+    env.borrow_mut().set("callable".to_string(), callable_fn);
+
+    let copy_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("copy() takes exactly 1 argument".to_string()); }
+        Ok(args[0].deep_copy())
+    });
+    env.borrow_mut().set("copy".to_string(), copy_fn);
 
     let chr_fn = Object::NativeFn(|args| {
         if args.len() != 1 {
@@ -1993,6 +2145,47 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(val.clone())
     });
     env.borrow_mut().set("setdefault".to_string(), setdefault_fn);
+
+    let popitem_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("popitem() takes exactly 1 argument (dict)".to_string()); }
+        let dict = match &args[0] { Object::Dictionary(val) => val, _ => return Err("popitem() arg 1 must be dictionary".to_string()) };
+        let mut d = dict.borrow_mut();
+        // HashMap doesn't have an order, so we just take the first item if it exists
+        if let Some(key) = d.keys().next().cloned() {
+            let val = d.remove(&key).unwrap();
+            Ok(Object::List(Rc::new(RefCell::new(vec![key, val]))))
+        } else {
+            Err("popitem(): dictionary is empty".to_string())
+        }
+    });
+    env.borrow_mut().set("popitem".to_string(), popitem_fn);
+
+    let comb_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("comb() takes exactly 2 arguments (n, k)".to_string()); }
+        let n = match &args[0] { Object::Integer(i) => *i, _ => return Err("comb() n must be int".to_string()) };
+        let k = match &args[1] { Object::Integer(i) => *i, _ => return Err("comb() k must be int".to_string()) };
+        if k < 0 || k > n { return Ok(Object::Integer(0)); }
+        let mut res = 1i64;
+        let k = k.min(n - k);
+        for i in 1..=k {
+            res = res * (n - i + 1) / i;
+        }
+        Ok(Object::Integer(res))
+    });
+    env.borrow_mut().set("comb".to_string(), comb_fn);
+
+    let perm_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("perm() takes exactly 2 arguments (n, k)".to_string()); }
+        let n = match &args[0] { Object::Integer(i) => *i, _ => return Err("perm() n must be int".to_string()) };
+        let k = match &args[1] { Object::Integer(i) => *i, _ => return Err("perm() k must be int".to_string()) };
+        if k < 0 || k > n { return Ok(Object::Integer(0)); }
+        let mut res = 1i64;
+        for i in 0..k {
+            res *= n - i;
+        }
+        Ok(Object::Integer(res))
+    });
+    env.borrow_mut().set("perm".to_string(), perm_fn);
 
     let isalnum_fn = Object::NativeFn(|args| {
         if args.len() != 1 { return Err("isalnum() takes exactly 1 argument".to_string()); }

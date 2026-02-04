@@ -1,0 +1,67 @@
+# tests/test_round7_final.fl
+
+print("--- Testing String methods ---")
+print("'123'.isnumeric() =", "123".isnumeric())
+print("'½'.isnumeric() =", "½".isnumeric())
+print("'123'.isdecimal() =", "123".isdecimal())
+print("'½'.isdecimal() =", "½".isdecimal())
+print("'Title Case'.istitle() =", "Title Case".istitle())
+print("'not Titled'.istitle() =", "not Titled".istitle())
+print("'a\tb'.expandtabs(4) =", "'" + "a\tb".expandtabs(4) + "'")
+
+print("\n--- Testing Math functions ---")
+print("log2(8) =", log2(8))
+print("log10(100) =", log10(100))
+print("isinf(1.0/0.0) =", isinf(1.0/0.0))
+print("isnan(0.0/0.0) =", isnan(0.0/0.0))
+print("comb(5, 2) =", comb(5, 2))
+print("perm(5, 2) =", perm(5, 2))
+
+print("\n--- Testing Collections (popitem, copy, reversed) ---")
+let d = {"a": 1, "b": 2}
+print("d.popitem() =", d.popitem())
+print("d after popitem =", d)
+
+let l = [1, [2, 3]]
+let l2 = copy(l)
+l[1][0] = 99
+print("original l =", l)
+print("copy l2 (should be [1, [2, 3]]) =", l2)
+
+print("reversed([1, 2, 3]) =", reversed([1, 2, 3]))
+print("reversed('abc') =", reversed("abc"))
+
+print("\n--- Testing Introspection (callable) ---")
+def test_fn(x):
+    return x
+
+print("callable(test_fn) =", callable(test_fn))
+print("callable(1) =", callable(1))
+
+print("\n--- Testing Tensor enhancements ---")
+let t = matrix(2, 3)
+t[[0, 0]] = 1.0
+t[[0, 1]] = 2.0
+t[[0, 2]] = 3.0
+t[[1, 0]] = 4.0
+t[[1, 1]] = 5.0
+t[[1, 2]] = 6.0
+print("t (2x3) =\n", t)
+let tt = transpose(t)
+print("transpose(t) (3x2) =\n", tt)
+
+let t2 = matrix(2, 2)
+t2[[0, 0]] = 4.0
+t2[[0, 1]] = 100.0
+t2[[1, 0]] = 0.0/0.0
+t2[[1, 1]] = 1.0/0.0
+print("t2 =\n", t2)
+print("log2(t2) =\n", log2(t2))
+print("log10(t2) =\n", log10(t2))
+print("isnan(t2) =\n", isnan(t2))
+print("isinf(t2) =\n", isinf(t2))
+
+let t3 = copy(t)
+t3[[0, 0]] = 99.0
+print("original t[[0,0]] =", t[[0,0]])
+print("copy t3[[0,0]] =", t3[[0,0]])
