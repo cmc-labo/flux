@@ -1,0 +1,41 @@
+# Test Multiple Assignment in for loops
+print("--- Testing For Loop Unpacking ---")
+items = [[0, "a"], [1, "b"], [2, "c"]]
+for i, x in items:
+    print("Index:", i, "Value:", x)
+    if i == 0:
+        assert x == "a"
+    if i == 1:
+        assert x == "b"
+    if i == 2:
+        assert x == "c"
+
+# Test with enumerate
+for i, val in enumerate(["apple", "banana"]):
+    print("Enum:", i, val)
+    if i == 0:
+        assert val == "apple"
+    if i == 1:
+        assert val == "banana"
+
+# Test sum() with optional start
+print("--- Testing sum() with start ---")
+assert sum([1, 2, 3]) == 6
+assert sum([1, 2, 3], 10) == 16
+assert sum([1.5, 2.5], 10.0) == 14.0
+assert sum([1, 2], 0.5) == 3.5
+
+# Test list index and count
+print("--- Testing index and count ---")
+l = [10, 20, 30, 20, 40]
+assert l.count(20) == 2
+assert l.count(50) == 0
+assert l.index(20) == 1
+assert l.index(30) == 2
+
+# Test string index and count
+s = "hello world"
+assert s.count("o") == 2
+assert s.index("world") == 6
+
+print("All ultra-minor refinements passed!")

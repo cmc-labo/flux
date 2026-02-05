@@ -114,7 +114,7 @@ impl Interpreter {
                 println!("{}", vals.join(" "));
                 Ok(Object::Null)
             },
-            StatementKind::For { variable, iterable, body } => {
+            StatementKind::For { variables, iterable, body } => {
                 let iter_obj = self.eval_expression(iterable, env.clone())?;
                 let elements = match iter_obj {
                     Object::List(l) => l.borrow().clone(),
@@ -123,9 +123,29 @@ impl Interpreter {
                     },
                     _ => return Err(FluxError::new_runtime(format!("Cannot iterate over {}", iter_obj), span)),
                 };
-
                 for el in elements {
-                    env.borrow_mut().set(variable.clone(), el);
+                    if variables.len() == 1 {
+                        env.borrow_mut().set(variables[0].clone(), el);
+                    } else {
+                        match el {
+                            Object::List(l) => {
+                                let list = l.borrow();
+                                if list.len() != variables.len() {
+                                    return Err(FluxError::new_runtime(
+                                        format!("Unpacking error in for loop: expected {} values, got {}", variables.len(), list.len()),
+                                        span
+                                    ));
+                                }
+                                for (i, var) in variables.iter().enumerate() {
+                                    env.borrow_mut().set(var.clone(), list[i].clone());
+                                }
+                            }
+                            _ => return Err(FluxError::new_runtime(
+                                format!("Unpacking error in for loop: expected list, got {:?}", el),
+                                span
+                            )),
+                        }
+                    }
                     let result = self.eval_block(body.clone(), env.clone())?;
                     match result {
                         Object::Break => break,

@@ -258,15 +258,33 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     env.borrow_mut().set("abs".to_string(), abs_fn);
 
     let sum_fn = Object::NativeFn(|args| {
-        if args.len() != 1 {
-            return Err("sum() takes exactly 1 argument".to_string());
+        if args.len() < 1 || args.len() > 2 {
+            return Err("sum() takes 1 or 2 arguments (iterable, [start])".to_string());
         }
+        
+        let mut total_int = 0;
+        let mut total_float = 0.0;
+        let mut has_float = false;
+
+        if args.len() == 2 {
+            match &args[1] {
+                Object::Integer(i) => total_int = *i,
+                Object::Float(f) => {
+                    has_float = true;
+                    total_float = *f;
+                },
+                _ => return Err(format!("sum() start value must be numeric, got {}", args[1])),
+            }
+        }
+
         match &args[0] {
-            Object::Tensor(t) => Ok(Object::Float(t.sum())),
+            Object::Tensor(t) => {
+                let s = t.sum();
+                if has_float { Ok(Object::Float(total_float + s)) }
+                else { Ok(Object::Float(total_int as f64 + s)) }
+            },
             Object::List(l) => {
-                let mut total_int = 0;
-                let mut total_float = 0.0;
-                let mut has_float = false;
+                if has_float { total_float += total_int as f64; }
 
                 for item in l.borrow().iter() {
                     match item {
@@ -294,7 +312,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                     Ok(Object::Integer(total_int))
                 }
             },
-            _ => Err(format!("sum() argument must be a list or tensor, got {}", args[0])),
+            _ => Err(format!("sum() first argument must be a list or tensor, got {}", args[0])),
         }
     });
     env.borrow_mut().set("sum".to_string(), sum_fn);
@@ -1235,6 +1253,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     env.borrow_mut().set("count".to_string(), count_fn);
 
 
+
+
     let exit_fn = Object::NativeFn(|args| {
         let code = if args.len() == 1 {
             match &args[0] {
@@ -1470,17 +1490,29 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
 
     let index_fn = Object::NativeFn(|args| {
         if args.len() != 2 {
-            return Err("index() takes exactly 2 arguments (list, item)".to_string());
+            return Err("index() takes exactly 2 arguments (list/string, item/substring)".to_string());
         }
-        let list = match &args[0] {
-            Object::List(val) => val,
-            _ => return Err(format!("index() first argument must be a list, got {}", args[0])),
-        };
-        let target = &args[1];
-        let pos = list.borrow().iter().position(|x| x == target);
-        match pos {
-            Some(p) => Ok(Object::Integer(p as i64)),
-            None => Ok(Object::Integer(-1)),
+        match &args[0] {
+            Object::List(list) => {
+                let target = &args[1];
+                let pos = list.borrow().iter().position(|x| x == target);
+                match pos {
+                    Some(p) => Ok(Object::Integer(p as i64)),
+                    None => Err(format!("index(): {} not in list", target)),
+                }
+            },
+            Object::String(s) => {
+                let sub = match &args[1] {
+                    Object::String(val) => val,
+                    _ => return Err(format!("index() second argument must be a string, got {}", args[1])),
+                };
+                let idx = s.find(sub);
+                match idx {
+                    Some(i) => Ok(Object::Integer(i as i64)),
+                    None => Err(format!("index(): '{}' not in string", sub)),
+                }
+            },
+            _ => Err(format!("index() first argument must be a list or string, got {}", args[0])),
         }
     });
     env.borrow_mut().set("index".to_string(), index_fn);

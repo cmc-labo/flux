@@ -655,11 +655,23 @@ impl<'a> Parser<'a> {
             self.errors.push(ParserError { message: format!("Expected Identifier after 'for'"), span: self.cur_span });
             return None;
         }
-
-        let variable = match &self.cur_token {
-            Token::Identifier(n) => n.clone(),
+        
+        let mut variables = Vec::new();
+        match &self.cur_token {
+            Token::Identifier(n) => variables.push(n.clone()),
             _ => return None,
         };
+
+        while self.peek_token_is(&Token::Comma) {
+            self.next_token(); // ,
+            if !self.expect_peek(Token::Identifier("".to_string())) {
+                return None;
+            }
+            match &self.cur_token {
+                Token::Identifier(n) => variables.push(n.clone()),
+                _ => return None,
+            }
+        }
 
         if !self.expect_peek(Token::In) {
             return None;
@@ -682,7 +694,7 @@ impl<'a> Parser<'a> {
 
         Some(Statement {
             span: start.join(end),
-            kind: StatementKind::For { variable, iterable, body }
+            kind: StatementKind::For { variables, iterable, body }
         })
     }
 

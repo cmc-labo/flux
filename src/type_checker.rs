@@ -312,7 +312,7 @@ impl TypeChecker {
                 self.infer_type(condition, env)?;
                 self.check_block(body, &mut TypeEnv::extend(env.clone()))?;
             }
-            StatementKind::For { variable, iterable, body } => {
+            StatementKind::For { variables, iterable, body } => {
                 let iter_ty = self.infer_type(iterable, env)?;
                 let elem_ty = match iter_ty {
                     Type::List(inner) => *inner,
@@ -321,7 +321,28 @@ impl TypeChecker {
                     _ => Type::Any,
                 };
                 let mut sub_env = TypeEnv::extend(env.clone());
-                sub_env.set(variable.clone(), elem_ty);
+                if variables.len() == 1 {
+                    sub_env.set(variables[0].clone(), elem_ty);
+                } else {
+                    match elem_ty {
+                        Type::List(inner) => {
+                            for var in variables {
+                                sub_env.set(var.clone(), *inner.clone());
+                            }
+                        }
+                        Type::Any => {
+                            for var in variables {
+                                sub_env.set(var.clone(), Type::Any);
+                            }
+                        }
+                        _ => {
+                            return Err(FluxError::new_type(
+                                format!("Cannot unpack type {:?} in for loop into {} variables", elem_ty, variables.len()),
+                                stmt.span
+                            ));
+                        }
+                    }
+                }
                 self.check_block(body, &mut sub_env)?;
             }
             StatementKind::IndexAssign { object, index, value } => {

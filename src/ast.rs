@@ -38,7 +38,7 @@ pub enum StatementKind {
     },
     If { condition: Expression, consequence: Block, elif_branches: Vec<(Expression, Block)>, alternative: Option<Block> },
     While { condition: Expression, body: Block },
-    For { variable: String, iterable: Expression, body: Block },
+    For { variables: Vec<String>, iterable: Expression, body: Block },
     Print(Vec<Expression>),
     IndexAssign { object: Expression, index: Expression, value: Expression },
     Break,
