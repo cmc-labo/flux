@@ -712,29 +712,170 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     env.borrow_mut().set("str".to_string(), str_fn);
 
     let split_fn = Object::NativeFn(|args| {
-        if args.len() < 1 || args.len() > 2 {
-            return Err("split() takes 1 or 2 arguments".to_string());
+        if args.len() < 1 || args.len() > 3 {
+            return Err("split() takes 1 to 3 arguments (string, [sep], [maxsplit])".to_string());
         }
         let s = match &args[0] {
             Object::String(val) => val,
             _ => return Err(format!("split() first argument must be a string, got {}", args[0])),
         };
-        let sep = if args.len() == 2 {
+        let sep = if args.len() >= 2 {
             match &args[1] {
-                Object::String(val) => val,
-                _ => return Err(format!("split() separator must be a string, got {}", args[1])),
+                Object::String(val) => Some(val.as_str()),
+                Object::Null => None,
+                _ => return Err(format!("split() separator must be a string or null, got {}", args[1])),
             }
         } else {
-            " "
+            None
         };
-        let items: Vec<Object> = if sep.is_empty() {
-            s.chars().map(|c| Object::String(c.to_string())).collect()
+        let maxsplit = if args.len() == 3 {
+            match &args[2] {
+                Object::Integer(i) => *i as isize,
+                _ => return Err(format!("split() maxsplit must be an integer, got {}", args[2])),
+            }
         } else {
-            s.split(sep).map(|item| Object::String(item.to_string())).collect()
+            -1
+        };
+
+        let items: Vec<Object> = match sep {
+            None => {
+                if maxsplit < 0 {
+                    s.split_whitespace().map(|item| Object::String(item.to_string())).collect()
+                } else {
+                    s.split_whitespace().take(maxsplit as usize + 1).map(|item| Object::String(item.to_string())).collect()
+                    // Rust's split_whitespace doesn't have a direct maxsplit equivalent that keeps the rest.
+                    // Let's implement it manually or use a different approach.
+                }
+            }
+            Some(sep_str) => {
+                if sep_str.is_empty() {
+                    s.chars().map(|c| Object::String(c.to_string())).collect()
+                } else {
+                    if maxsplit < 0 {
+                        s.split(sep_str).map(|item| Object::String(item.to_string())).collect()
+                    } else {
+                        let parts: Vec<Object> = s.splitn(maxsplit as usize + 1, sep_str)
+                            .map(|item| Object::String(item.to_string()))
+                            .collect();
+                        parts
+                    }
+                }
+            }
+        };
+
+        // For split_whitespace with maxsplit, we need a custom implementation if we want to keep the remainder.
+        let final_items = if sep.is_none() && maxsplit >= 0 {
+            let mut res = Vec::new();
+            let mut count = 0;
+            let mut last_idx = 0;
+            let mut in_whitespace = true;
+            for (i, c) in s.char_indices() {
+                if c.is_whitespace() {
+                    if !in_whitespace {
+                        if count < maxsplit {
+                            res.push(Object::String(s[last_idx..i].to_string()));
+                            count += 1;
+                            in_whitespace = true;
+                        }
+                    }
+                } else {
+                    if in_whitespace {
+                        last_idx = i;
+                        in_whitespace = false;
+                    }
+                }
+            }
+            if !in_whitespace {
+                res.push(Object::String(s[last_idx..].to_string()));
+            }
+            res
+        } else {
+            items
+        };
+
+        Ok(Object::List(Rc::new(RefCell::new(final_items))))
+    });
+    env.borrow_mut().set("split".to_string(), split_fn);
+
+    let rsplit_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 3 {
+            return Err("rsplit() takes 1 to 3 arguments (string, [sep], [maxsplit])".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(val) => val,
+            _ => return Err(format!("rsplit() first argument must be a string, got {}", args[0])),
+        };
+        let sep = if args.len() >= 2 {
+            match &args[1] {
+                Object::String(val) => Some(val.as_str()),
+                Object::Null => None,
+                _ => return Err(format!("rsplit() separator must be a string or null, got {}", args[1])),
+            }
+        } else {
+            None
+        };
+        let maxsplit = if args.len() == 3 {
+            match &args[2] {
+                Object::Integer(i) => *i as isize,
+                _ => return Err(format!("rsplit() maxsplit must be an integer, got {}", args[2])),
+            }
+        } else {
+            -1
+        };
+
+        let items: Vec<Object> = match sep {
+            None => {
+                // Simplified whitespace rsplit
+                if maxsplit < 0 {
+                    s.split_whitespace().map(|item| Object::String(item.to_string())).collect()
+                } else {
+                    // Manual rsplit for whitespace
+                    let mut res = Vec::new();
+                    let mut count = 0;
+                    let mut last_idx = s.len();
+                    let mut in_whitespace = true;
+                    for (i, c) in s.char_indices().rev() {
+                        if c.is_whitespace() {
+                            if !in_whitespace {
+                                if count < maxsplit {
+                                    res.push(Object::String(s[i + c.len_utf8()..last_idx].to_string()));
+                                    count += 1;
+                                    in_whitespace = true;
+                                }
+                            }
+                        } else {
+                            if in_whitespace {
+                                last_idx = i + c.len_utf8();
+                                in_whitespace = false;
+                            }
+                        }
+                    }
+                    if !in_whitespace {
+                        res.push(Object::String(s[0..last_idx].to_string()));
+                    }
+                    res.reverse();
+                    res
+                }
+            }
+            Some(sep_str) => {
+                if sep_str.is_empty() {
+                    s.chars().map(|c| Object::String(c.to_string())).collect()
+                } else {
+                    if maxsplit < 0 {
+                        s.split(sep_str).map(|item| Object::String(item.to_string())).collect()
+                    } else {
+                        let mut res: Vec<Object> = s.rsplitn(maxsplit as usize + 1, sep_str)
+                            .map(|item| Object::String(item.to_string()))
+                            .collect();
+                        res.reverse();
+                        res
+                    }
+                }
+            }
         };
         Ok(Object::List(Rc::new(RefCell::new(items))))
     });
-    env.borrow_mut().set("split".to_string(), split_fn);
+    env.borrow_mut().set("rsplit".to_string(), rsplit_fn);
 
     let join_fn = Object::NativeFn(|args| {
         if args.len() != 2 {
@@ -754,8 +895,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     env.borrow_mut().set("join".to_string(), join_fn);
 
     let replace_fn = Object::NativeFn(|args| {
-        if args.len() != 3 {
-            return Err("replace() takes exactly 3 arguments (string, old, new)".to_string());
+        if args.len() < 3 || args.len() > 4 {
+            return Err("replace() takes 3 or 4 arguments (string, old, new, [count])".to_string());
         }
         let s = match &args[0] {
             Object::String(val) => val,
@@ -769,13 +910,26 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::String(val) => val,
             _ => return Err(format!("replace() third argument must be a string, got {}", args[2])),
         };
-        Ok(Object::String(s.replace(old, new)))
+        let count = if args.len() == 4 {
+            match &args[3] {
+                Object::Integer(i) => *i as usize,
+                _ => return Err(format!("replace() count must be an integer, got {}", args[3])),
+            }
+        } else {
+            0 // 0 means all for our custom logic if we implement it, or we can use usize::MAX
+        };
+
+        if args.len() == 3 {
+            Ok(Object::String(s.replace(old, new)))
+        } else {
+            Ok(Object::String(s.replacen(old, new, count)))
+        }
     });
     env.borrow_mut().set("replace".to_string(), replace_fn);
 
     let find_fn = Object::NativeFn(|args| {
-        if args.len() != 2 {
-            return Err("find() takes exactly 2 arguments (string, substring)".to_string());
+        if args.len() < 2 || args.len() > 4 {
+            return Err("find() takes 2 to 4 arguments (substring, [start], [end])".to_string());
         }
         let s = match &args[0] {
             Object::String(val) => val,
@@ -785,10 +939,39 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::String(val) => val,
             _ => return Err(format!("find() second argument must be a string, got {}", args[1])),
         };
-        match s.find(sub) {
-            Some(idx) => Ok(Object::Integer(idx as i64)),
-            None => Ok(Object::Integer(-1)),
+        let len = s.chars().count();
+        let start = if args.len() >= 3 {
+            match &args[2] {
+                Object::Integer(i) => {
+                    let mut val = *i;
+                    if val < 0 { val += len as i64; }
+                    val.clamp(0, len as i64) as usize
+                }
+                _ => return Err("find() start must be an integer".to_string()),
+            }
+        } else { 0 };
+        let end = if args.len() == 4 {
+            match &args[3] {
+                Object::Integer(i) => {
+                    let mut val = *i;
+                    if val < 0 { val += len as i64; }
+                    val.clamp(0, len as i64) as usize
+                }
+                _ => return Err("find() end must be an integer".to_string()),
+            }
+        } else { len };
+
+        if start < end && start < len {
+            let sliced: String = s.chars().skip(start).take(end - start).collect();
+            match sliced.find(sub) {
+                Some(idx) => {
+                    let char_offset = sliced[..idx].chars().count();
+                    return Ok(Object::Integer((char_offset + start) as i64));
+                }
+                None => {}
+            }
         }
+        Ok(Object::Integer(-1))
     });
     env.borrow_mut().set("find".to_string(), find_fn);
 
@@ -1227,24 +1410,76 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     env.borrow_mut().set("isalpha".to_string(), isalpha_fn);
 
     let count_fn = Object::NativeFn(|args| {
-        if args.len() != 2 {
-            return Err("count() takes exactly 2 arguments".to_string());
+        if args.len() < 2 || args.len() > 4 {
+            return Err("count() takes 2 to 4 arguments (item, [start], [end])".to_string());
         }
         match &args[0] {
             Object::List(list) => {
+                let list_borrow = list.borrow();
+                let len = list_borrow.len();
                 let target = &args[1];
-                let count = list.borrow().iter().filter(|x| *x == target).count();
+                let start = if args.len() >= 3 {
+                    match &args[2] {
+                        Object::Integer(i) => {
+                            let mut val = *i;
+                            if val < 0 { val += len as i64; }
+                            val.clamp(0, len as i64) as usize
+                        }
+                        _ => return Err("count() start must be an integer".to_string()),
+                    }
+                } else { 0 };
+                let mut end = if args.len() == 4 {
+                    match &args[3] {
+                        Object::Integer(i) => {
+                            let mut val = *i;
+                            if val < 0 { val += len as i64; }
+                            val.clamp(0, len as i64) as usize
+                        }
+                        _ => return Err("count() end must be an integer".to_string()),
+                    }
+                } else { len };
+
+                if start >= end || start >= len { return Ok(Object::Integer(0)); }
+
+                let count = list_borrow[start..end].iter().filter(|x| *x == target).count();
                 Ok(Object::Integer(count as i64))
             },
             Object::String(s) => {
+                let len = s.chars().count();
                 let sub = match &args[1] {
                     Object::String(val) => val,
-                    _ => return Err(format!("count() second argument must be a string for string search, got {}", args[1])),
+                    _ => return Err(format!("count() second argument must be a string, got {}", args[1])),
                 };
+                let mut start = if args.len() >= 3 {
+                    match &args[2] {
+                        Object::Integer(i) => {
+                            let mut val = *i;
+                            if val < 0 { val += len as i64; }
+                            val.clamp(0, len as i64) as usize
+                        }
+                        _ => return Err("count() start must be an integer".to_string()),
+                    }
+                } else { 0 };
+                let mut end = if args.len() == 4 {
+                    match &args[3] {
+                        Object::Integer(i) => {
+                            let mut val = *i;
+                            if val < 0 { val += len as i64; }
+                            val.clamp(0, len as i64) as usize
+                        }
+                        _ => return Err("count() end must be an integer".to_string()),
+                    }
+                } else { len };
+
+                if start >= end || start >= len { return Ok(Object::Integer(0)); }
+                
+                // For strings, we need to convert char indices to byte indices for slicing if we use s[start..end]
+                // But char-based counting is safer.
+                let sliced: String = s.chars().skip(start).take(end - start).collect();
                 if sub.is_empty() {
-                    return Ok(Object::Integer((s.len() + 1) as i64));
+                    return Ok(Object::Integer((sliced.chars().count() + 1) as i64));
                 }
-                let c = s.matches(sub).count();
+                let c = sliced.matches(sub).count();
                 Ok(Object::Integer(c as i64))
             },
             _ => Err(format!("count() first argument must be a list or string, got {}", args[0])),
@@ -1348,15 +1583,18 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::List(val) => val,
             _ => return Err(format!("insert() first argument must be a list, got {}", args[0])),
         };
+        let list_len = list.borrow().len();
         let index = match &args[1] {
-            Object::Integer(i) => *i as usize,
+            Object::Integer(i) => {
+                let mut idx = *i;
+                if idx < 0 {
+                    idx += list_len as i64;
+                }
+                idx.clamp(0, list_len as i64) as usize
+            },
             _ => return Err(format!("insert() second argument must be an integer, got {}", args[1])),
         };
         let item = args[2].clone();
-        let list_len = list.borrow().len();
-        if index > list_len {
-            return Err(format!("insert() index {} out of range for list of length {}", index, list_len));
-        }
         list.borrow_mut().insert(index, item);
         Ok(args[0].clone())  // Return the list itself
     });
@@ -1489,28 +1727,84 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     env.borrow_mut().set("remove".to_string(), remove_val_fn);
 
     let index_fn = Object::NativeFn(|args| {
-        if args.len() != 2 {
-            return Err("index() takes exactly 2 arguments (list/string, item/substring)".to_string());
+        if args.len() < 2 || args.len() > 4 {
+            return Err("index() takes 2 to 4 arguments (item, [start], [end])".to_string());
         }
         match &args[0] {
             Object::List(list) => {
+                let list_borrow = list.borrow();
+                let len = list_borrow.len();
                 let target = &args[1];
-                let pos = list.borrow().iter().position(|x| x == target);
-                match pos {
-                    Some(p) => Ok(Object::Integer(p as i64)),
-                    None => Err(format!("index(): {} not in list", target)),
+                let start = if args.len() >= 3 {
+                    match &args[2] {
+                        Object::Integer(i) => {
+                            let mut val = *i;
+                            if val < 0 { val += len as i64; }
+                            val.clamp(0, len as i64) as usize
+                        }
+                        _ => return Err("index() start must be an integer".to_string()),
+                    }
+                } else { 0 };
+                let end = if args.len() == 4 {
+                    match &args[3] {
+                        Object::Integer(i) => {
+                            let mut val = *i;
+                            if val < 0 { val += len as i64; }
+                            val.clamp(0, len as i64) as usize
+                        }
+                        _ => return Err("index() end must be an integer".to_string()),
+                    }
+                } else { len };
+
+                if start < end && start < len {
+                    let pos = list_borrow[start..end].iter().position(|x| x == target);
+                    match pos {
+                        Some(p) => return Ok(Object::Integer((p + start) as i64)),
+                        None => {}
+                    }
                 }
+                Err(format!("index(): {} not in list", target))
             },
             Object::String(s) => {
+                let len = s.chars().count();
                 let sub = match &args[1] {
                     Object::String(val) => val,
                     _ => return Err(format!("index() second argument must be a string, got {}", args[1])),
                 };
-                let idx = s.find(sub);
-                match idx {
-                    Some(i) => Ok(Object::Integer(i as i64)),
-                    None => Err(format!("index(): '{}' not in string", sub)),
+                let start = if args.len() >= 3 {
+                    match &args[2] {
+                        Object::Integer(i) => {
+                            let mut val = *i;
+                            if val < 0 { val += len as i64; }
+                            val.clamp(0, len as i64) as usize
+                        }
+                        _ => return Err("index() start must be an integer".to_string()),
+                    }
+                } else { 0 };
+                let end = if args.len() == 4 {
+                    match &args[3] {
+                        Object::Integer(i) => {
+                            let mut val = *i;
+                            if val < 0 { val += len as i64; }
+                            val.clamp(0, len as i64) as usize
+                        }
+                        _ => return Err("index() end must be an integer".to_string()),
+                    }
+                } else { len };
+
+                if start < end && start < len {
+                    let sliced: String = s.chars().skip(start).take(end - start).collect();
+                    let idx = sliced.find(sub);
+                    match idx {
+                        Some(i) => {
+                            // Find byte offset i and convert it to char offset within 'sliced'
+                            let char_offset = sliced[..i].chars().count();
+                            return Ok(Object::Integer((char_offset + start) as i64));
+                        }
+                        None => {}
+                    }
                 }
+                Err(format!("index(): '{}' not in string", sub))
             },
             _ => Err(format!("index() first argument must be a list or string, got {}", args[0])),
         }
@@ -1680,10 +1974,50 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     env.borrow_mut().set("partition".to_string(), partition_fn);
 
     let rfind_fn = Object::NativeFn(|args| {
-        if args.len() != 2 { return Err("rfind() takes exactly 2 arguments (string, sub)".to_string()); }
-        let s = match &args[0] { Object::String(val) => val, _ => return Err("rfind() arg 1 must be string".to_string()) };
-        let sub = match &args[1] { Object::String(val) => val, _ => return Err("rfind() arg 2 must be string".to_string()) };
-        Ok(Object::Integer(s.rfind(sub).map(|i| i as i64).unwrap_or(-1)))
+        if args.len() < 2 || args.len() > 4 {
+            return Err("rfind() takes 2 to 4 arguments (substring, [start], [end])".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(val) => val,
+            _ => return Err(format!("rfind() first argument must be a string, got {}", args[0])),
+        };
+        let sub = match &args[1] {
+            Object::String(val) => val,
+            _ => return Err(format!("rfind() second argument must be a string, got {}", args[1])),
+        };
+        let len = s.chars().count();
+        let start = if args.len() >= 3 {
+            match &args[2] {
+                Object::Integer(i) => {
+                    let mut val = *i;
+                    if val < 0 { val += len as i64; }
+                    val.clamp(0, len as i64) as usize
+                }
+                _ => return Err("rfind() start must be an integer".to_string()),
+            }
+        } else { 0 };
+        let end = if args.len() == 4 {
+            match &args[3] {
+                Object::Integer(i) => {
+                    let mut val = *i;
+                    if val < 0 { val += len as i64; }
+                    val.clamp(0, len as i64) as usize
+                }
+                _ => return Err("rfind() end must be an integer".to_string()),
+            }
+        } else { len };
+
+        if start < end && start < len {
+            let sliced: String = s.chars().skip(start).take(end - start).collect();
+            match sliced.rfind(sub) {
+                Some(idx) => {
+                    let char_offset = sliced[..idx].chars().count();
+                    return Ok(Object::Integer((char_offset + start) as i64));
+                }
+                None => {}
+            }
+        }
+        Ok(Object::Integer(-1))
     });
     env.borrow_mut().set("rfind".to_string(), rfind_fn);
 
