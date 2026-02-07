@@ -1,0 +1,34 @@
+# Testing Round 9 Refinements
+
+print("--- Testing repr ---")
+assert repr(1) == "1"
+assert repr("a") == "\"a\""
+assert repr([1, "a"]) == "[1, \"a\"]"
+assert repr({"a": 1}) == "{\"a\": 1}"
+
+print("--- Testing divmod ---")
+assert divmod(7, 3) == [2, 1]
+assert divmod(10, 5) == [2, 0]
+assert divmod(-7, 3) == [-2, -1] # Standard integer division/remainder in Rust
+
+print("--- Testing min/max with strings ---")
+assert min("apple", "banana") == "apple"
+assert max("apple", "banana") == "banana"
+assert min(["c", "a", "b"]) == "a"
+assert max(["c", "a", "b"]) == "c"
+
+print("--- Testing all/any with strings ---")
+assert all("abc") == True
+assert all("") == True
+assert any("abc") == True
+assert any("") == False
+
+print("--- Testing isalnum/isascii ---")
+assert "abc123".isalnum() == True
+assert "abc 123".isalnum() == False
+assert "".isalnum() == False
+assert "abc".isascii() == True
+assert "こんにちは".isascii() == False
+assert "".isascii() == True
+
+print("All Round 9 refinement tests passed!")

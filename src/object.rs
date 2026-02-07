@@ -184,6 +184,32 @@ impl Object {
         }
     }
 
+    pub fn repr(&self) -> String {
+        match self {
+            Object::String(s) => format!("{:?}", s),
+            Object::List(l) => {
+                let list = l.borrow();
+                let elements: Vec<String> = list.iter().map(|e| e.repr()).collect();
+                format!("[{}]", elements.join(", "))
+            }
+            Object::Dictionary(d) => {
+                let dict = d.borrow();
+                let elements: Vec<String> = dict.iter().map(|(k, v)| format!("{}: {}", k.repr(), v.repr())).collect();
+                format!("{{{}}}", elements.join(", "))
+            }
+            Object::Set(s) => {
+                let set = s.borrow();
+                let elements: Vec<String> = set.iter().map(|e| e.repr()).collect();
+                if elements.is_empty() {
+                    "set()".to_string()
+                } else {
+                    format!("{{{}}}", elements.join(", "))
+                }
+            }
+            _ => self.to_string(),
+        }
+    }
+
     pub fn deep_copy(&self) -> Object {
         match self {
             Object::List(l) => {

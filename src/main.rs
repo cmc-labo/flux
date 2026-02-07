@@ -168,6 +168,26 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             Object::Slice { .. } => Ok(Object::String("slice".to_string())),
         }
     });
+    let repr_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("repr() takes exactly 1 argument".to_string()); }
+        Ok(Object::String(args[0].repr()))
+    });
+    env.borrow_mut().set("repr".to_string(), repr_fn);
+
+    let divmod_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("divmod() takes exactly 2 arguments".to_string()); }
+        match (&args[0], &args[1]) {
+            (Object::Integer(a), Object::Integer(b)) => {
+                if *b == 0 { return Err("divmod() by zero".to_string()); }
+                let q = a / b;
+                let r = a % b;
+                Ok(Object::List(Rc::new(RefCell::new(vec![Object::Integer(q), Object::Integer(r)]))))
+            },
+            _ => Err(format!("divmod() not supported for {} and {}", args[0], args[1])),
+        }
+    });
+    env.borrow_mut().set("divmod".to_string(), divmod_fn);
+
     env.borrow_mut().set("type".to_string(), type_fn);
 
     let zeros_fn = Object::NativeFn(|args| {
@@ -380,31 +400,61 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
 
         if elements.is_empty() { return Err("min() arg is an empty sequence".to_string()); }
         let mut all_int = true;
+        let mut all_str = false;
         let mut min_i = 0;
         let mut min_f = 0.0;
+        let mut min_s = String::new();
         let mut first = true;
         for item in elements {
             match item {
                 Object::Integer(i) => {
-                    if first || (i as f64) < (if all_int { min_i as f64 } else { min_f }) {
+                    if first {
                         min_i = i;
-                        if !all_int { min_f = i as f64; }
+                    } else if all_str {
+                        return Err("min() cannot compare strings and integers".to_string());
+                    } else {
+                        if (i as f64) < (if all_int { min_i as f64 } else { min_f }) {
+                            min_i = i;
+                            if !all_int { min_f = i as f64; }
+                        }
                     }
                 },
                 Object::Float(f) => {
-                    if all_int {
+                    if first {
                         all_int = false;
-                        min_f = min_i as f64;
-                    }
-                    if first || f < min_f {
                         min_f = f;
+                    } else if all_str {
+                        return Err("min() cannot compare strings and floats".to_string());
+                    } else {
+                        if all_int {
+                            all_int = false;
+                            min_f = min_i as f64;
+                        }
+                        if f < min_f {
+                            min_f = f;
+                        }
                     }
                 },
-                _ => return Err(format!("min() encountered non-numeric element: {}", item)),
+                Object::String(s) => {
+                    if first {
+                        all_int = false;
+                        all_str = true;
+                        min_s = s.clone();
+                    } else if !all_str {
+                        return Err("min() cannot compare numbers and strings".to_string());
+                    } else {
+                        if s < min_s {
+                            min_s = s.clone();
+                        }
+                    }
+                }
+                _ => return Err(format!("min() encountered non-comparable element: {}", item)),
             }
             first = false;
         }
-        if all_int { Ok(Object::Integer(min_i)) } else { Ok(Object::Float(min_f)) }
+        if all_str { Ok(Object::String(min_s)) }
+        else if all_int { Ok(Object::Integer(min_i)) } 
+        else { Ok(Object::Float(min_f)) }
     });
     env.borrow_mut().set("min".to_string(), min_fn);
 
@@ -429,31 +479,61 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
 
         if elements.is_empty() { return Err("max() arg is an empty sequence".to_string()); }
         let mut all_int = true;
+        let mut all_str = false;
         let mut max_i = 0;
         let mut max_f = 0.0;
+        let mut max_s = String::new();
         let mut first = true;
         for item in elements {
             match item {
                 Object::Integer(i) => {
-                    if first || (i as f64) > (if all_int { max_i as f64 } else { max_f }) {
+                    if first {
                         max_i = i;
-                        if !all_int { max_f = i as f64; }
+                    } else if all_str {
+                        return Err("max() cannot compare strings and integers".to_string());
+                    } else {
+                        if (i as f64) > (if all_int { max_i as f64 } else { max_f }) {
+                            max_i = i;
+                            if !all_int { max_f = i as f64; }
+                        }
                     }
                 },
                 Object::Float(f) => {
-                    if all_int {
+                    if first {
                         all_int = false;
-                        max_f = max_i as f64;
-                    }
-                    if first || f > max_f {
                         max_f = f;
+                    } else if all_str {
+                        return Err("max() cannot compare strings and floats".to_string());
+                    } else {
+                        if all_int {
+                            all_int = false;
+                            max_f = max_i as f64;
+                        }
+                        if f > max_f {
+                            max_f = f;
+                        }
                     }
                 },
-                _ => return Err(format!("max() encountered non-numeric element: {}", item)),
+                Object::String(s) => {
+                    if first {
+                        all_int = false;
+                        all_str = true;
+                        max_s = s.clone();
+                    } else if !all_str {
+                        return Err("max() cannot compare numbers and strings".to_string());
+                    } else {
+                        if s > max_s {
+                            max_s = s.clone();
+                        }
+                    }
+                }
+                _ => return Err(format!("max() encountered non-comparable element: {}", item)),
             }
             first = false;
         }
-        if all_int { Ok(Object::Integer(max_i)) } else { Ok(Object::Float(max_f)) }
+        if all_str { Ok(Object::String(max_s)) }
+        else if all_int { Ok(Object::Integer(max_i)) } 
+        else { Ok(Object::Float(max_f)) }
     });
     env.borrow_mut().set("max".to_string(), max_fn);
 
@@ -471,8 +551,18 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                 }
                 Ok(Object::Boolean(true))
             },
+            Object::String(s) => {
+                for c in s.chars() {
+                    // Chaque caractère est une chaîne non vide, donc toujours truthy.
+                    // Mais on suit la sémantique Python d'itération.
+                    if !Object::String(c.to_string()).is_truthy() {
+                        return Ok(Object::Boolean(false));
+                    }
+                }
+                Ok(Object::Boolean(true))
+            },
             Object::Tensor(t) => Ok(Object::Boolean(t.all())),
-            _ => Err(format!("all() argument must be a list or tensor, got {}", args[0])),
+            _ => Err(format!("all() argument must be a list, string, or tensor, got {}", args[0])),
         }
     });
     env.borrow_mut().set("all".to_string(), all_fn);
@@ -490,8 +580,16 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                 }
                 Ok(Object::Boolean(false))
             },
+            Object::String(s) => {
+                for c in s.chars() {
+                    if Object::String(c.to_string()).is_truthy() {
+                        return Ok(Object::Boolean(true));
+                    }
+                }
+                Ok(Object::Boolean(false))
+            },
             Object::Tensor(t) => Ok(Object::Boolean(t.any())),
-            _ => Err(format!("any() argument must be a list or tensor, got {}", args[0])),
+            _ => Err(format!("any() argument must be a list, string, or tensor, got {}", args[0])),
         }
     });
     env.borrow_mut().set("any".to_string(), any_fn);
@@ -1409,6 +1507,28 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("isalpha".to_string(), isalpha_fn);
 
+    let isalnum_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("isalnum() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_alphanumeric()))),
+            _ => Err(format!("isalnum() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isalnum".to_string(), isalnum_fn);
+
+    let isascii_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("isascii() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(s.is_ascii())),
+            _ => Err(format!("isascii() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isascii".to_string(), isascii_fn);
+
     let count_fn = Object::NativeFn(|args| {
         if args.len() < 2 || args.len() > 4 {
             return Err("count() takes 2 to 4 arguments (item, [start], [end])".to_string());
@@ -1428,7 +1548,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                         _ => return Err("count() start must be an integer".to_string()),
                     }
                 } else { 0 };
-                let mut end = if args.len() == 4 {
+                let end = if args.len() == 4 {
                     match &args[3] {
                         Object::Integer(i) => {
                             let mut val = *i;
@@ -1450,7 +1570,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                     Object::String(val) => val,
                     _ => return Err(format!("count() second argument must be a string, got {}", args[1])),
                 };
-                let mut start = if args.len() >= 3 {
+                let start = if args.len() >= 3 {
                     match &args[2] {
                         Object::Integer(i) => {
                             let mut val = *i;
@@ -1460,7 +1580,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                         _ => return Err("count() start must be an integer".to_string()),
                     }
                 } else { 0 };
-                let mut end = if args.len() == 4 {
+                let end = if args.len() == 4 {
                     match &args[3] {
                         Object::Integer(i) => {
                             let mut val = *i;
