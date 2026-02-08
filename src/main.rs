@@ -977,18 +977,23 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
 
     let join_fn = Object::NativeFn(|args| {
         if args.len() != 2 {
-            return Err("join() takes exactly 2 arguments (list, separator)".to_string());
+            return Err("join() takes exactly 2 arguments (iterable, separator)".to_string());
         }
-        let list = match &args[0] {
-            Object::List(l) => l,
-            _ => return Err(format!("join() first argument must be a list, got {}", args[0])),
-        };
         let sep = match &args[1] {
             Object::String(s) => s,
             _ => return Err(format!("join() second argument must be a string, got {}", args[1])),
         };
-        let result = list.borrow().iter().map(|obj| obj.to_string()).collect::<Vec<String>>().join(sep);
-        Ok(Object::String(result))
+        match &args[0] {
+            Object::List(l) => {
+                let result = l.borrow().iter().map(|obj| obj.to_string()).collect::<Vec<String>>().join(sep);
+                Ok(Object::String(result))
+            },
+            Object::Set(s) => {
+                let result = s.borrow().iter().map(|obj| obj.to_string()).collect::<Vec<String>>().join(sep);
+                Ok(Object::String(result))
+            },
+            _ => Err(format!("join() first argument must be a list or set, got {}", args[0])),
+        }
     });
     env.borrow_mut().set("join".to_string(), join_fn);
 
@@ -1528,6 +1533,63 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
     });
     env.borrow_mut().set("isascii".to_string(), isascii_fn);
+
+    let isprintable_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("isprintable() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(s.chars().all(|c| !c.is_control()))),
+            _ => Err(format!("isprintable() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isprintable".to_string(), isprintable_fn);
+
+    let isidentifier_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("isidentifier() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => {
+                if s.is_empty() { return Ok(Object::Boolean(false)); }
+                let mut chars = s.chars();
+                let first = chars.next().unwrap();
+                let is_valid = (first.is_alphabetic() || first == '_') && 
+                               chars.all(|c| c.is_alphanumeric() || c == '_');
+                Ok(Object::Boolean(is_valid))
+            },
+            _ => Err(format!("isidentifier() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isidentifier".to_string(), isidentifier_fn);
+
+    let capitalize_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("capitalize() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => {
+                if s.is_empty() { return Ok(Object::String(String::new())); }
+                let mut chars = s.chars();
+                let first = chars.next().unwrap().to_uppercase().to_string();
+                let rest = chars.collect::<String>().to_lowercase();
+                Ok(Object::String(format!("{}{}", first, rest)))
+            },
+            _ => Err(format!("capitalize() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("capitalize".to_string(), capitalize_fn);
+
+    let casefold_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("casefold() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => Ok(Object::String(s.to_lowercase())),
+            _ => Err(format!("casefold() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("casefold".to_string(), casefold_fn);
 
     let count_fn = Object::NativeFn(|args| {
         if args.len() < 2 || args.len() > 4 {
@@ -2603,6 +2665,50 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(args[0].clone())
     });
     env.borrow_mut().set("discard".to_string(), set_discard_fn);
+
+    let set_union_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("union() takes exactly 2 arguments (set, other)".to_string()); }
+        let s1 = match &args[0] { Object::Set(s) => s, _ => return Err("union() first arg must be set".to_string()) };
+        let s2 = match &args[1] { Object::Set(s) => s, _ => return Err("union() second arg must be set".to_string()) };
+        let mut result = s1.borrow().clone();
+        for item in s2.borrow().iter() {
+            result.insert(item.clone());
+        }
+        Ok(Object::Set(Rc::new(RefCell::new(result))))
+    });
+    env.borrow_mut().set("union".to_string(), set_union_fn);
+
+    let set_intersection_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("intersection() takes exactly 2 arguments (set, other)".to_string()); }
+        let s1 = match &args[0] { Object::Set(s) => s, _ => return Err("intersection() first arg must be set".to_string()) };
+        let s2 = match &args[1] { Object::Set(s) => s, _ => return Err("intersection() second arg must be set".to_string()) };
+        let mut result = std::collections::HashSet::new();
+        let b1 = s1.borrow();
+        let b2 = s2.borrow();
+        for item in b1.iter() {
+            if b2.contains(item) {
+                result.insert(item.clone());
+            }
+        }
+        Ok(Object::Set(Rc::new(RefCell::new(result))))
+    });
+    env.borrow_mut().set("intersection".to_string(), set_intersection_fn);
+
+    let set_difference_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("difference() takes exactly 2 arguments (set, other)".to_string()); }
+        let s1 = match &args[0] { Object::Set(s) => s, _ => return Err("difference() first arg must be set".to_string()) };
+        let s2 = match &args[1] { Object::Set(s) => s, _ => return Err("difference() second arg must be set".to_string()) };
+        let mut result = std::collections::HashSet::new();
+        let b1 = s1.borrow();
+        let b2 = s2.borrow();
+        for item in b1.iter() {
+            if !b2.contains(item) {
+                result.insert(item.clone());
+            }
+        }
+        Ok(Object::Set(Rc::new(RefCell::new(result))))
+    });
+    env.borrow_mut().set("difference".to_string(), set_difference_fn);
 
     let dict_update_fn = Object::NativeFn(|args| {
         if args.len() != 2 { return Err("update() takes exactly 2 arguments (dict, other)".to_string()); }

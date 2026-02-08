@@ -1,0 +1,48 @@
+# Testing Round 10 Refinements
+
+print("--- Testing new string methods ---")
+assert "abc123".isprintable() == True
+assert "\n".isprintable() == False # newline is a control character
+assert "".isprintable() == True
+
+assert "foo_bar123".isidentifier() == True
+assert "123foo".isidentifier() == False
+assert "_private".isidentifier() == True
+assert "".isidentifier() == False
+
+assert "fLUX".capitalize() == "Flux"
+assert "123a".capitalize() == "123a"
+assert "".capitalize() == ""
+
+assert "HeLLo".casefold() == "hello"
+
+print("--- Testing set operations ---")
+let s1 = {1, 2}
+let s2 = {2, 3}
+let u = s1.union(s2)
+assert 1 in u
+assert 2 in u
+assert 3 in u
+assert len(u) == 3
+
+let i = s1.intersection(s2)
+assert 2 in i
+assert 1 not in i
+assert len(i) == 1
+
+let d = s1.difference(s2)
+assert 1 in d
+assert 2 not in d
+assert len(d) == 1
+
+print("--- Testing join with sets ---")
+let s = {"a"}
+assert s.join("|") == "a"
+# For multiple elements, order is unpredictable but we can check components
+let ms = {"a", "b"}
+let j = ms.join(",")
+assert "a" in j
+assert "b" in j
+assert "," in j
+
+print("All Round 10 refinement tests passed!")
