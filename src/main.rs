@@ -2203,6 +2203,54 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("rfind".to_string(), rfind_fn);
 
+    let rindex_fn = Object::NativeFn(|args| {
+        if args.len() < 2 || args.len() > 4 {
+            return Err("rindex() takes 2 to 4 arguments (substring, [start], [end])".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(val) => val,
+            _ => return Err(format!("rindex() first argument must be a string, got {}", args[0])),
+        };
+        let sub = match &args[1] {
+            Object::String(val) => val,
+            _ => return Err(format!("rindex() second argument must be a string, got {}", args[1])),
+        };
+        let len = s.chars().count();
+        let start = if args.len() >= 3 {
+            match &args[2] {
+                Object::Integer(i) => {
+                    let mut val = *i;
+                    if val < 0 { val += len as i64; }
+                    val.clamp(0, len as i64) as usize
+                }
+                _ => return Err("rindex() start must be an integer".to_string()),
+            }
+        } else { 0 };
+        let end = if args.len() == 4 {
+            match &args[3] {
+                Object::Integer(i) => {
+                    let mut val = *i;
+                    if val < 0 { val += len as i64; }
+                    val.clamp(0, len as i64) as usize
+                }
+                _ => return Err("rindex() end must be an integer".to_string()),
+            }
+        } else { len };
+
+        if start < end && start < len {
+            let sliced: String = s.chars().skip(start).take(end - start).collect();
+            match sliced.rfind(sub) {
+                Some(idx) => {
+                    let char_offset = sliced[..idx].chars().count();
+                    return Ok(Object::Integer((char_offset + start) as i64));
+                }
+                None => {}
+            }
+        }
+        Err(format!("rindex(): '{}' not in string", sub))
+    });
+    env.borrow_mut().set("rindex".to_string(), rindex_fn);
+
     let lstrip_fn = Object::NativeFn(|args| {
         if args.len() < 1 || args.len() > 2 { return Err("lstrip() takes 1 or 2 arguments (string, [chars])".to_string()); }
         let s = match &args[0] { Object::String(val) => val, _ => return Err("lstrip() arg 1 must be string".to_string()) };
@@ -2709,6 +2757,72 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(Object::Set(Rc::new(RefCell::new(result))))
     });
     env.borrow_mut().set("difference".to_string(), set_difference_fn);
+
+    let set_symmetric_difference_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("symmetric_difference() takes exactly 2 arguments (set, other)".to_string()); }
+        let s1 = match &args[0] { Object::Set(s) => s, _ => return Err("symmetric_difference() first arg must be set".to_string()) };
+        let s2 = match &args[1] { Object::Set(s) => s, _ => return Err("symmetric_difference() second arg must be set".to_string()) };
+        let mut result = std::collections::HashSet::new();
+        let b1 = s1.borrow();
+        let b2 = s2.borrow();
+        for item in b1.iter() {
+            if !b2.contains(item) {
+                result.insert(item.clone());
+            }
+        }
+        for item in b2.iter() {
+            if !b1.contains(item) {
+                result.insert(item.clone());
+            }
+        }
+        Ok(Object::Set(Rc::new(RefCell::new(result))))
+    });
+    env.borrow_mut().set("symmetric_difference".to_string(), set_symmetric_difference_fn);
+
+    let set_issubset_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("issubset() takes exactly 2 arguments (set, other)".to_string()); }
+        let s1 = match &args[0] { Object::Set(s) => s, _ => return Err("issubset() first arg must be set".to_string()) };
+        let s2 = match &args[1] { Object::Set(s) => s, _ => return Err("issubset() second arg must be set".to_string()) };
+        let b1 = s1.borrow();
+        let b2 = s2.borrow();
+        for item in b1.iter() {
+            if !b2.contains(item) {
+                return Ok(Object::Boolean(false));
+            }
+        }
+        Ok(Object::Boolean(true))
+    });
+    env.borrow_mut().set("issubset".to_string(), set_issubset_fn);
+
+    let set_issuperset_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("issuperset() takes exactly 2 arguments (set, other)".to_string()); }
+        let s1 = match &args[0] { Object::Set(s) => s, _ => return Err("issuperset() first arg must be set".to_string()) };
+        let s2 = match &args[1] { Object::Set(s) => s, _ => return Err("issuperset() second arg must be set".to_string()) };
+        let b1 = s1.borrow();
+        let b2 = s2.borrow();
+        for item in b2.iter() {
+            if !b1.contains(item) {
+                return Ok(Object::Boolean(false));
+            }
+        }
+        Ok(Object::Boolean(true))
+    });
+    env.borrow_mut().set("issuperset".to_string(), set_issuperset_fn);
+
+    let set_isdisjoint_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("isdisjoint() takes exactly 2 arguments (set, other)".to_string()); }
+        let s1 = match &args[0] { Object::Set(s) => s, _ => return Err("isdisjoint() first arg must be set".to_string()) };
+        let s2 = match &args[1] { Object::Set(s) => s, _ => return Err("isdisjoint() second arg must be set".to_string()) };
+        let b1 = s1.borrow();
+        let b2 = s2.borrow();
+        for item in b1.iter() {
+            if b2.contains(item) {
+                return Ok(Object::Boolean(false));
+            }
+        }
+        Ok(Object::Boolean(true))
+    });
+    env.borrow_mut().set("isdisjoint".to_string(), set_isdisjoint_fn);
 
     let dict_update_fn = Object::NativeFn(|args| {
         if args.len() != 2 { return Err("update() takes exactly 2 arguments (dict, other)".to_string()); }

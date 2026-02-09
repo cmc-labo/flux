@@ -1,0 +1,40 @@
+# test_refinements_round11.fl
+
+print("--- Testing set operations round 11 ---")
+let s1 = {1, 2, 3}
+let s2 = {3, 4, 5}
+let s3 = {1, 2}
+
+print("Testing symmetric_difference")
+let sd = s1.symmetric_difference(s2)
+assert 1 in sd
+assert 2 in sd
+assert 4 in sd
+assert 5 in sd
+assert 3 not in sd
+assert len(sd) == 4
+
+print("Testing issubset")
+assert s3.issubset(s1) == true
+assert s1.issubset(s3) == false
+assert s1.issubset(s1) == true
+
+print("Testing issuperset")
+assert s1.issuperset(s3) == true
+assert s3.issuperset(s1) == false
+assert s1.issuperset(s1) == true
+
+print("Testing isdisjoint")
+let s4 = {6, 7}
+assert s1.isdisjoint(s2) == false # 3 is common
+assert s1.isdisjoint(s4) == true
+
+print("--- Testing string rindex ---")
+let s = "hello world world"
+assert s.rfind("world") == 12
+assert s.rindex("world") == 12
+# rindex should error if not found
+# let's wrap it in a try-catch if we had one, but we can just check it doesn't crash the interpreter if we test it manually in REPL. 
+# For now, let's just assert the positive case.
+
+print("All Round 11 refinement tests passed!")
