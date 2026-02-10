@@ -23,6 +23,7 @@ use std::io::{self, Write};
 use std::env;
 use std::fs;
 use std::rc::Rc;
+use std::collections::HashSet;
 use std::cell::RefCell;
 use std::time::{SystemTime, UNIX_EPOCH};
 use rand::Rng;
@@ -1721,10 +1722,50 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                 Ok(Object::List(Rc::new(RefCell::new(items))))
             },
             Object::List(l) => Ok(Object::List(l.clone())),
+            Object::Set(s) => {
+                let items: Vec<Object> = s.borrow().iter().cloned().collect();
+                Ok(Object::List(Rc::new(RefCell::new(items))))
+            },
+            Object::Dictionary(d) => {
+                let items: Vec<Object> = d.borrow().keys().cloned().collect();
+                Ok(Object::List(Rc::new(RefCell::new(items))))
+            },
             _ => Err(format!("list() conversion not supported for {}", args[0])),
         }
     });
     env.borrow_mut().set("list".to_string(), list_conv_fn);
+
+    let set_conv_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("set() takes exactly 1 argument".to_string());
+        }
+        match &args[0] {
+            Object::String(s) => {
+                let mut set = HashSet::new();
+                for c in s.chars() {
+                    set.insert(Object::String(c.to_string()));
+                }
+                Ok(Object::Set(Rc::new(RefCell::new(set))))
+            },
+            Object::List(l) => {
+                let mut set = HashSet::new();
+                for item in l.borrow().iter() {
+                    set.insert(item.clone());
+                }
+                Ok(Object::Set(Rc::new(RefCell::new(set))))
+            },
+            Object::Set(s) => Ok(Object::Set(s.clone())),
+            Object::Dictionary(d) => {
+                let mut set = HashSet::new();
+                for k in d.borrow().keys() {
+                    set.insert(k.clone());
+                }
+                Ok(Object::Set(Rc::new(RefCell::new(set))))
+            },
+            _ => Err(format!("set() conversion not supported for {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("set".to_string(), set_conv_fn);
 
     let append_fn = Object::NativeFn(|args| {
         if args.len() != 2 {
@@ -1885,7 +1926,19 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                     Err(format!("pop(): key '{}' not found in dictionary", key))
                 }
             },
-            _ => Err(format!("pop() first argument must be a list or dictionary, got {}", args[0])),
+            Object::Set(set) => {
+                if args.len() != 1 {
+                    return Err("pop() for set takes exactly 1 argument (set)".to_string());
+                }
+                let mut s = set.borrow_mut();
+                if let Some(item) = s.iter().next().cloned() {
+                    s.remove(&item);
+                    Ok(item)
+                } else {
+                    Err("pop() from empty set".to_string())
+                }
+            },
+            _ => Err(format!("pop() first argument must be a list, dictionary, or set, got {}", args[0])),
         }
     });
     env.borrow_mut().set("pop".to_string(), pop_fn.clone());
@@ -1893,18 +1946,29 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
 
     let remove_val_fn = Object::NativeFn(|args| {
         if args.len() != 2 {
-            return Err("remove() takes exactly 2 arguments (list, item)".to_string());
+            return Err("remove() takes exactly 2 arguments (collection, item)".to_string());
         }
-        let list = match &args[0] {
-            Object::List(val) => val,
-            _ => return Err(format!("remove() first argument must be a list, got {}", args[0])),
-        };
-        let target = &args[1];
-        let pos = list.borrow().iter().position(|x| x == target);
-        if let Some(idx) = pos {
-            list.borrow_mut().remove(idx);
+        match &args[0] {
+            Object::List(list) => {
+                let target = &args[1];
+                let pos = list.borrow().iter().position(|x| x == target);
+                if let Some(idx) = pos {
+                    list.borrow_mut().remove(idx);
+                    Ok(args[0].clone())
+                } else {
+                    Err(format!("remove(list, x): x not in list"))
+                }
+            },
+            Object::Set(set) => {
+                let mut s = set.borrow_mut();
+                if s.remove(&args[1]) {
+                    Ok(args[0].clone())
+                } else {
+                    Err(format!("remove(set, x): x not in set"))
+                }
+            },
+            _ => Err(format!("remove() first argument must be a list or set, got {}", args[0])),
         }
-        Ok(args[0].clone())  // Return the list itself
     });
     env.borrow_mut().set("remove".to_string(), remove_val_fn);
 
@@ -2824,22 +2888,38 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("isdisjoint".to_string(), set_isdisjoint_fn);
 
-    let dict_update_fn = Object::NativeFn(|args| {
-        if args.len() != 2 { return Err("update() takes exactly 2 arguments (dict, other)".to_string()); }
-        let dict = match &args[0] {
-            Object::Dictionary(d) => d,
-            _ => return Err(format!("update() first argument must be a dictionary, got {}", args[0])),
-        };
-        let other = match &args[1] {
-            Object::Dictionary(d) => d,
-            _ => return Err(format!("update() second argument must be a dictionary, got {}", args[1])),
-        };
-        for (k, v) in other.borrow().iter() {
-            dict.borrow_mut().insert(k.clone(), v.clone());
+    let update_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("update() takes exactly 2 arguments (collection, other)".to_string()); }
+        match &args[0] {
+            Object::Dictionary(dict) => {
+                let other = match &args[1] {
+                    Object::Dictionary(d) => d,
+                    _ => return Err(format!("update() for dictionary second argument must be a dictionary, got {}", args[1])),
+                };
+                for (k, v) in other.borrow().iter() {
+                    dict.borrow_mut().insert(k.clone(), v.clone());
+                }
+                Ok(args[0].clone())
+            },
+            Object::Set(set) => {
+                let other_items: Vec<Object> = match &args[1] {
+                    Object::Set(s) => s.borrow().iter().cloned().collect(),
+                    Object::List(l) => l.borrow().clone(),
+                    Object::String(s) => s.chars().map(|c| Object::String(c.to_string())).collect(),
+                    Object::Dictionary(d) => d.borrow().keys().cloned().collect(),
+                    _ => return Err(format!("update() for set second arg must be iterable, got {}", args[1])),
+                };
+
+                let mut s_borrow = set.borrow_mut();
+                for item in other_items {
+                    s_borrow.insert(item);
+                }
+                Ok(args[0].clone())
+            },
+            _ => Err(format!("update() first argument must be a dictionary or set, got {}", args[0])),
         }
-        Ok(args[0].clone())
     });
-    env.borrow_mut().set("update".to_string(), dict_update_fn);
+    env.borrow_mut().set("update".to_string(), update_fn);
 
     let setdefault_fn = Object::NativeFn(|args| {
         if args.len() != 3 { return Err("setdefault() takes exactly 3 arguments (dict, key, default)".to_string()); }

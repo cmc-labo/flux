@@ -116,6 +116,8 @@ impl TypeChecker {
         env.set("hex".to_string(), Type::Function(vec![Type::Int], Box::new(Type::String)));
         env.set("oct".to_string(), Type::Function(vec![Type::Int], Box::new(Type::String)));
         env.set("bin".to_string(), Type::Function(vec![Type::Int], Box::new(Type::String)));
+        env.set("rindex".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::Int)));
+        env.set("set".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Set(Box::new(Type::Any)))));
 
         // List
         env.set("append".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::Any], Box::new(Type::Any)));
@@ -179,13 +181,17 @@ impl TypeChecker {
         // Set
         env.set("add".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Any], Box::new(Type::Any)));
         env.set("discard".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Any], Box::new(Type::Any)));
+        env.set("symmetric_difference".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Set(Box::new(Type::Any))], Box::new(Type::Set(Box::new(Type::Any)))));
+        env.set("issubset".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Set(Box::new(Type::Any))], Box::new(Type::Bool)));
+        env.set("issuperset".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Set(Box::new(Type::Any))], Box::new(Type::Bool)));
+        env.set("isdisjoint".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Set(Box::new(Type::Any))], Box::new(Type::Bool)));
 
         // Dict
         env.set("keys".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
         env.set("values".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
         env.set("items".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::List(Box::new(Type::Any)))))));
         env.set("get".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any)), Type::Any, Type::Any], Box::new(Type::Any)));
-        env.set("update".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any)), Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::Any)));
+        env.set("update".to_string(), Type::Function(vec![Type::Any, Type::Any], Box::new(Type::Any)));
         env.set("clear".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Null)));
 
         // Tensor

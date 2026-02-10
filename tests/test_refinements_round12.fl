@@ -1,0 +1,64 @@
+# test_refinements_round12.fl
+
+print("--- Testing set() conversion ---")
+let s_from_list = set([1, 2, 2, 3])
+print(s_from_list)
+assert len(s_from_list) == 3
+assert 1 in s_from_list
+assert 2 in s_from_list
+assert 3 in s_from_list
+
+let s_from_str = set("abc")
+print(s_from_str)
+assert len(s_from_str) == 3
+assert "a" in s_from_str
+
+let d = {"a": 1, "b": 2}
+let s_from_dict = set(d)
+print(s_from_dict)
+assert len(s_from_dict) == 2
+assert "a" in s_from_dict
+assert "b" in s_from_dict
+
+print("--- Testing list() conversion ---")
+let l_from_set = list({1, 2, 3})
+print(l_from_set)
+assert len(l_from_set) == 3
+
+let l_from_dict = list({"x": 10, "y": 20})
+print(l_from_dict)
+assert len(l_from_dict) == 2
+assert "x" in l_from_dict
+assert "y" in l_from_dict
+
+print("--- Testing set.pop() and set.remove() ---")
+let s = {10, 20}
+let p = s.pop()
+print("Popped:")
+print(p)
+assert len(s) == 1
+assert p == 10 || p == 20
+
+let to_remove = 0
+if p == 10:
+    to_remove = 20
+else:
+    to_remove = 10
+s.remove(to_remove)
+assert len(s) == 0
+
+print("--- Testing set.update() ---")
+let su = {1}
+su.update([2, 3])
+print(su)
+assert 1 in su
+assert 2 in su
+assert 3 in su
+assert len(su) == 3
+
+su.update("hi")
+assert "h" in su
+assert "i" in su
+assert len(su) == 5
+
+print("All Round 12 refinement tests passed!")
