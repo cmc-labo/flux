@@ -1,0 +1,35 @@
+# Text Analysis Example
+
+def analyze_text(text):
+    # 1. Clean and split text
+    let words = text.lower().split(" ")
+    
+    # 2. Filter and count frequencies
+    let counts = {}
+    for w in words:
+        # Strip punctuation
+        let clean_w = w.strip(",.!?")
+        if len(clean_w) > 0:
+            if clean_w in counts:
+                counts[clean_w] = counts[clean_w] + 1
+            else:
+                counts[clean_w] = 1
+    return counts
+
+let sample_text = "Flux is a powerful language. Flux is fast. Flux is simple. Flux is fun!"
+print(f"Analyzing text: {sample_text}")
+
+let freq = analyze_text(sample_text)
+print("\nWord Frequencies:")
+for word in list(freq):
+    print(f"'{word}': {freq[word]}")
+
+# Find most frequent word
+let most_freq_word = ""
+let max_count = 0
+for word in list(freq):
+    if freq[word] > max_count:
+        max_count = freq[word]
+        most_freq_word = word
+
+print(f"\nMost frequent word: '{most_freq_word}' (appears {max_count} times)")

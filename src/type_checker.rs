@@ -66,6 +66,7 @@ impl TypeChecker {
         env.set("min".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
         env.set("max".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
         env.set("randint".to_string(), Type::Function(vec![Type::Int, Type::Int], Box::new(Type::Int)));
+        env.set("random".to_string(), Type::Function(vec![], Box::new(Type::Float)));
         env.set("list".to_string(), Type::Function(vec![Type::Any], Box::new(Type::List(Box::new(Type::Any)))));
 
         // Math
@@ -91,9 +92,9 @@ impl TypeChecker {
         // String
         env.set("upper".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
         env.set("lower".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
-        env.set("strip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
-        env.set("lstrip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
-        env.set("rstrip".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
+        env.set("strip".to_string(), Type::Function(vec![Type::Any], Box::new(Type::String)));
+        env.set("lstrip".to_string(), Type::Function(vec![Type::Any], Box::new(Type::String)));
+        env.set("rstrip".to_string(), Type::Function(vec![Type::Any], Box::new(Type::String)));
         env.set("capitalize".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
         env.set("title".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
         env.set("startswith".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::Bool)));
@@ -185,6 +186,9 @@ impl TypeChecker {
         env.set("issubset".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Set(Box::new(Type::Any))], Box::new(Type::Bool)));
         env.set("issuperset".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Set(Box::new(Type::Any))], Box::new(Type::Bool)));
         env.set("isdisjoint".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Set(Box::new(Type::Any))], Box::new(Type::Bool)));
+        env.set("union".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Set(Box::new(Type::Any))], Box::new(Type::Set(Box::new(Type::Any)))));
+        env.set("intersection".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Set(Box::new(Type::Any))], Box::new(Type::Set(Box::new(Type::Any)))));
+        env.set("difference".to_string(), Type::Function(vec![Type::Set(Box::new(Type::Any)), Type::Set(Box::new(Type::Any))], Box::new(Type::Set(Box::new(Type::Any)))));
 
         // Dict
         env.set("keys".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
@@ -195,7 +199,7 @@ impl TypeChecker {
         env.set("clear".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Null)));
 
         // Tensor
-        env.set("tensor".to_string(), Type::Function(vec![Type::Int], Box::new(Type::Tensor)));
+        env.set("tensor".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Tensor)));
         env.set("zeros".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
         env.set("ones".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));
         env.set("rand".to_string(), Type::Function(vec![Type::List(Box::new(Type::Int))], Box::new(Type::Tensor)));

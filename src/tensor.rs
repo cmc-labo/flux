@@ -46,13 +46,31 @@ impl Tensor {
     }
     
     pub fn matmul(&self, other: &Tensor) -> Result<Tensor, String> {
-        let a = self.inner.clone().into_dimensionality::<ndarray::Ix2>()
-            .map_err(|e| format!("LHS must be 2D for matmul: {}", e))?;
-        let b = other.inner.clone().into_dimensionality::<ndarray::Ix2>()
-            .map_err(|e| format!("RHS must be 2D for matmul: {}", e))?;
-            
-        let res = a.dot(&b);
-        Ok(Tensor { inner: res.into_dyn() })
+        match (self.inner.ndim(), other.inner.ndim()) {
+            (2, 2) => {
+                let a = self.inner.clone().into_dimensionality::<ndarray::Ix2>().unwrap();
+                let b = other.inner.clone().into_dimensionality::<ndarray::Ix2>().unwrap();
+                Ok(Tensor { inner: a.dot(&b).into_dyn() })
+            }
+            (1, 2) => {
+                let a = self.inner.clone().into_dimensionality::<ndarray::Ix1>().unwrap();
+                let b = other.inner.clone().into_dimensionality::<ndarray::Ix2>().unwrap();
+                Ok(Tensor { inner: a.dot(&b).into_dyn() })
+            }
+            (2, 1) => {
+                let a = self.inner.clone().into_dimensionality::<ndarray::Ix2>().unwrap();
+                let b = other.inner.clone().into_dimensionality::<ndarray::Ix1>().unwrap();
+                Ok(Tensor { inner: a.dot(&b).into_dyn() })
+            }
+            (1, 1) => {
+                let a = self.inner.clone().into_dimensionality::<ndarray::Ix1>().unwrap();
+                let b = other.inner.clone().into_dimensionality::<ndarray::Ix1>().unwrap();
+                // dot of two 1D arrays returns a scalar
+                let res = a.dot(&b);
+                Ok(Tensor { inner: Array::from_elem(IxDyn(&[]), res) })
+            }
+            _ => Err(format!("matmul supported for 1D/2D only, got {}D and {}D", self.inner.ndim(), other.inner.ndim())),
+        }
     }
 
     pub fn transpose(&self) -> Tensor {

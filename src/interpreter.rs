@@ -1008,6 +1008,11 @@ impl Interpreter {
                 InfixOperator::NotEqual => Ok(Object::Boolean(*d1.borrow() != *d2.borrow())),
                 _ => Err(format!("Unsupported operator for dictionaries: {:?}", operator)),
             },
+            (l, Object::Dictionary(r)) => match operator {
+                InfixOperator::In => Ok(Object::Boolean(r.borrow().contains_key(&l))),
+                InfixOperator::NotIn => Ok(Object::Boolean(!r.borrow().contains_key(&l))),
+                _ => Err(format!("Unsupported operator for dictionary: {:?}", operator)),
+            },
             // Handle mixed types?
             (l, r) => Err(format!("Type mismatch: {} {:?} {}", l, operator, r)),
         }

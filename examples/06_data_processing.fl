@@ -1,0 +1,32 @@
+# Data Processing Example
+
+# 1. Using Comprehensions
+print("--- Comprehensions ---")
+let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+let squares = [x * x for x in numbers if x % 2 == 0]
+print(f"Squares of even numbers: {squares}")
+
+let unique_chars = {c.upper() for c in "abracadabra" if c != "a"}
+print(f"Unique uppercase chars in 'abracadabra' (excluding 'a'): {unique_chars}")
+
+let word_lengths = {w: len(w) for w in ["apple", "banana", "cherry"]}
+print(f"Word lengths: {word_lengths}")
+
+# 2. Set Operations
+print("\n--- Set Operations ---")
+let s1 = {1, 2, 3, 4}
+let s2 = {3, 4, 5, 6}
+
+print(f"s1: {s1}")
+print(f"s2: {s2}")
+print(f"Union: {s1.union(s2)}")
+print(f"Intersection: {s1.intersection(s2)}")
+print(f"Difference (s1 - s2): {s1.difference(s2)}")
+print(f"Symmetric Difference: {s1.symmetric_difference(s2)}")
+
+# 3. Membership tests
+print("\n--- Membership ---")
+print(f"Is 3 in s1? {3 in s1}")
+print(f"Is 5 in s1? {5 in s1}")
+print("Is {1, 2} a subset of s1?")
+print({1, 2}.issubset(s1))

@@ -41,7 +41,20 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
                 let t = crate::tensor::Tensor::new(data, shape)?;
                 Ok(Object::Tensor(t))
             },
-            _ => Err("tensor() argument must be an integer".to_string()),
+            Object::List(l) => {
+                let mut data = Vec::new();
+                for item in l.borrow().iter() {
+                    match item {
+                        Object::Integer(i) => data.push(*i as f64),
+                        Object::Float(f) => data.push(*f),
+                        _ => return Err(format!("tensor() list elements must be numbers, got {}", item)),
+                    }
+                }
+                let shape = vec![data.len()];
+                let t = crate::tensor::Tensor::new(data, shape)?;
+                Ok(Object::Tensor(t))
+            },
+            _ => Err("tensor() argument must be an integer (size) or a list of numbers".to_string()),
         }
     });
     env.borrow_mut().set("tensor".to_string(), tensor_fn);
@@ -741,6 +754,48 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("round".to_string(), round_fn);
 
+    let rstrip_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 {
+            return Err("rstrip() takes 1 or 2 arguments".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(s) => s,
+            _ => return Err(format!("rstrip() first argument must be a string, got {}", args[0])),
+        };
+        if args.len() == 1 {
+            Ok(Object::String(s.trim_end().to_string()))
+        } else {
+            let chars = match &args[1] {
+                Object::String(c) => c,
+                _ => return Err(format!("rstrip() second argument must be a string, got {}", args[1])),
+            };
+            let chars_vec: Vec<char> = chars.chars().collect();
+            Ok(Object::String(s.trim_end_matches(|c| chars_vec.contains(&c)).to_string()))
+        }
+    });
+    env.borrow_mut().set("rstrip".to_string(), rstrip_fn);
+
+    let lstrip_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 {
+            return Err("lstrip() takes 1 or 2 arguments".to_string());
+        }
+        let s = match &args[0] {
+            Object::String(s) => s,
+            _ => return Err(format!("lstrip() first argument must be a string, got {}", args[0])),
+        };
+        if args.len() == 1 {
+            Ok(Object::String(s.trim_start().to_string()))
+        } else {
+            let chars = match &args[1] {
+                Object::String(c) => c,
+                _ => return Err(format!("lstrip() second argument must be a string, got {}", args[1])),
+            };
+            let chars_vec: Vec<char> = chars.chars().collect();
+            Ok(Object::String(s.trim_start_matches(|c| chars_vec.contains(&c)).to_string()))
+        }
+    });
+    env.borrow_mut().set("lstrip".to_string(), lstrip_fn);
+
     let upper_fn = Object::NativeFn(|args| {
         if args.len() != 1 {
             return Err("upper() takes exactly 1 argument".to_string());
@@ -764,12 +819,22 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     env.borrow_mut().set("lower".to_string(), lower_fn);
 
     let strip_fn = Object::NativeFn(|args| {
-        if args.len() != 1 {
-            return Err("strip() takes exactly 1 argument".to_string());
+        if args.len() < 1 || args.len() > 2 {
+            return Err("strip() takes 1 or 2 arguments".to_string());
         }
-        match &args[0] {
-            Object::String(s) => Ok(Object::String(s.trim().to_string())),
-            _ => Err(format!("strip() argument must be a string, got {}", args[0])),
+        let s = match &args[0] {
+            Object::String(s) => s,
+            _ => return Err(format!("strip() first argument must be a string, got {}", args[0])),
+        };
+        if args.len() == 1 {
+            Ok(Object::String(s.trim().to_string()))
+        } else {
+            let chars = match &args[1] {
+                Object::String(c) => c,
+                _ => return Err(format!("strip() second argument must be a string, got {}", args[1])),
+            };
+            let chars_vec: Vec<char> = chars.chars().collect();
+            Ok(Object::String(s.trim_matches(|c| chars_vec.contains(&c)).to_string()))
         }
     });
     env.borrow_mut().set("strip".to_string(), strip_fn);
@@ -1728,6 +1793,10 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
             },
             Object::Dictionary(d) => {
                 let items: Vec<Object> = d.borrow().keys().cloned().collect();
+                Ok(Object::List(Rc::new(RefCell::new(items))))
+            },
+            Object::Tensor(t) => {
+                let items: Vec<Object> = t.inner.iter().map(|&x| Object::Float(x)).collect();
                 Ok(Object::List(Rc::new(RefCell::new(items))))
             },
             _ => Err(format!("list() conversion not supported for {}", args[0])),

@@ -1,0 +1,38 @@
+# Simple Linear Layer Example
+
+# Activation function
+def relu(x):
+    if x > 0:
+        return x
+    else:
+        return 0.0
+
+# Initialize weights and bias
+let weights = rand([3, 2]) # 3 inputs, 2 outputs
+let bias = rand([2])
+
+print("Weights:")
+print(weights)
+print("Bias:")
+print(bias)
+
+# Input tensor
+let x = rand([3])
+print("\nInput x:")
+print(x)
+
+# Forward pass: y = x @ weights + bias
+let raw_output = x @ weights + bias
+print("\nRaw Output (Pre-activation):")
+print(raw_output)
+
+# Apply ReLU component-wise manually
+let output_list = [relu(v) for v in list(raw_output)]
+let activated_output = tensor(output_list)
+
+print("\nActivated Output (ReLU):")
+print(activated_output)
+
+# Basic stats
+print(f"\nMax activation: {max(output_list)}")
+print(f"Mean activation: {mean(output_list)}")
