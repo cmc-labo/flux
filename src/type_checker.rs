@@ -71,6 +71,7 @@ impl TypeChecker {
 
         // Math
         env.set("abs".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("trunc".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Int)));
         env.set("floor".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Int)));
         env.set("ceil".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Int)));
         env.set("round".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
@@ -99,6 +100,9 @@ impl TypeChecker {
         env.set("title".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
         env.set("startswith".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::Bool)));
         env.set("endswith".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::Bool)));
+        env.set("removeprefix".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::String)));
+        env.set("removesuffix".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::String)));
+        env.set("center".to_string(), Type::Function(vec![Type::Any, Type::Any, Type::Any], Box::new(Type::String)));
         env.set("isdigit".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
         env.set("isalpha".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
         env.set("isalnum".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
@@ -196,6 +200,7 @@ impl TypeChecker {
         env.set("items".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::List(Box::new(Type::Any)))))));
         env.set("get".to_string(), Type::Function(vec![Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any)), Type::Any, Type::Any], Box::new(Type::Any)));
         env.set("update".to_string(), Type::Function(vec![Type::Any, Type::Any], Box::new(Type::Any)));
+        env.set("fromkeys".to_string(), Type::Function(vec![Type::Any, Type::Any], Box::new(Type::Dictionary(Box::new(Type::Any), Box::new(Type::Any)))));
         env.set("clear".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Null)));
 
         // Tensor

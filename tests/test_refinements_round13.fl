@@ -1,0 +1,35 @@
+# Test Refinements Round 13
+
+# 1. String Methods: removeprefix, removesuffix
+print("--- Testing removeprefix / removesuffix ---")
+let s = "HelloWorld"
+print(s.removeprefix("Hello")) # World
+print(s.removeprefix("Bye"))   # HelloWorld
+print(s.removesuffix("World")) # Hello
+print(s.removesuffix("Bye"))   # HelloWorld
+
+# 2. String Method: center
+print("\n--- Testing center ---")
+print(f"'{s.center(20)}'")
+print(f"'{s.center(20, '-')}'")
+print(f"'{s.center(5)}'") # Should remain same if width < len
+
+# 3. Math Method: trunc
+print("\n--- Testing trunc ---")
+print(trunc(3.14))  # 3
+print(trunc(-3.14)) # -3
+print(trunc(5))      # 5
+
+# 4. Dict Method: fromkeys
+print("\n--- Testing fromkeys ---")
+let keys = ["a", "b", "c"]
+let d1 = fromkeys(keys)
+print(f"fromkeys(list): {d1}")
+
+let d2 = fromkeys(keys, 0)
+print(f"fromkeys(list, 0): {d2}")
+
+let d3 = fromkeys({1, 2, 3}, "val")
+print(f"fromkeys(set, 'val'): {d3}")
+
+print("\nAll Round 13 refinement tests completed!")

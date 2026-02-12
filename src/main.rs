@@ -839,6 +839,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("strip".to_string(), strip_fn);
 
+
     let int_fn = Object::NativeFn(|args| {
         if args.len() != 1 {
             return Err("int() takes exactly 1 argument".to_string());
@@ -1948,6 +1949,16 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("degrees".to_string(), degrees_fn);
 
+    let trunc_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("trunc() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::Integer(*i)),
+            Object::Float(f) => Ok(Object::Integer(*f as i64)),
+            _ => Err(format!("trunc() argument must be numeric, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("trunc".to_string(), trunc_fn);
+
     let pop_fn = Object::NativeFn(|args| {
         if args.len() < 1 || args.len() > 3 {
             return Err("pop() takes 1 to 3 arguments".to_string());
@@ -2989,6 +3000,24 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
     });
     env.borrow_mut().set("update".to_string(), update_fn);
+
+    let fromkeys_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 { return Err("fromkeys() takes 1 or 2 arguments (iterable, [value])".to_string()); }
+        let value = if args.len() == 2 { args[1].clone() } else { Object::Null };
+        let mut d = std::collections::HashMap::new();
+        let items: Vec<Object> = match &args[0] {
+            Object::List(l) => l.borrow().clone(),
+            Object::Set(s) => s.borrow().iter().cloned().collect(),
+            Object::String(s) => s.chars().map(|c| Object::String(c.to_string())).collect(),
+            Object::Dictionary(dict) => dict.borrow().keys().cloned().collect(),
+            _ => return Err(format!("fromkeys() first argument must be iterable, got {}", args[0])),
+        };
+        for item in items {
+            d.insert(item, value.clone());
+        }
+        Ok(Object::Dictionary(Rc::new(RefCell::new(d))))
+    });
+    env.borrow_mut().set("fromkeys".to_string(), fromkeys_fn);
 
     let setdefault_fn = Object::NativeFn(|args| {
         if args.len() != 3 { return Err("setdefault() takes exactly 3 arguments (dict, key, default)".to_string()); }
