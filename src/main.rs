@@ -2713,7 +2713,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         if s.len() >= width {
             return Ok(Object::String(s.clone()));
         }
-        let padding = "0".repeat(width - s.len());
+        let padding_len = width - s.len();
+        let padding = "0".repeat(padding_len);
         Ok(Object::String(format!("{}{}", padding, s)))
     });
     env.borrow_mut().set("zfill".to_string(), zfill_fn);
@@ -2785,22 +2786,55 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     env.borrow_mut().set("isqrt".to_string(), isqrt_fn);
 
     let hypot_fn = Object::NativeFn(|args| {
-        if args.len() != 2 {
-            return Err("hypot() takes exactly 2 arguments".to_string());
+        if args.len() == 0 {
+            return Ok(Object::Float(0.0));
         }
-        let x = match &args[0] {
-            Object::Integer(i) => *i as f64,
-            Object::Float(f) => *f,
-            _ => return Err("hypot() arguments must be numeric".to_string()),
-        };
-        let y = match &args[1] {
-            Object::Integer(i) => *i as f64,
-            Object::Float(f) => *f,
-            _ => return Err("hypot() arguments must be numeric".to_string()),
-        };
-        Ok(Object::Float(x.hypot(y)))
+        let mut sum_sq: f64 = 0.0;
+        for arg in args.iter() {
+            let val = match arg {
+                Object::Integer(i) => *i as f64,
+                Object::Float(f) => *f,
+                _ => return Err(format!("hypot() arguments must be numeric, got {}", arg)),
+            };
+            sum_sq += val * val;
+        }
+        Ok(Object::Float(sum_sq.sqrt()))
     });
     env.borrow_mut().set("hypot".to_string(), hypot_fn);
+
+    let dist_fn = Object::NativeFn(|args| {
+        if args.len() != 2 {
+            return Err("dist() takes exactly 2 arguments (p, q)".to_string());
+        }
+        let p_items = match &args[0] {
+            Object::List(l) => l.borrow().clone(),
+            _ => return Err(format!("dist() first argument must be a list, got {}", args[0])),
+        };
+        let q_items = match &args[1] {
+            Object::List(l) => l.borrow().clone(),
+            _ => return Err(format!("dist() second argument must be a list, got {}", args[1])),
+        };
+        if p_items.len() != q_items.len() {
+            return Err("dist() arguments must be lists of the same length".to_string());
+        }
+        let mut d_sum_sq: f64 = 0.0;
+        for (p_obj, q_obj) in p_items.iter().zip(q_items.iter()) {
+            let p_val = match p_obj {
+                Object::Integer(i) => *i as f64,
+                Object::Float(f) => *f,
+                _ => return Err(format!("dist() point coordinates must be numeric, got {}", p_obj)),
+            };
+            let q_val = match q_obj {
+                Object::Integer(i) => *i as f64,
+                Object::Float(f) => *f,
+                _ => return Err(format!("dist() point coordinates must be numeric, got {}", q_obj)),
+            };
+            let diff = p_val - q_val;
+            d_sum_sq += diff * diff;
+        }
+        Ok(Object::Float(d_sum_sq.sqrt()))
+    });
+    env.borrow_mut().set("dist".to_string(), dist_fn);
 
     let flat_fn = Object::NativeFn(|args| {
         if args.len() != 1 {

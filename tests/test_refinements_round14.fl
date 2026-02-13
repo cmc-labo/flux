@@ -1,0 +1,37 @@
+# Test Refinements Round 14
+
+# 1. Math Method: dist
+print("--- Testing dist ---")
+let p = [0, 0]
+let q = [3, 4]
+print(f"dist([0,0], [3,4]) = {dist(p, q)}") # 5.0
+
+let p3 = [1, 2, 3]
+let q3 = [4, 5, 6]
+print(f"dist([1,2,3], [4,5,6]) = {dist(p3, q3)}") # sqrt(3^2 + 3^2 + 3^2) = sqrt(27) ≈ 5.196
+
+# 2. Math Method: hypot (Enhanced)
+print("\n--- Testing hypot ---")
+print(f"hypot(3, 4) = {hypot(3, 4)}") # 5.0
+print(f"hypot(1, 2, 3) = {hypot(1, 2, 3)}") # sqrt(14) ≈ 3.74
+print(f"hypot() = {hypot()}") # 0.0
+
+# 3. String Method: isprintable
+print("\n--- Testing isprintable ---")
+print(f"'Hello'.isprintable() = {'Hello'.isprintable()}") # True
+print(f"'Hello\n'.isprintable() = {'Hello\n'.isprintable()}") # False
+print(f"' '.isprintable() = {' '.isprintable()}") # True
+
+# 4. String Method: casefold
+print("\n--- Testing casefold ---")
+let s1 = "HELLO world"
+print(f"'HELLO world'.casefold() = '{s1.casefold()}'") # hello world
+
+# Special characters (German Eszett)
+# In Rust/Python casefold, 'ß' becomes 'ss'
+let s2 = "Fluß"
+print(f"'{s2}'.casefold() = '{s2.casefold()}'")
+if s2.casefold() == "fluss":
+    print("casefold working for special chars!")
+
+print("\nAll Round 14 refinement tests completed!")

@@ -88,7 +88,8 @@ impl TypeChecker {
         env.set("gcd".to_string(), Type::Function(vec![Type::Int, Type::Int], Box::new(Type::Int)));
         env.set("clamp".to_string(), Type::Function(vec![Type::Any, Type::Any, Type::Any], Box::new(Type::Any)));
         env.set("isqrt".to_string(), Type::Function(vec![Type::Int], Box::new(Type::Int)));
-        env.set("hypot".to_string(), Type::Function(vec![Type::Any, Type::Any], Box::new(Type::Float)));
+        env.set("hypot".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("dist".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::List(Box::new(Type::Any))], Box::new(Type::Float)));
 
         // String
         env.set("upper".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
@@ -113,9 +114,10 @@ impl TypeChecker {
         env.set("split".to_string(), Type::Function(vec![Type::String], Box::new(Type::List(Box::new(Type::String)))));
         env.set("join".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::String], Box::new(Type::String)));
         env.set("replace".to_string(), Type::Function(vec![Type::String, Type::String, Type::String], Box::new(Type::String)));
+        env.set("casefold".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
         env.set("find".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::Int)));
         env.set("zfill".to_string(), Type::Function(vec![Type::String, Type::Int], Box::new(Type::String)));
-        env.set("center".to_string(), Type::Function(vec![Type::String, Type::Int], Box::new(Type::String)));
+        env.set("isprintable".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
         env.set("chr".to_string(), Type::Function(vec![Type::Int], Box::new(Type::String)));
         env.set("ord".to_string(), Type::Function(vec![Type::String], Box::new(Type::Int)));
         env.set("hex".to_string(), Type::Function(vec![Type::Int], Box::new(Type::String)));
