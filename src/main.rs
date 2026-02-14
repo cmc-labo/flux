@@ -351,6 +351,39 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("sum".to_string(), sum_fn);
 
+    let fsum_fn = Object::NativeFn(|args| {
+        if args.len() != 1 {
+            return Err("fsum() takes exactly 1 argument (iterable)".to_string());
+        }
+        match &args[0] {
+            Object::List(l) => {
+                let mut total: f64 = 0.0;
+                for item in l.borrow().iter() {
+                    match item {
+                        Object::Integer(i) => total += *i as f64,
+                        Object::Float(f) => total += *f,
+                        _ => return Err(format!("fsum() elements must be numeric, got {}", item)),
+                    }
+                }
+                Ok(Object::Float(total))
+            },
+            Object::Set(set_obj) => {
+                let mut total: f64 = 0.0;
+                for item in set_obj.borrow().iter() {
+                    match item {
+                        Object::Integer(i) => total += *i as f64,
+                        Object::Float(f) => total += *f,
+                        _ => return Err(format!("fsum() elements must be numeric, got {}", item)),
+                    }
+                }
+                Ok(Object::Float(total))
+            },
+            Object::Tensor(t) => Ok(Object::Float(t.sum())),
+            _ => Err(format!("fsum() argument must be an iterable, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("fsum".to_string(), fsum_fn);
+
     let mean_fn = Object::NativeFn(|args| {
         if args.len() != 1 {
             return Err("mean() takes exactly 1 argument".to_string());
@@ -1567,6 +1600,24 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         }
     });
     env.borrow_mut().set("isdigit".to_string(), isdigit_fn);
+
+    let isnumeric_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isnumeric() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_numeric()))),
+            _ => Err(format!("isnumeric() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isnumeric".to_string(), isnumeric_fn);
+
+    let isdecimal_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isdecimal() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))),
+            _ => Err(format!("isdecimal() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isdecimal".to_string(), isdecimal_fn);
 
     let isalpha_fn = Object::NativeFn(|args| {
         if args.len() != 1 {

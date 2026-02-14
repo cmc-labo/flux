@@ -1,0 +1,42 @@
+# Test Refinements Round 15
+
+# 1. String Methods: isnumeric, isdecimal, isascii, isidentifier, istitle
+print("--- Testing String Methods ---")
+
+let s_numeric = "12345"
+let s_superscript = "123²"
+let s_float = "12.34"
+
+print(f"'{s_numeric}'.isnumeric() = {s_numeric.isnumeric()}")   # True
+print(f"'{s_numeric}'.isdecimal() = {s_numeric.isdecimal()}")   # True
+
+# isnumeric() covers more than isdecimal() (e.g. superscripts)
+# Note: Rust's c.is_numeric() includes superscripts/etc if they are numeric
+print(f"'{s_superscript}'.isnumeric() = {s_superscript.isnumeric()}")
+print(f"'{s_superscript}'.isdecimal() = {s_superscript.isdecimal()}") # False
+
+print(f"'{s_float}'.isnumeric() = {s_float.isnumeric()}")   # False (contains dot)
+
+print(f"'flux_123'.isidentifier() = {'flux_123'.isidentifier()}") # True
+print(f"'123flux'.isidentifier() = {'123flux'.isidentifier()}") # False
+
+print(f"'Hello World'.istitle() = {'Hello World'.istitle()}") # True
+print(f"'Hello world'.istitle() = {'Hello world'.istitle()}") # False
+
+print(f"'Flux'.isascii() = {'Flux'.isascii()}") # True
+print(f"'Flüx'.isascii() = {'Flüx'.isascii()}") # False
+
+# 2. Math Method: fsum
+print("\n--- Testing fsum ---")
+
+let floats = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+print(f"sum([0.1]*10) = {sum(floats)}")
+print(f"fsum([0.1]*10) = {fsum(floats)}") # Should be 1.0
+
+let mixed = [1, 2.5, 3]
+print(f"fsum([1, 2.5, 3]) = {fsum(mixed)}") # 6.5
+
+let s = {1.1, 2.2, 3.3}
+print(f"fsum({{1.1, 2.2, 3.3}}) = {fsum(s)}")
+
+print("\nAll Round 15 refinement tests completed!")

@@ -92,6 +92,11 @@ impl TypeChecker {
         env.set("dist".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::List(Box::new(Type::Any))], Box::new(Type::Float)));
 
         // String
+        env.set("istitle".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("isnumeric".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("isdecimal".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("isascii".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("isidentifier".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
         env.set("upper".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
         env.set("lower".to_string(), Type::Function(vec![Type::String], Box::new(Type::String)));
         env.set("strip".to_string(), Type::Function(vec![Type::Any], Box::new(Type::String)));
@@ -140,6 +145,7 @@ impl TypeChecker {
         env.set("swap".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::Int, Type::Int], Box::new(Type::List(Box::new(Type::Any)))));
         env.set("flat".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any))], Box::new(Type::List(Box::new(Type::Any)))));
         env.set("sum".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("fsum".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("mean".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("std".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("var".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
