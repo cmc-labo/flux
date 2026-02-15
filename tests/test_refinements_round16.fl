@@ -1,0 +1,41 @@
+# Test Refinements Round 16
+
+# 1. isfinite
+print("--- Testing isfinite ---")
+print(f"isfinite(10) = {isfinite(10)}")   # True
+print(f"isfinite(3.14) = {isfinite(3.14)}") # True
+# Note: we don't have inf/nan literals easily but we can produce them
+let inf = 1.0 / 0.0
+let nan = 0.0 / 0.0
+print(f"isfinite(inf) = {isfinite(inf)}") # False
+print(f"isfinite(nan) = {isfinite(nan)}") # False
+
+# 2. copysign
+print("\n--- Testing copysign ---")
+print(f"copysign(1.0, -2.0) = {copysign(1.0, -2.0)}") # -1.0
+print(f"copysign(-1.0, 2.0) = {copysign(-1.0, 2.0)}") # 1.0
+print(f"copysign(42, -0.0) = {copysign(42, -0.0)}")   # -42.0 (if -0.0 is supported)
+
+# 3. remainder
+print("\n--- Testing remainder ---")
+print(f"remainder(10, 3) = {remainder(10, 3)}")   # 10 - 3*3 = 1.0
+print(f"remainder(10, 6) = {remainder(10, 6)}")   # 10 - 2*6 = -2.0
+print(f"remainder(-10, 3) = {remainder(-10, 3)}") # -10 - (-3)*3 = -1.0
+
+# 4. ldexp and frexp
+print("\n--- Testing ldexp and frexp ---")
+let x = 3.14
+let res = frexp(x)
+let m = res[0]
+let e = res[1]
+print(f"frexp(3.14) = {res}") # [0.785, 2] approx
+print(f"ldexp({m}, {e}) = {ldexp(m, e)}") # 3.14
+
+# 5. modf
+print("\n--- Testing modf ---")
+let parts = modf(3.14)
+print(f"modf(3.14) = {parts}") # [0.14, 3.0] approx
+let parts2 = modf(-3.14)
+print(f"modf(-3.14) = {parts2}") # [-0.14, -3.0] approx
+
+print("\nAll Round 16 refinement tests completed!")

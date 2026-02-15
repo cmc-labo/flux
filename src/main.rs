@@ -1291,6 +1291,16 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("isnan".to_string(), isnan_fn);
 
+    let isfinite_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isfinite() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Float(f) => Ok(Object::Boolean(f.is_finite())),
+            Object::Integer(_) => Ok(Object::Boolean(true)),
+            _ => Err(format!("isfinite() argument must be numeric, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isfinite".to_string(), isfinite_fn);
+
     let transpose_fn = Object::NativeFn(|args| {
         if args.len() != 1 { return Err("transpose() takes exactly 1 argument (tensor)".to_string()); }
         match &args[0] {
@@ -2561,6 +2571,58 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(Object::Integer((a / gcd) * b))
     });
     env.borrow_mut().set("lcm".to_string(), lcm_fn);
+
+    let copysign_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("copysign() takes exactly 2 arguments".to_string()); }
+        let x = match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("copysign() first arg must be numeric".to_string()) };
+        let y = match args[1] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("copysign() second arg must be numeric".to_string()) };
+        Ok(Object::Float(x.abs() * y.signum()))
+    });
+    env.borrow_mut().set("copysign".to_string(), copysign_fn);
+
+    let remainder_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("remainder() takes exactly 2 arguments".to_string()); }
+        let x = match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("remainder() first arg must be numeric".to_string()) };
+        let y = match args[1] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("remainder() second arg must be numeric".to_string()) };
+        if y == 0.0 { return Err("remainder() divisor cannot be zero".to_string()); }
+        let res = x - (x / y).round() * y;
+        Ok(Object::Float(res))
+    });
+    env.borrow_mut().set("remainder".to_string(), remainder_fn);
+
+    let ldexp_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("ldexp() takes exactly 2 arguments".to_string()); }
+        let x = match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("ldexp() first arg must be numeric".to_string()) };
+        let i = match args[1] { Object::Integer(i) => i as i32, _ => return Err("ldexp() second arg must be an integer".to_string()) };
+        Ok(Object::Float(x * 2.0f64.powi(i)))
+    });
+    env.borrow_mut().set("ldexp".to_string(), ldexp_fn);
+
+    let frexp_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("frexp() takes exactly 1 argument".to_string()); }
+        let x = match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("frexp() argument must be numeric".to_string()) };
+        if x == 0.0 {
+            return Ok(Object::List(Rc::new(RefCell::new(vec![Object::Float(0.0), Object::Integer(0)]))));
+        }
+        let bits = x.to_bits();
+        // Extract exponent (bits 52-62)
+        let exp = ((bits >> 52) & 0x7ff) as i32 - 1022;
+        // Construct mantissa with exponent biased to 1022 (0.5 to 1.0)
+        let mantissa_bits = (bits & 0x800fffffffffffff) | (1022 << 52);
+        let mantissa = f64::from_bits(mantissa_bits);
+        
+        Ok(Object::List(Rc::new(RefCell::new(vec![Object::Float(mantissa), Object::Integer(exp as i64)]))))
+    });
+    env.borrow_mut().set("frexp".to_string(), frexp_fn);
+
+    let modf_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("modf() takes exactly 1 argument".to_string()); }
+        let x = match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("modf() argument must be numeric".to_string()) };
+        let i = x.trunc();
+        let f = x - i;
+        Ok(Object::List(Rc::new(RefCell::new(vec![Object::Float(f), Object::Float(i)]))))
+    });
+    env.borrow_mut().set("modf".to_string(), modf_fn);
 
     let isclose_fn = Object::NativeFn(|args| {
         if args.len() < 2 || args.len() > 4 { return Err("isclose() takes 2 to 4 arguments (a, b, [rel_tol], [abs_tol])".to_string()); }
