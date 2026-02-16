@@ -1,0 +1,62 @@
+# tests/test_round8_final.fl
+
+print("--- Testing String methods ---")
+print("'abc'.isidentifier() =", "abc".isidentifier())
+print("'1abc'.isidentifier() =", "1abc".isidentifier())
+print("'\n'.isprintable() =", "\n".isprintable())
+print("'abc'.isprintable() =", "abc".isprintable())
+
+let table = maketrans("abc", "123", "d")
+print("translate('abcd', table) =", translate("abcd", table))
+
+print("\n--- Testing Math functions ---")
+print("sinh(0) =", sinh(0))
+print("cosh(0) =", cosh(0))
+print("tanh(0) =", tanh(0))
+print("fmod(5.5, 2) =", fmod(5.5, 2))
+print("copysign(1, -1) =", copysign(1, -1))
+
+print("\n--- Testing Dictionary fromkeys ---")
+let d_fk = dict_fromkeys(["a", "b"], 0)
+print("dict_fromkeys(['a', 'b'], 0) =", d_fk)
+
+print("\n--- Testing Tensor argmax, argmin, squeeze, unsqueeze ---")
+let t = matrix(2, 3)
+t[[0, 0]] = 10.0
+t[[0, 1]] = 2.0
+t[[0, 2]] = 30.0
+t[[1, 0]] = 4.0
+t[[1, 1]] = 50.0
+t[[1, 2]] = 6.0
+print("t =\n", t)
+print("argmax(t) =", argmax(t))
+print("argmax(t, 0) =\n", argmax(t, 0))
+print("argmax(t, 1) =\n", argmax(t, 1))
+
+let t_sq = matrix(1, 4)
+t_sq[[0, 0]] = 1.0
+t_sq[[0, 1]] = 2.0
+t_sq[[0, 2]] = 3.0
+t_sq[[0, 3]] = 4.0
+print("t_sq (1x4) =\n", t_sq)
+let t_sq_res = squeeze(t_sq)
+print("squeeze(t_sq) =\n", t_sq_res)
+let t_unsq = unsqueeze(t_sq_res, 0)
+print("unsqueeze(squeeze(t_sq), 0) =\n", t_unsq)
+
+print("\n--- Testing id() built-in ---")
+let l1 = [1, 2]
+let l2 = [1, 2]
+print("id(l1) == id(l1) =", id(l1) == id(l1))
+print("id(l1) == id(l2) =", id(l1) == id(l2))
+
+print("\n--- Testing deep_copy behavior ---")
+let nest_l = [1, [2, 3]]
+let nest_l2 = copy(nest_l)
+nest_l[1][0] = 99
+print("original nest_l =", nest_l)
+print("copy nest_l2 (should be [1, [2, 3]]) =", nest_l2)
+if nest_l2[1][0] == 2:
+    print("SUCCESS: deep_copy is indeed deep")
+else:
+    print("FAILURE: deep_copy is shallow")

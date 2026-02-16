@@ -1,5 +1,6 @@
 use ndarray::{Array, ArrayD, IxDyn};
 use std::fmt;
+use crate::object::Object;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tensor {
@@ -174,6 +175,63 @@ impl Tensor {
 
     pub fn copy(&self) -> Tensor {
         Tensor { inner: self.inner.clone() }
+    }
+
+    pub fn argmax(&self, axis: Option<usize>) -> Object {
+        use ndarray::Axis;
+        if let Some(a) = axis {
+            let res = self.inner.map_axis(Axis(a), |view| {
+                view.iter().enumerate()
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .map(|(i, _)| i as f64).unwrap_or(0.0)
+            });
+            Object::Tensor(Tensor { inner: res.into_dyn() })
+        } else {
+            let idx = self.inner.iter().enumerate()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(i, _)| i as i64).unwrap_or(0);
+            Object::Integer(idx)
+        }
+    }
+
+    pub fn argmin(&self, axis: Option<usize>) -> Object {
+        use ndarray::Axis;
+        if let Some(a) = axis {
+            let res = self.inner.map_axis(Axis(a), |view| {
+                view.iter().enumerate()
+                    .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .map(|(i, _)| i as f64).unwrap_or(0.0)
+            });
+            Object::Tensor(Tensor { inner: res.into_dyn() })
+        } else {
+            let idx = self.inner.iter().enumerate()
+                .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(i, _)| i as i64).unwrap_or(0);
+            Object::Integer(idx)
+        }
+    }
+
+    pub fn squeeze(&self, axis: Option<usize>) -> Result<Tensor, String> {
+        let mut shape = self.inner.shape().to_vec();
+        if let Some(a) = axis {
+            if a >= shape.len() { return Err(format!("Axis {} out of bounds for shape {:?}", a, shape)); }
+            if shape[a] != 1 { return Err(format!("Cannot squeeze axis {} with size {}", a, shape[a])); }
+            shape.remove(a);
+        } else {
+            shape.retain(|&s| s != 1);
+        }
+        let res = self.inner.clone().into_shape_with_order(IxDyn(&shape))
+            .map_err(|e| format!("Squeeze failed: {}", e))?;
+        Ok(Tensor { inner: res.into_dyn() })
+    }
+
+    pub fn unsqueeze(&self, axis: usize) -> Result<Tensor, String> {
+        let mut shape = self.inner.shape().to_vec();
+        if axis > shape.len() { return Err(format!("Axis {} out of bounds for shape {:?}", axis, shape)); }
+        shape.insert(axis, 1);
+        let res = self.inner.clone().into_shape_with_order(IxDyn(&shape))
+            .map_err(|e| format!("Unsqueeze failed: {}", e))?;
+        Ok(Tensor { inner: res.into_dyn() })
     }
 
     pub fn abs(&self) -> Tensor {
