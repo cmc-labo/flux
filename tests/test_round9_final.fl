@@ -1,0 +1,48 @@
+# tests/test_round9_final.fl
+
+print("--- Testing String methods ---")
+print("'line1\nline2\r\nline3'.splitlines() =", "line1\nline2\r\nline3".splitlines())
+print("'line1\nline2'.splitlines(True) =", "line1\nline2".splitlines(True))
+
+print("\n--- Testing Math functions ---")
+print("erf(0) =", erf(0))
+print("erfc(0) =", erfc(0))
+print("gamma(5) =", gamma(5))
+print("lgamma(5) =", lgamma(5))
+
+print("\n--- Testing Collections (remove, clear, update) ---")
+let l = [10, 20, 30, 20]
+l.remove(20)
+print("l after remove(20) =", l)
+
+let d1 = {"a": 1, "b": 2}
+let d2 = {"b": 99, "c": 3}
+d1.update(d2)
+print("d1 after update(d2) =", d1)
+
+d2.clear()
+print("d2 after clear() =", d2)
+
+print("\n--- Testing Tensor eye, diag, trace ---")
+let e = eye(3)
+print("eye(3) =\n", e)
+
+let t = matrix(3, 3)
+t[[0, 0]] = 1.0
+t[[0, 1]] = 2.0
+t[[0, 2]] = 3.0
+t[[1, 0]] = 4.0
+t[[1, 1]] = 5.0
+t[[1, 2]] = 6.0
+t[[2, 0]] = 7.0
+t[[2, 1]] = 8.0
+t[[2, 2]] = 9.0
+print("t =\n", t)
+print("diag(t) =", diag(t))
+print("diag(t, 1) =", diag(t, 1))
+print("trace(t) =", trace(t))
+
+print("\n--- Testing base conversions (bin, oct, hex) ---")
+print("bin(10) =", bin(10))
+print("oct(10) =", oct(10))
+print("hex(255) =", hex(255))

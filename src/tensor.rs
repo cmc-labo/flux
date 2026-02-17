@@ -238,6 +238,37 @@ impl Tensor {
         Tensor { inner: self.inner.mapv(|x| x.abs()) }
     }
 
+    pub fn diag(&self, k: i32) -> Result<Tensor, String> {
+        if self.inner.ndim() != 2 {
+            return Err("diag() requires a 2D tensor".to_string());
+        }
+        let rows = self.inner.shape()[0] as i32;
+        let cols = self.inner.shape()[1] as i32;
+        
+        let mut diag_elements = Vec::new();
+        for i in 0..rows {
+            let j = i + k;
+            if j >= 0 && j < cols {
+                diag_elements.push(self.inner[[i as usize, j as usize]]);
+            }
+        }
+        
+        let n = diag_elements.len();
+        Ok(Tensor { inner: Array::from_shape_vec(IxDyn(&[n]), diag_elements).unwrap() })
+    }
+
+    pub fn trace(&self) -> Result<f64, String> {
+        if self.inner.ndim() != 2 {
+            return Err("trace() requires a 2D tensor".to_string());
+        }
+        let n = std::cmp::min(self.inner.shape()[0], self.inner.shape()[1]);
+        let mut sum = 0.0;
+        for i in 0..n {
+            sum += self.inner[[i, i]];
+        }
+        Ok(sum)
+    }
+
     pub fn sqrt(&self) -> Tensor {
         Tensor { inner: self.inner.mapv(|x| x.sqrt()) }
     }

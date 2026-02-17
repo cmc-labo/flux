@@ -9,3 +9,4 @@ pyo3 = { version = "0.27.2", features = ["auto-initialize"] }
 rand = "0.8"
 miette = { version = "7.2.0", features = ["fancy"] }
 thiserror = "1.0"
+statrs = "0.18.0"

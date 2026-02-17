@@ -1301,6 +1301,54 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("atanh".to_string(), atanh_fn);
 
+    let erf_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("erf() takes exactly 1 argument".to_string()); }
+        use statrs::function::erf;
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::Float(erf::erf(*i as f64))),
+            Object::Float(f) => Ok(Object::Float(erf::erf(*f))),
+            Object::Tensor(t) => Ok(Object::Tensor(Tensor { inner: t.inner.mapv(|x| erf::erf(x)) })),
+            _ => Err("erf() arg must be numeric or tensor".to_string()),
+        }
+    });
+    env.borrow_mut().set("erf".to_string(), erf_fn);
+
+    let erfc_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("erfc() takes exactly 1 argument".to_string()); }
+        use statrs::function::erf;
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::Float(erf::erfc(*i as f64))),
+            Object::Float(f) => Ok(Object::Float(erf::erfc(*f))),
+            Object::Tensor(t) => Ok(Object::Tensor(Tensor { inner: t.inner.mapv(|x| erf::erfc(x)) })),
+            _ => Err("erfc() arg must be numeric or tensor".to_string()),
+        }
+    });
+    env.borrow_mut().set("erfc".to_string(), erfc_fn);
+
+    let gamma_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("gamma() takes exactly 1 argument".to_string()); }
+        use statrs::function::gamma;
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::Float(gamma::gamma(*i as f64))),
+            Object::Float(f) => Ok(Object::Float(gamma::gamma(*f))),
+            Object::Tensor(t) => Ok(Object::Tensor(Tensor { inner: t.inner.mapv(|x| gamma::gamma(x)) })),
+            _ => Err("gamma() arg must be numeric or tensor".to_string()),
+        }
+    });
+    env.borrow_mut().set("gamma".to_string(), gamma_fn);
+
+    let lgamma_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("lgamma() takes exactly 1 argument".to_string()); }
+        use statrs::function::gamma;
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::Float(gamma::ln_gamma(*i as f64))),
+            Object::Float(f) => Ok(Object::Float(gamma::ln_gamma(*f))),
+            Object::Tensor(t) => Ok(Object::Tensor(Tensor { inner: t.inner.mapv(|x| gamma::ln_gamma(x)) })),
+            _ => Err("lgamma() arg must be numeric or tensor".to_string()),
+        }
+    });
+    env.borrow_mut().set("lgamma".to_string(), lgamma_fn);
+
     let fmod_fn = Object::NativeFn(|args| {
         if args.len() != 2 { return Err("fmod() takes exactly 2 arguments (x, y)".to_string()); }
         let x = match &args[0] { Object::Integer(i) => *i as f64, Object::Float(f) => *f, _ => return Err("fmod() x must be numeric".to_string()) };
@@ -1431,6 +1479,38 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(Object::Tensor(t.unsqueeze(axis)?))
     });
     env.borrow_mut().set("unsqueeze".to_string(), unsqueeze_fn);
+
+    let eye_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 { return Err("eye() takes 1 or 2 arguments (n, [m])".to_string()); }
+        let n = match &args[0] { Object::Integer(i) => *i as usize, _ => return Err("eye() n must be int".to_string()) };
+        let m = if args.len() == 2 {
+            match &args[1] { Object::Integer(i) => *i as usize, _ => return Err("eye() m must be int".to_string()) }
+        } else { n };
+        
+        let mut data = vec![0.0; n * m];
+        for i in 0..std::cmp::min(n, m) {
+            data[i * m + i] = 1.0;
+        }
+        Ok(Object::Tensor(Tensor::new(data, vec![n, m])?))
+    });
+    env.borrow_mut().set("eye".to_string(), eye_fn);
+
+    let diag_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 { return Err("diag() takes 1 or 2 arguments (tensor, [k])".to_string()); }
+        let t = match &args[0] { Object::Tensor(t) => t, _ => return Err("diag() arg 1 must be tensor".to_string()) };
+        let k = if args.len() == 2 {
+            match &args[1] { Object::Integer(i) => *i as i32, _ => return Err("diag() k must be int".to_string()) }
+        } else { 0 };
+        Ok(Object::Tensor(t.diag(k)?))
+    });
+    env.borrow_mut().set("diag".to_string(), diag_fn);
+
+    let trace_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("trace() takes exactly 1 argument (tensor)".to_string()); }
+        let t = match &args[0] { Object::Tensor(t) => t, _ => return Err("trace() arg must be tensor".to_string()) };
+        Ok(Object::Float(t.trace()?))
+    });
+    env.borrow_mut().set("trace".to_string(), trace_fn);
 
     let pow_fn = Object::NativeFn(|args| {
         if args.len() != 2 {
@@ -2432,6 +2512,48 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("translate".to_string(), translate_fn);
 
+    let splitlines_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 { return Err("splitlines() takes 1 or 2 arguments".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("splitlines() arg 1 must be string".to_string()) };
+        let keepends = if args.len() == 2 {
+            match &args[1] { Object::Boolean(b) => *b, _ => return Err("splitlines() arg 2 must be bool".to_string()) }
+        } else { false };
+
+        let mut res = Vec::new();
+        let mut start = 0;
+        let bytes = s.as_bytes();
+        let len = bytes.len();
+        
+        let mut i = 0;
+        while i < len {
+            let mut sep_len = 0;
+            if bytes[i] == b'\n' {
+                sep_len = 1;
+            } else if bytes[i] == b'\r' {
+                if i + 1 < len && bytes[i+1] == b'\n' {
+                    sep_len = 2;
+                } else {
+                    sep_len = 1;
+                }
+            }
+            
+            if sep_len > 0 {
+                let line_end = if keepends { i + sep_len } else { i };
+                res.push(Object::String(s[start..line_end].to_string()));
+                i += sep_len;
+                start = i;
+            } else {
+                i += 1;
+            }
+        }
+        if start < len {
+            res.push(Object::String(s[start..].to_string()));
+        }
+
+        Ok(Object::List(Rc::new(RefCell::new(res))))
+    });
+    env.borrow_mut().set("splitlines".to_string(), splitlines_fn);
+
     let ljust_fn = Object::NativeFn(|args| {
         if args.len() < 2 || args.len() > 3 { return Err("ljust() takes 2 or 3 arguments (string, width, [fillchar])".to_string()); }
         let s = match &args[0] { Object::String(val) => val, _ => return Err("ljust() arg 1 must be string".to_string()) };
@@ -2798,6 +2920,77 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(args[0].deep_copy())
     });
     env.borrow_mut().set("copy".to_string(), copy_fn);
+
+    let bin_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("bin() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::String(format!("0b{:b}", i))),
+            _ => Err("bin() argument must be an integer".to_string()),
+        }
+    });
+    env.borrow_mut().set("bin".to_string(), bin_fn);
+
+    let oct_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("oct() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::String(format!("0o{:o}", i))),
+            _ => Err("oct() argument must be an integer".to_string()),
+        }
+    });
+    env.borrow_mut().set("oct".to_string(), oct_fn);
+
+    let hex_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("hex() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::String(format!("0x{:x}", i))),
+            _ => Err("hex() argument must be an integer".to_string()),
+        }
+    });
+    env.borrow_mut().set("hex".to_string(), hex_fn);
+
+    let list_remove_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("remove() takes exactly 2 arguments (list, value)".to_string()); }
+        let list = match &args[0] {
+            Object::List(l) => l,
+            _ => return Err("remove() first argument must be a list".to_string()),
+        };
+        let mut l = list.borrow_mut();
+        if let Some(pos) = l.iter().position(|x| x == &args[1]) {
+            l.remove(pos);
+            Ok(Object::Null)
+        } else {
+            Err(format!("remove(x): x not in list"))
+        }
+    });
+    env.borrow_mut().set("remove".to_string(), list_remove_fn);
+
+    let clear_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("clear() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::List(l) => { l.borrow_mut().clear(); Ok(Object::Null) },
+            Object::Dictionary(d) => { d.borrow_mut().clear(); Ok(Object::Null) },
+            Object::Set(s) => { s.borrow_mut().clear(); Ok(Object::Null) },
+            _ => Err("clear() argument must be list, dict, or set".to_string()),
+        }
+    });
+    env.borrow_mut().set("clear".to_string(), clear_fn);
+
+    let dict_update_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("update() takes exactly 2 arguments (dict, other)".to_string()); }
+        let dict = match &args[0] {
+            Object::Dictionary(d) => d,
+            _ => return Err("update() first argument must be a dictionary".to_string()),
+        };
+        let other = match &args[1] {
+            Object::Dictionary(d) => d,
+            _ => return Err("update() second argument must be a dictionary".to_string()),
+        };
+        for (k, v) in other.borrow().iter() {
+            dict.borrow_mut().insert(k.clone(), v.clone());
+        }
+        Ok(Object::Null)
+    });
+    env.borrow_mut().set("update".to_string(), dict_update_fn);
 
     let id_fn = Object::NativeFn(|args| {
         if args.len() != 1 { return Err("id() takes exactly 1 argument".to_string()); }
