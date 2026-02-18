@@ -269,6 +269,20 @@ impl Tensor {
         Ok(sum)
     }
 
+    pub fn clip(&self, min: f64, max: f64) -> Tensor {
+        Tensor { inner: self.inner.mapv(|x| x.clamp(min, max)) }
+    }
+
+    pub fn norm(&self, p: f64) -> f64 {
+        if p == 2.0 {
+            self.inner.iter().map(|&x| x * x).sum::<f64>().sqrt()
+        } else if p.is_infinite() {
+            self.inner.iter().map(|&x| x.abs()).fold(0.0, f64::max)
+        } else {
+            self.inner.iter().map(|&x| x.abs().powf(p)).sum::<f64>().powf(1.0 / p)
+        }
+    }
+
     pub fn sqrt(&self) -> Tensor {
         Tensor { inner: self.inner.mapv(|x| x.sqrt()) }
     }
