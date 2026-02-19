@@ -257,21 +257,6 @@ impl TypeChecker {
         env.set("E".to_string(), Type::Float);
         env.set("e".to_string(), Type::Float);
         env
-
-        // Constants
-        env.set("true".to_string(), Type::Bool);
-        env.set("false".to_string(), Type::Bool);
-        env.set("null".to_string(), Type::Null);
-        env.set("True".to_string(), Type::Bool);
-        env.set("False".to_string(), Type::Bool);
-        env.set("None".to_string(), Type::Null);
-        
-        // Math Constants
-        env.set("PI".to_string(), Type::Float);
-        env.set("pi".to_string(), Type::Float);
-        env.set("E".to_string(), Type::Float);
-        env.set("e".to_string(), Type::Float);
-        env
     }
 
     pub fn check(&mut self, statements: &[Statement]) -> Result<(), FluxError> {

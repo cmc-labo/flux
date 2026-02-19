@@ -1,0 +1,29 @@
+# Round 10 Refinements Verification
+
+print("--- Testing Tensor methods ---")
+let t = tensor([1.0, 2.0, 3.0, 4.0, 5.0])
+print("Original tensor:", t)
+print("Clip (2.0, 4.0):", clip(t, 2.0, 4.0))
+print("Norm (p=2.0):", norm(t, 2.0))
+print("Norm (default p=2.0):", norm(t))
+
+print("\n--- Testing Math built-ins ---")
+print("isqrt(16):", isqrt(16))
+print("atan2(1.0, 1.0):", atan2(1.0, 1.0))
+
+print("\n--- Testing Random utilities ---")
+let l = [1, 2, 3, 4, 5]
+print("List:", l)
+print("Choice:", choice(l))
+print("Shuffle (in-place):")
+shuffle(l)
+print("List after shuffle:", l)
+
+print("\n--- Testing String manipulation ---")
+let s = "Hello World! ß"
+print("Original string:", s)
+print("Casefold:", casefold(s))
+print("Ascii (string):", ascii(s))
+print("Ascii (list):", ascii([1, 2, "a"]))
+
+print("\n--- Verification Complete ---")
