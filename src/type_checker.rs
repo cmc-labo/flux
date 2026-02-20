@@ -256,6 +256,13 @@ impl TypeChecker {
         env.set("pi".to_string(), Type::Float);
         env.set("E".to_string(), Type::Float);
         env.set("e".to_string(), Type::Float);
+        env.set("dir".to_string(), Type::Function(vec![Type::Any], Box::new(Type::List(Box::new(Type::String)))));
+        env.set("nan_to_num".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Any)));
+        env.set("cbrt".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("log1p".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("expm1".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("item".to_string(), Type::Function(vec![Type::Tensor], Box::new(Type::Float)));
+        env.set("fill".to_string(), Type::Function(vec![Type::Tensor, Type::Float], Box::new(Type::Tensor)));
         env
     }
 

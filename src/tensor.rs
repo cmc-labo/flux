@@ -299,6 +299,17 @@ impl Tensor {
         self.inner.product()
     }
 
+    pub fn item(&self) -> Result<f64, String> {
+        if self.inner.len() != 1 {
+            return Err(format!("item() called on tensor with {} elements, expected 1", self.inner.len()));
+        }
+        Ok(*self.inner.iter().next().unwrap())
+    }
+
+    pub fn fill(&self, val: f64) -> Tensor {
+        Tensor { inner: ArrayD::from_elem(self.inner.shape(), val) }
+    }
+
     pub fn all(&self) -> bool {
         self.inner.iter().all(|&x| x != 0.0)
     }

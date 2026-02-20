@@ -1,0 +1,33 @@
+# Round 11 Refinements Verification
+
+print("--- Testing dir() introspection ---")
+let l = [1, 2, 3]
+print("Methods for List:", dir(l))
+let s = "hello"
+print("Methods for String:", dir(s))
+let t = tensor([1.0, 2.0])
+print("Methods for Tensor:", dir(t))
+
+print("\n--- Testing nan_to_num() stability ---")
+# Create a tensor with NaN and Inf using math ops
+let t_special = tensor([1.0, 0.0, -1.0])
+let t_inf = t_special / tensor([0.0, 0.0, 0.0])
+# 1.0/0.0 = Inf, 0.0/0.0 = NaN, -1.0/0.0 = -Inf
+print("Tensor with special values:", t_inf)
+print("nan_to_num(t_inf):", nan_to_num(t_inf))
+print("nan_to_num(t_inf, 7.7, 8.8, 9.9):", nan_to_num(t_inf, 7.7, 8.8, 9.9))
+
+print("\n--- Testing Tensor item() and fill() ---")
+let t1 = tensor([42.0])
+print("Tensor t1:", t1)
+print("t1.item():", item(t1))
+let t2 = reshape(tensor([1.0, 2.0, 3.0, 4.0]), [2, 2])
+print("t2:", t2)
+print("t2.fill(0.0):", fill(t2, 0.0))
+
+print("\n--- Testing Math built-ins ---")
+print("cbrt(27):", cbrt(27))
+print("log1p(0.5):", log1p(0.5))
+print("expm1(0.5):", expm1(0.5))
+
+print("\n--- Verification Complete ---")

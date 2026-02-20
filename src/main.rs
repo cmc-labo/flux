@@ -2847,6 +2847,82 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("norm".to_string(), norm_fn);
 
+    let dir_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("dir() takes exactly 1 argument".to_string()); }
+        let methods = match &args[0] {
+            Object::List(_) => vec!["append", "extend", "pop", "remove", "insert", "clear", "reverse", "sort", "index", "count", "swap", "unique", "flat"],
+            Object::String(_) => vec!["upper", "lower", "capitalize", "title", "swapcase", "casefold", "strip", "lstrip", "rstrip", "startswith", "endswith", "replace", "split", "splitlines", "join", "find", "rfind", "index", "rindex", "count"],
+            Object::Tensor(_) => vec!["shape", "ndim", "len", "reshape", "transpose", "squeeze", "unsqueeze", "argmax", "argmin", "sum", "mean", "std", "var", "clip", "norm", "diag", "trace", "item", "fill", "sqrt", "exp", "log"],
+            Object::Dictionary(_) => vec!["keys", "values", "items", "get", "update", "pop", "popitem", "clear", "setdefault", "fromkeys"],
+            Object::Set(_) => vec!["add", "discard", "clear", "union", "intersection", "difference", "symmetric_difference", "issubset", "issuperset", "isdisjoint"],
+            _ => vec![],
+        };
+        let mut res: Vec<Object> = methods.into_iter().map(|s| Object::String(s.to_string())).collect();
+        res.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+        Ok(Object::List(Rc::new(RefCell::new(res))))
+    });
+    env.borrow_mut().set("dir".to_string(), dir_fn);
+
+    let nan_to_num_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 4 { return Err("nan_to_num() takes 1 to 4 arguments (x, [nan], [posinf], [neginf])".to_string()); }
+        let nan_val = if args.len() >= 2 { match args[1] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => 0.0 } } else { 0.0 };
+        let posinf_val = if args.len() >= 3 { match args[2] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => f64::MAX } } else { f64::MAX };
+        let neginf_val = if args.len() >= 4 { match args[3] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => f64::MIN } } else { f64::MIN };
+
+        let transform = |x: f64| {
+            if x.is_nan() { nan_val }
+            else if x.is_infinite() && x.is_sign_positive() { posinf_val }
+            else if x.is_infinite() && x.is_sign_negative() { neginf_val }
+            else { x }
+        };
+
+        match &args[0] {
+            Object::Integer(i) => Ok(Object::Integer(*i)),
+            Object::Float(f) => Ok(Object::Float(transform(*f))),
+            Object::Tensor(t) => Ok(Object::Tensor(Tensor { inner: t.inner.mapv(transform) })),
+            _ => Err("nan_to_num() argument must be numeric or tensor".to_string()),
+        }
+    });
+    env.borrow_mut().set("nan_to_num".to_string(), nan_to_num_fn);
+
+    let cbrt_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("cbrt() takes exactly 1 argument".to_string()); }
+        let x = match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("cbrt() arg must be numeric".to_string()) };
+        Ok(Object::Float(x.cbrt()))
+    });
+    env.borrow_mut().set("cbrt".to_string(), cbrt_fn);
+
+    let log1p_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("log1p() takes exactly 1 argument".to_string()); }
+        let x = match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("log1p() arg must be numeric".to_string()) };
+        Ok(Object::Float(x.ln_1p()))
+    });
+    env.borrow_mut().set("log1p".to_string(), log1p_fn);
+
+    let expm1_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("expm1() takes exactly 1 argument".to_string()); }
+        let x = match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("expm1() arg must be numeric".to_string()) };
+        Ok(Object::Float(x.exp_m1()))
+    });
+    env.borrow_mut().set("expm1".to_string(), expm1_fn);
+
+    let item_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("item() takes exactly 1 argument (tensor)".to_string()); }
+        match &args[0] {
+            Object::Tensor(t) => t.item().map(Object::Float),
+            _ => Err("item() argument must be a tensor".to_string()),
+        }
+    });
+    env.borrow_mut().set("item".to_string(), item_fn);
+
+    let fill_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("fill() takes exactly 2 arguments (tensor, value)".to_string()); }
+        let t = match &args[0] { Object::Tensor(t) => t, _ => return Err("fill() first arg must be a tensor".to_string()) };
+        let val = match args[1] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("fill() second arg must be numeric".to_string()) };
+        Ok(Object::Tensor(t.fill(val)))
+    });
+    env.borrow_mut().set("fill".to_string(), fill_fn);
+
     let clamp_fn = Object::NativeFn(|args| {
         if args.len() != 3 {
             return Err("clamp() takes exactly 3 arguments (val, min, max)".to_string());
