@@ -100,6 +100,12 @@ impl Tensor {
         Tensor { inner: ArrayD::ones(IxDyn(&shape)) }
     }
 
+    pub fn arange(start: f64, stop: f64, step: f64) -> Self {
+        let n = ((stop - start) / step).ceil().max(0.0) as usize;
+        let data: Vec<f64> = (0..n).map(|i| start + i as f64 * step).collect();
+        Tensor::new(data, vec![n]).unwrap()
+    }
+
     pub fn rand(shape: Vec<usize>) -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();
@@ -316,6 +322,32 @@ impl Tensor {
 
     pub fn any(&self) -> bool {
         self.inner.iter().any(|&x| x != 0.0)
+    }
+
+    pub fn cumsum(&self, axis: Option<usize>) -> Tensor {
+        use ndarray::Axis;
+        if let Some(a) = axis {
+            let mut res = self.inner.clone();
+            res.accumulate_axis_inplace(Axis(a), |&a, b| *b += a);
+            Tensor { inner: res }
+        } else {
+            let mut current = 0.0;
+            let data: Vec<f64> = self.inner.iter().map(|&x| { current += x; current }).collect();
+            Tensor::new(data, vec![self.inner.len()]).unwrap()
+        }
+    }
+
+    pub fn cumprod(&self, axis: Option<usize>) -> Tensor {
+        use ndarray::Axis;
+        if let Some(a) = axis {
+            let mut res = self.inner.clone();
+            res.accumulate_axis_inplace(Axis(a), |&a, b| *b *= a);
+            Tensor { inner: res }
+        } else {
+            let mut current = 1.0;
+            let data: Vec<f64> = self.inner.iter().map(|&x| { current *= x; current }).collect();
+            Tensor::new(data, vec![self.inner.len()]).unwrap()
+        }
     }
 }
 

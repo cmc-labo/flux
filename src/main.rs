@@ -2923,6 +2923,122 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("fill".to_string(), fill_fn);
 
+    let arange_fn = Object::NativeFn(|args| {
+        let (start, stop, step) = match args.len() {
+            1 => (0.0, match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("arange() arg must be numeric".to_string()) }, 1.0),
+            2 => (
+                match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("arange() arg 1 must be numeric".to_string()) },
+                match args[1] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("arange() arg 2 must be numeric".to_string()) },
+                1.0
+            ),
+            3 => (
+                match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("arange() arg 1 must be numeric".to_string()) },
+                match args[1] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("arange() arg 2 must be numeric".to_string()) },
+                match args[2] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("arange() arg 3 must be numeric".to_string()) }
+            ),
+            _ => return Err("arange() takes 1 to 3 arguments".to_string()),
+        };
+        Ok(Object::Tensor(Tensor::arange(start, stop, step)))
+    });
+    env.borrow_mut().set("arange".to_string(), arange_fn);
+
+    let cumsum_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 { return Err("cumsum() takes 1 or 2 arguments (tensor, [axis])".to_string()); }
+        let t = match &args[0] { Object::Tensor(t) => t, _ => return Err("cumsum() arg 1 must be tensor".to_string()) };
+        let axis = if args.len() == 2 {
+            match args[1] { Object::Integer(i) => Some(i as usize), _ => return Err("cumsum() axis must be integer".to_string()) }
+        } else { None };
+        Ok(Object::Tensor(t.cumsum(axis)))
+    });
+    env.borrow_mut().set("cumsum".to_string(), cumsum_fn);
+
+    let cumprod_fn = Object::NativeFn(|args| {
+        if args.len() < 1 || args.len() > 2 { return Err("cumprod() takes 1 or 2 arguments (tensor, [axis])".to_string()); }
+        let t = match &args[0] { Object::Tensor(t) => t, _ => return Err("cumprod() arg 1 must be tensor".to_string()) };
+        let axis = if args.len() == 2 {
+            match args[1] { Object::Integer(i) => Some(i as usize), _ => return Err("cumprod() axis must be integer".to_string()) }
+        } else { None };
+        Ok(Object::Tensor(t.cumprod(axis)))
+    });
+    env.borrow_mut().set("cumprod".to_string(), cumprod_fn);
+
+    let bit_length_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("bit_length() takes exactly 1 argument".to_string()); }
+        match args[0] {
+            Object::Integer(i) => {
+                let val = i.abs();
+                if val == 0 { return Ok(Object::Integer(0)); }
+                Ok(Object::Integer((64 - val.leading_zeros()) as i64))
+            },
+            _ => Err("bit_length() argument must be an integer".to_string()),
+        }
+    });
+    env.borrow_mut().set("bit_length".to_string(), bit_length_fn);
+
+    let is_integer_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("is_integer() takes exactly 1 argument".to_string()); }
+        match args[0] {
+            Object::Float(f) => Ok(Object::Boolean(f.fract() == 0.0)),
+            Object::Integer(_) => Ok(Object::Boolean(true)),
+            _ => Ok(Object::Boolean(false)),
+        }
+    });
+    env.borrow_mut().set("is_integer".to_string(), is_integer_fn);
+
+    let getattr_fn = Object::NativeFn(|args| {
+        if args.len() < 2 || args.len() > 3 { return Err("getattr() takes 2 or 3 arguments (obj, name, [default])".to_string()); }
+        let name = match &args[1] { Object::String(s) => s, _ => return Err("getattr() name must be string".to_string()) };
+        let default = if args.len() == 3 { Some(args[2].clone()) } else { None };
+        
+        let methods = match &args[0] {
+            Object::List(_) => vec!["append", "extend", "pop", "remove", "insert", "clear", "reverse", "sort", "index", "count", "swap", "unique", "flat"],
+            Object::String(_) => vec!["upper", "lower", "capitalize", "title", "swapcase", "casefold", "strip", "lstrip", "rstrip", "startswith", "endswith", "replace", "split", "splitlines", "join", "find", "rfind", "index", "rindex", "count"],
+            Object::Tensor(_) => vec!["shape", "ndim", "len", "reshape", "transpose", "squeeze", "unsqueeze", "argmax", "argmin", "sum", "mean", "std", "var", "clip", "norm", "diag", "trace", "item", "fill", "sqrt", "exp", "log"],
+            Object::Dictionary(_) => vec!["keys", "values", "items", "get", "update", "pop", "popitem", "clear", "setdefault", "fromkeys"],
+            Object::Set(_) => vec!["add", "discard", "clear", "union", "intersection", "difference", "symmetric_difference", "issubset", "issuperset", "isdisjoint"],
+            Object::Module { env: module_env, .. } => {
+                if let Some(v) = module_env.borrow().get(name) { return Ok(v); }
+                vec![] // fallback to default
+            }
+            _ => vec![],
+        };
+
+        if methods.contains(&name.as_str()) {
+            // In Flux, methods are just built-in functions. 
+            // We can return the native function directly if we can find it in the environment.
+            // But this requires a reference to the global environment which we don't have easily in NativeFn closure.
+            // Simplified: return the name as a string or a dummy "method" object if we had one.
+            // For now, let's just use the current approach of registry.
+            // Actually, we can just return the string if it's found, or we can look it up in a static way if we had a static registry.
+            // Let's just return a placeholder or error for now as Flux doesn't yet have first-class method objects that are easy to extract.
+            return Ok(Object::String(format!("<method '{}'>", name)));
+        }
+
+        if let Some(d) = default { Ok(d) }
+        else { Err(format!("Attribute '{}' not found on {}", name, args[0])) }
+    });
+    env.borrow_mut().set("getattr".to_string(), getattr_fn);
+
+    let hasattr_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("hasattr() takes exactly 2 arguments (obj, name)".to_string()); }
+        let name = match &args[1] { Object::String(s) => s, _ => return Err("hasattr() name must be string".to_string()) };
+        
+        let methods = match &args[0] {
+            Object::List(_) => vec!["append", "extend", "pop", "remove", "insert", "clear", "reverse", "sort", "index", "count", "swap", "unique", "flat"],
+            Object::String(_) => vec!["upper", "lower", "capitalize", "title", "swapcase", "casefold", "strip", "lstrip", "rstrip", "startswith", "endswith", "replace", "split", "splitlines", "join", "find", "rfind", "index", "rindex", "count"],
+            Object::Tensor(_) => vec!["shape", "ndim", "len", "reshape", "transpose", "squeeze", "unsqueeze", "argmax", "argmin", "sum", "mean", "std", "var", "clip", "norm", "diag", "trace", "item", "fill", "sqrt", "exp", "log"],
+            Object::Dictionary(_) => vec!["keys", "values", "items", "get", "update", "pop", "popitem", "clear", "setdefault", "fromkeys"],
+            Object::Set(_) => vec!["add", "discard", "clear", "union", "intersection", "difference", "symmetric_difference", "issubset", "issuperset", "isdisjoint"],
+            Object::Module { env: module_env, .. } => {
+                return Ok(Object::Boolean(module_env.borrow().get(name).is_some()));
+            }
+            _ => vec![],
+        };
+
+        Ok(Object::Boolean(methods.contains(&name.as_str())))
+    });
+    env.borrow_mut().set("hasattr".to_string(), hasattr_fn);
+
     let clamp_fn = Object::NativeFn(|args| {
         if args.len() != 3 {
             return Err("clamp() takes exactly 3 arguments (val, min, max)".to_string());

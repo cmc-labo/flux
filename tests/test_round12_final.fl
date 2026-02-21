@@ -1,0 +1,37 @@
+# Round 12 Refinements Verification
+
+print("--- Testing Tensor arange(), cumsum(), cumprod() ---")
+let t_range = arange(0.0, 5.0, 1.0)
+print("arange(0.0, 5.0, 1.0):", t_range)
+
+let t2d = reshape(arange(1.0, 5.0, 1.0), [2, 2])
+print("t2d:\n", t2d)
+print("cumsum(t2d, 0):\n", cumsum(t2d, 0))
+print("cumsum(t2d, 1):\n", cumsum(t2d, 1))
+print("cumsum(t2d) (flattened):", cumsum(t2d))
+
+print("cumprod(t2d, 0):\n", cumprod(t2d, 0))
+print("cumprod(t2d, 1):\n", cumprod(t2d, 1))
+print("cumprod(t2d) (flattened):", cumprod(t2d))
+
+print("\n--- Testing Introspection getattr(), hasattr() ---")
+let l = [1, 2, 3]
+print("List l:", l)
+print("hasattr(l, 'append'):", hasattr(l, "append"))
+print("hasattr(l, 'nonexistent'):", hasattr(l, "nonexistent"))
+print("getattr(l, 'append'):", getattr(l, "append"))
+print("getattr(l, 'nonexistent', 'default_val'):", getattr(l, "nonexistent", "default_val"))
+
+print("\n--- Testing bit_length() and is_integer() ---")
+print("bit_length(0):", bit_length(0))
+print("bit_length(1):", bit_length(1))
+print("bit_length(8):", bit_length(8))
+print("bit_length(255):", bit_length(255))
+print("bit_length(-255):", bit_length(-255))
+
+print("is_integer(1.0):", is_integer(1.0))
+print("is_integer(1.5):", is_integer(1.5))
+print("is_integer(42):", is_integer(42))
+print("is_integer('abc'):", is_integer("abc"))
+
+print("\n--- Verification Complete ---")

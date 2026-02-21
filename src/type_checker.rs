@@ -263,6 +263,13 @@ impl TypeChecker {
         env.set("expm1".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("item".to_string(), Type::Function(vec![Type::Tensor], Box::new(Type::Float)));
         env.set("fill".to_string(), Type::Function(vec![Type::Tensor, Type::Float], Box::new(Type::Tensor)));
+        env.set("arange".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Tensor)));
+        env.set("cumsum".to_string(), Type::Function(vec![Type::Tensor], Box::new(Type::Tensor)));
+        env.set("cumprod".to_string(), Type::Function(vec![Type::Tensor], Box::new(Type::Tensor)));
+        env.set("bit_length".to_string(), Type::Function(vec![Type::Int], Box::new(Type::Int)));
+        env.set("is_integer".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Bool)));
+        env.set("getattr".to_string(), Type::Function(vec![Type::Any, Type::String], Box::new(Type::Any)));
+        env.set("hasattr".to_string(), Type::Function(vec![Type::Any, Type::String], Box::new(Type::Bool)));
         env
     }
 
