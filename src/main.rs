@@ -2851,8 +2851,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         if args.len() != 1 { return Err("dir() takes exactly 1 argument".to_string()); }
         let methods = match &args[0] {
             Object::List(_) => vec!["append", "extend", "pop", "remove", "insert", "clear", "reverse", "sort", "index", "count", "swap", "unique", "flat"],
-            Object::String(_) => vec!["upper", "lower", "capitalize", "title", "swapcase", "casefold", "strip", "lstrip", "rstrip", "startswith", "endswith", "replace", "split", "splitlines", "join", "find", "rfind", "index", "rindex", "count"],
-            Object::Tensor(_) => vec!["shape", "ndim", "len", "reshape", "transpose", "squeeze", "unsqueeze", "argmax", "argmin", "sum", "mean", "std", "var", "clip", "norm", "diag", "trace", "item", "fill", "sqrt", "exp", "log"],
+            Object::String(_) => vec!["upper", "lower", "capitalize", "title", "swapcase", "casefold", "strip", "lstrip", "rstrip", "startswith", "endswith", "replace", "split", "splitlines", "join", "find", "rfind", "index", "rindex", "count", "isspace", "istitle"],
+            Object::Tensor(_) => vec!["shape", "ndim", "len", "reshape", "transpose", "squeeze", "unsqueeze", "argmax", "argmin", "sum", "mean", "std", "var", "clip", "norm", "diag", "trace", "item", "fill", "sqrt", "exp", "log", "cumsum", "cumprod", "atleast_1d", "atleast_2d"],
             Object::Dictionary(_) => vec!["keys", "values", "items", "get", "update", "pop", "popitem", "clear", "setdefault", "fromkeys"],
             Object::Set(_) => vec!["add", "discard", "clear", "union", "intersection", "difference", "symmetric_difference", "issubset", "issuperset", "isdisjoint"],
             _ => vec![],
@@ -3025,8 +3025,8 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         
         let methods = match &args[0] {
             Object::List(_) => vec!["append", "extend", "pop", "remove", "insert", "clear", "reverse", "sort", "index", "count", "swap", "unique", "flat"],
-            Object::String(_) => vec!["upper", "lower", "capitalize", "title", "swapcase", "casefold", "strip", "lstrip", "rstrip", "startswith", "endswith", "replace", "split", "splitlines", "join", "find", "rfind", "index", "rindex", "count"],
-            Object::Tensor(_) => vec!["shape", "ndim", "len", "reshape", "transpose", "squeeze", "unsqueeze", "argmax", "argmin", "sum", "mean", "std", "var", "clip", "norm", "diag", "trace", "item", "fill", "sqrt", "exp", "log"],
+            Object::String(_) => vec!["upper", "lower", "capitalize", "title", "swapcase", "casefold", "strip", "lstrip", "rstrip", "startswith", "endswith", "replace", "split", "splitlines", "join", "find", "rfind", "index", "rindex", "count", "isspace", "istitle"],
+            Object::Tensor(_) => vec!["shape", "ndim", "len", "reshape", "transpose", "squeeze", "unsqueeze", "argmax", "argmin", "sum", "mean", "std", "var", "clip", "norm", "diag", "trace", "item", "fill", "sqrt", "exp", "log", "cumsum", "cumprod", "atleast_1d", "atleast_2d"],
             Object::Dictionary(_) => vec!["keys", "values", "items", "get", "update", "pop", "popitem", "clear", "setdefault", "fromkeys"],
             Object::Set(_) => vec!["add", "discard", "clear", "union", "intersection", "difference", "symmetric_difference", "issubset", "issuperset", "isdisjoint"],
             Object::Module { env: module_env, .. } => {
@@ -3038,6 +3038,88 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         Ok(Object::Boolean(methods.contains(&name.as_str())))
     });
     env.borrow_mut().set("hasattr".to_string(), hasattr_fn);
+
+    let callable_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("callable() takes exactly 1 argument".to_string()); }
+        let is_callable = match &args[0] {
+            Object::Function { .. } | Object::NativeFn(_) => true,
+            _ => false,
+        };
+        Ok(Object::Boolean(is_callable))
+    });
+    env.borrow_mut().set("callable".to_string(), callable_fn);
+
+    let isspace_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isspace() takes exactly 1 argument (string)".to_string()); }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_whitespace()))),
+            _ => Err(format!("isspace() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isspace".to_string(), isspace_fn);
+
+    let istitle_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("istitle() takes exactly 1 argument (string)".to_string()); }
+        match &args[0] {
+            Object::String(s) => {
+                if s.is_empty() { return Ok(Object::Boolean(false)); }
+                let mut cased = false;
+                let mut previous_was_cased = false;
+                for c in s.chars() {
+                    if c.is_uppercase() {
+                        if previous_was_cased { return Ok(Object::Boolean(false)); }
+                        cased = true;
+                        previous_was_cased = true;
+                    } else if c.is_lowercase() {
+                        if !previous_was_cased { return Ok(Object::Boolean(false)); }
+                        cased = true;
+                        previous_was_cased = true;
+                    } else {
+                        previous_was_cased = false;
+                    }
+                }
+                Ok(Object::Boolean(cased))
+            },
+            _ => Err(format!("istitle() argument must be a string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("istitle".to_string(), istitle_fn);
+
+    let degrees_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("degrees() takes exactly 1 argument".to_string()); }
+        let x = match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("degrees() arg must be numeric".to_string()) };
+        Ok(Object::Float(x.to_degrees()))
+    });
+    env.borrow_mut().set("degrees".to_string(), degrees_fn);
+
+    let radians_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("radians() takes exactly 1 argument".to_string()); }
+        let x = match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("radians() arg must be numeric".to_string()) };
+        Ok(Object::Float(x.to_radians()))
+    });
+    env.borrow_mut().set("radians".to_string(), radians_fn);
+
+    let atleast_1d_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("atleast_1d() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Tensor(t) => Ok(Object::Tensor(t.atleast_1d())),
+            Object::Integer(i) => Ok(Object::Tensor(Tensor::new(vec![*i as f64], vec![1]).unwrap())),
+            Object::Float(f) => Ok(Object::Tensor(Tensor::new(vec![*f], vec![1]).unwrap())),
+            _ => Err("atleast_1d() argument must be numeric or tensor".to_string()),
+        }
+    });
+    env.borrow_mut().set("atleast_1d".to_string(), atleast_1d_fn);
+
+    let atleast_2d_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("atleast_2d() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::Tensor(t) => Ok(Object::Tensor(t.atleast_2d())),
+            Object::Integer(i) => Ok(Object::Tensor(Tensor::new(vec![*i as f64], vec![1, 1]).unwrap())),
+            Object::Float(f) => Ok(Object::Tensor(Tensor::new(vec![*f], vec![1, 1]).unwrap())),
+            _ => Err("atleast_2d() argument must be numeric or tensor".to_string()),
+        }
+    });
+    env.borrow_mut().set("atleast_2d".to_string(), atleast_2d_fn);
 
     let clamp_fn = Object::NativeFn(|args| {
         if args.len() != 3 {

@@ -270,6 +270,13 @@ impl TypeChecker {
         env.set("is_integer".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Bool)));
         env.set("getattr".to_string(), Type::Function(vec![Type::Any, Type::String], Box::new(Type::Any)));
         env.set("hasattr".to_string(), Type::Function(vec![Type::Any, Type::String], Box::new(Type::Bool)));
+        env.set("callable".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Bool)));
+        env.set("isspace".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("istitle".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("degrees".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("radians".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
+        env.set("atleast_1d".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Tensor)));
+        env.set("atleast_2d".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Tensor)));
         env
     }
 

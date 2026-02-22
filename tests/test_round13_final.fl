@@ -1,0 +1,43 @@
+# Round 13 Refinements Verification
+
+print("--- Testing callable() ---")
+fn f(x) { x }
+print("callable(f):", callable(f))
+print("callable(print):", callable(print))
+print("callable(42):", callable(42))
+print("callable([1, 2]):", callable([1, 2]))
+
+print("\n--- Testing String predicates ---")
+print("isspace('  \\t\\n '):", isspace("  \t\n "))
+print("isspace('  a  '):", isspace("  a  "))
+print("isspace(''):", isspace(""))
+
+print("istitle('Hello World'):", istitle("Hello World"))
+print("istitle('Hello world'):", istitle("Hello world"))
+print("istitle('HELLO WORLD'):", istitle("HELLO WORLD"))
+print("istitle('123 Title'):", istitle("123 Title"))
+
+print("\n--- Testing Math conversions ---")
+print("degrees(PI):", degrees(PI))
+print("radians(180):", radians(180))
+
+print("\n--- Testing Tensor atleast_1d() and atleast_2d() ---")
+let s = 42.0
+print("Scalar s:", s)
+print("atleast_1d(s):", atleast_1d(s))
+print("atleast_2d(s):", atleast_2d(s))
+
+let t1 = tensor([1.0, 2.0])
+print("1D Tensor t1:", t1)
+print("atleast_1d(t1):", atleast_1d(t1))
+print("atleast_2d(t1):", atleast_2d(t1))
+
+let t2 = reshape(tensor([1.0, 2.0, 3.0, 4.0]), [2, 2])
+print("2D Tensor t2:\n", t2)
+print("atleast_2d(t2):\n", atleast_2d(t2))
+
+print("\n--- Testing dir() updates ---")
+print("dir(t1) includes cumsum:", "cumsum" in dir(t1))
+print("dir(t1) includes atleast_1d:", "atleast_1d" in dir(t1))
+
+print("\n--- Verification Complete ---")

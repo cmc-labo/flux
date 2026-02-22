@@ -349,6 +349,26 @@ impl Tensor {
             Tensor::new(data, vec![self.inner.len()]).unwrap()
         }
     }
+
+    pub fn atleast_1d(&self) -> Tensor {
+        if self.inner.ndim() >= 1 {
+            self.clone()
+        } else {
+            self.unsqueeze(0).unwrap()
+        }
+    }
+
+    pub fn atleast_2d(&self) -> Tensor {
+        let ndim = self.inner.ndim();
+        if ndim >= 2 {
+            self.clone()
+        } else if ndim == 1 {
+            self.unsqueeze(0).unwrap()
+        } else {
+            // 0D -> 1D -> 2D
+            self.unsqueeze(0).unwrap().unsqueeze(0).unwrap()
+        }
+    }
 }
 
 impl fmt::Display for Tensor {
