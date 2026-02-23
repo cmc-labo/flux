@@ -1,0 +1,17 @@
+{
+    "name": "Flux Playground",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "rust-lang.rust-analyzer",
+                "tamasfe.even-better-toml",
+                "serayuzgur.crates"
+            ]
+        }
+    },
+    "postCreateCommand": "cargo build",
+    "remoteUser": "vscode"
+}

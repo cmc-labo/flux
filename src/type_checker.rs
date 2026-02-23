@@ -172,6 +172,9 @@ impl TypeChecker {
         env.set("isascii".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
         env.set("isprintable".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
         env.set("isidentifier".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("isdigit".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("isdecimal".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
+        env.set("isnumeric".to_string(), Type::Function(vec![Type::String], Box::new(Type::Bool)));
         env.set("chr".to_string(), Type::Function(vec![Type::Int], Box::new(Type::String)));
         env.set("ord".to_string(), Type::Function(vec![Type::String], Box::new(Type::Int)));
         env.set("bin".to_string(), Type::Function(vec![Type::Int], Box::new(Type::String)));
@@ -201,7 +204,7 @@ impl TypeChecker {
         env.set("mean".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("var".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
         env.set("std".to_string(), Type::Function(vec![Type::Any], Box::new(Type::Float)));
-        env.set("isclose".to_string(), Type::Function(vec![Type::Any, Type::Any], Box::new(Type::Bool)));
+        env.set("isclose".to_string(), Type::Function(vec![Type::Float, Type::Float], Box::new(Type::Bool)));
         env.set("swap".to_string(), Type::Function(vec![Type::List(Box::new(Type::Any)), Type::Int, Type::Int], Box::new(Type::Null)));
 
         // Set

@@ -3025,7 +3025,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         
         let methods = match &args[0] {
             Object::List(_) => vec!["append", "extend", "pop", "remove", "insert", "clear", "reverse", "sort", "index", "count", "swap", "unique", "flat"],
-            Object::String(_) => vec!["upper", "lower", "capitalize", "title", "swapcase", "casefold", "strip", "lstrip", "rstrip", "startswith", "endswith", "replace", "split", "splitlines", "join", "find", "rfind", "index", "rindex", "count", "isspace", "istitle"],
+            Object::String(_) => vec!["upper", "lower", "capitalize", "title", "swapcase", "casefold", "strip", "lstrip", "rstrip", "startswith", "endswith", "replace", "split", "splitlines", "join", "find", "rfind", "index", "rindex", "count", "isspace", "istitle", "isdigit", "isdecimal", "isnumeric", "ljust", "rjust"],
             Object::Tensor(_) => vec!["shape", "ndim", "len", "reshape", "transpose", "squeeze", "unsqueeze", "argmax", "argmin", "sum", "mean", "std", "var", "clip", "norm", "diag", "trace", "item", "fill", "sqrt", "exp", "log", "cumsum", "cumprod", "atleast_1d", "atleast_2d"],
             Object::Dictionary(_) => vec!["keys", "values", "items", "get", "update", "pop", "popitem", "clear", "setdefault", "fromkeys"],
             Object::Set(_) => vec!["add", "discard", "clear", "union", "intersection", "difference", "symmetric_difference", "issubset", "issuperset", "isdisjoint"],
