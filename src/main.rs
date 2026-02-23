@@ -2992,7 +2992,7 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
         
         let methods = match &args[0] {
             Object::List(_) => vec!["append", "extend", "pop", "remove", "insert", "clear", "reverse", "sort", "index", "count", "swap", "unique", "flat"],
-            Object::String(_) => vec!["upper", "lower", "capitalize", "title", "swapcase", "casefold", "strip", "lstrip", "rstrip", "startswith", "endswith", "replace", "split", "splitlines", "join", "find", "rfind", "index", "rindex", "count"],
+            Object::String(_) => vec!["upper", "lower", "capitalize", "title", "swapcase", "casefold", "strip", "lstrip", "rstrip", "startswith", "endswith", "replace", "split", "splitlines", "join", "find", "rfind", "index", "rindex", "count", "isspace", "istitle", "isdigit", "isdecimal", "isnumeric", "ljust", "rjust"],
             Object::Tensor(_) => vec!["shape", "ndim", "len", "reshape", "transpose", "squeeze", "unsqueeze", "argmax", "argmin", "sum", "mean", "std", "var", "clip", "norm", "diag", "trace", "item", "fill", "sqrt", "exp", "log"],
             Object::Dictionary(_) => vec!["keys", "values", "items", "get", "update", "pop", "popitem", "clear", "setdefault", "fromkeys"],
             Object::Set(_) => vec!["add", "discard", "clear", "union", "intersection", "difference", "symmetric_difference", "issubset", "issuperset", "isdisjoint"],
@@ -3593,7 +3593,118 @@ fn register_builtins(env: Rc<RefCell<Environment>>) {
     });
     env.borrow_mut().set("isupper".to_string(), isupper_fn);
 
-    // Registry continues below...
+    let isdigit_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isdigit() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))),
+            _ => Err(format!("isdigit() arg must be string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isdigit".to_string(), isdigit_fn);
+
+    let isdecimal_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isdecimal() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))), // Simplified for ASCII
+            _ => Err(format!("isdecimal() arg must be string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isdecimal".to_string(), isdecimal_fn);
+
+    let isnumeric_fn = Object::NativeFn(|args| {
+        if args.len() != 1 { return Err("isnumeric() takes exactly 1 argument".to_string()); }
+        match &args[0] {
+            Object::String(s) => Ok(Object::Boolean(!s.is_empty() && s.chars().all(|c| c.is_numeric()))),
+            _ => Err(format!("isnumeric() arg must be string, got {}", args[0])),
+        }
+    });
+    env.borrow_mut().set("isnumeric".to_string(), isnumeric_fn);
+
+    let ljust_fn = Object::NativeFn(|args| {
+        if args.len() < 2 || args.len() > 3 { return Err("ljust() takes 2 or 3 arguments (string, width, [fillchar])".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("ljust() first arg must be string".to_string()) };
+        let width = match &args[1] { Object::Integer(i) => *i as usize, _ => return Err("ljust() second arg must be integer".to_string()) };
+        let fill = if args.len() == 3 {
+            match &args[2] {
+                Object::String(val) => {
+                    if val.chars().count() != 1 { return Err("ljust() fillchar must be a single character".to_string()); }
+                    val.clone()
+                },
+                _ => return Err("ljust() fillchar must be a string".to_string()),
+            }
+        } else { " ".to_string() };
+        if s.len() >= width { return Ok(Object::String(s.clone())); }
+        Ok(Object::String(format!("{}{}", s, fill.repeat(width - s.len()))))
+    });
+    env.borrow_mut().set("ljust".to_string(), ljust_fn);
+
+    let rjust_fn = Object::NativeFn(|args| {
+        if args.len() < 2 || args.len() > 3 { return Err("rjust() takes 2 or 3 arguments (string, width, [fillchar])".to_string()); }
+        let s = match &args[0] { Object::String(val) => val, _ => return Err("rjust() first arg must be string".to_string()) };
+        let width = match &args[1] { Object::Integer(i) => *i as usize, _ => return Err("rjust() second arg must be integer".to_string()) };
+        let fill = if args.len() == 3 {
+            match &args[2] {
+                Object::String(val) => {
+                    if val.chars().count() != 1 { return Err("rjust() fillchar must be a single character".to_string()); }
+                    val.clone()
+                },
+                _ => return Err("rjust() fillchar must be a string".to_string()),
+            }
+        } else { " ".to_string() };
+        if s.len() >= width { return Ok(Object::String(s.clone())); }
+        Ok(Object::String(format!("{}{}", fill.repeat(width - s.len()), s)))
+    });
+    env.borrow_mut().set("rjust".to_string(), rjust_fn);
+
+    let gcd_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("gcd() takes exactly 2 arguments".to_string()); }
+        let mut a = match args[0] { Object::Integer(i) => i.abs(), _ => return Err("gcd() args must be integers".to_string()) };
+        let mut b = match args[1] { Object::Integer(i) => i.abs(), _ => return Err("gcd() args must be integers".to_string()) };
+        while b != 0 {
+            a %= b;
+            std::mem::swap(&mut a, &mut b);
+        }
+        Ok(Object::Integer(a))
+    });
+    env.borrow_mut().set("gcd".to_string(), gcd_fn);
+
+    let lcm_fn = Object::NativeFn(|args| {
+        if args.len() != 2 { return Err("lcm() takes exactly 2 arguments".to_string()); }
+        let a = match args[0] { Object::Integer(i) => i.abs(), _ => return Err("lcm() args must be integers".to_string()) };
+        let b = match args[1] { Object::Integer(i) => i.abs(), _ => return Err("lcm() args must be integers".to_string()) };
+        if a == 0 || b == 0 { return Ok(Object::Integer(0)); }
+        
+        // lcd(a, b) = |a*b| / gcd(a, b)
+        let mut x = a;
+        let mut y = b;
+        while y != 0 {
+            x %= y;
+            std::mem::swap(&mut x, &mut y);
+        }
+        let gcd = x;
+        Ok(Object::Integer((a / gcd) * b))
+    });
+    env.borrow_mut().set("lcm".to_string(), lcm_fn);
+
+    let isclose_fn = Object::NativeFn(|args| {
+        if args.len() < 2 || args.len() > 4 { return Err("isclose() takes 2 to 4 arguments (a, b, [rel_tol], [abs_tol])".to_string()); }
+        let a = match args[0] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("isclose() args must be numeric".to_string()) };
+        let b = match args[1] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("isclose() args must be numeric".to_string()) };
+        let rel_tol = if args.len() >= 3 {
+            match args[2] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("isclose() rel_tol must be numeric".to_string()) }
+        } else { 1e-09 };
+        let abs_tol = if args.len() == 4 {
+            match args[3] { Object::Integer(i) => i as f64, Object::Float(f) => f, _ => return Err("isclose() abs_tol must be numeric".to_string()) }
+        } else { 0.0 };
+
+        if a == b { return Ok(Object::Boolean(true)); }
+        if a.is_infinite() || b.is_infinite() { return Ok(Object::Boolean(false)); }
+        
+        let diff = (a - b).abs();
+        let is_c = diff <= (rel_tol * a.abs()).max(rel_tol * b.abs()).max(abs_tol);
+        Ok(Object::Boolean(is_c))
+    });
+    env.borrow_mut().set("isclose".to_string(), isclose_fn);
 
     // Constants
     env.borrow_mut().set("true".to_string(), Object::Boolean(true));
