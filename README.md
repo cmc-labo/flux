@@ -103,17 +103,37 @@ print("PyTorch:", t)
 
 ## Getting Started
 
-### Prerequisites
+### Cloud Development Environments
+
+Try Flux instantly in your browser with pre-configured cloud environments.
+
+#### GitHub Codespaces
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/cmc-labo/flux)
+
+- One-click development environment setup
+- Rust, rust-analyzer, and essential tools pre-installed
+- `cargo build` runs automatically on creation
+
+#### Gitpod
+[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/cmc-labo/flux)
+
+- Full development environment in your browser
+- Builds on init and launches the REPL automatically
+- VS Code extensions (rust-analyzer, etc.) pre-configured
+
+### Local Development
+
+#### Prerequisites
 - [Rust](https://www.rust-lang.org/tools/install) (stable)
 
-### Installation
+#### Installation
 ```bash
 git clone https://github.com/cmc-labo/flux.git
 cd flux
 cargo build --release
 ```
 
-### Usage
+#### Usage
 - **Run Script**: `cargo run -- path/to/script.fl`
 - **Interactive REPL**: `cargo run` (Start typing Flux code directly!)
 
